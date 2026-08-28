@@ -210,7 +210,7 @@ class TokenBaseModel(Base):
         autoincrement=True,
     )
     token: Mapped[str] = mapped_column(
-        String(64),
+        String(255),
         nullable=False,
         unique=True,
         default=generate_secure_token,
@@ -258,7 +258,7 @@ class RefreshTokenModel(TokenBaseModel):
     __tablename__ = "refresh_tokens"
 
     token: Mapped[str] = mapped_column(
-        String(512),
+        String(255),
         nullable=False,
         unique=True,
     )

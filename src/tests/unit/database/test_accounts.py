@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta, timezone
+from typing import cast
 
 import pytest
+from sqlalchemy import String, Table
 
 from src.database.models.accounts import (
+    ActivationTokenModel,
+    PasswordResetTokenModel,
     RefreshTokenModel,
     UserGroupEnum,
     UserGroupModel,
@@ -105,3 +109,14 @@ def test_generate_secure_token_returns_unique_hex_values() -> None:
     assert first_token != second_token
     int(first_token, 16)
     int(second_token, 16)
+
+
+def test_token_columns_match_assignment_schema() -> None:
+    for model in (
+        ActivationTokenModel,
+        PasswordResetTokenModel,
+        RefreshTokenModel,
+    ):
+        table = cast(Table, model.__table__)
+        token_type = cast(String, table.c.token.type)
+        assert token_type.length == 255
