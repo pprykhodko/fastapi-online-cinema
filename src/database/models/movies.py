@@ -81,7 +81,7 @@ class GenreModel(Base):
         autoincrement=True,
     )
     name: Mapped[str] = mapped_column(
-        String(255),
+        String(100),
         nullable=False,
         unique=True,
     )
@@ -108,7 +108,7 @@ class StarModel(Base):
         autoincrement=True,
     )
     name: Mapped[str] = mapped_column(
-        String(255),
+        String(100),
         nullable=False,
         unique=True,
     )
@@ -135,7 +135,7 @@ class DirectorModel(Base):
         autoincrement=True,
     )
     name: Mapped[str] = mapped_column(
-        String(255),
+        String(100),
         nullable=False,
         unique=True,
     )
@@ -162,7 +162,7 @@ class CertificationModel(Base):
         autoincrement=True,
     )
     name: Mapped[str] = mapped_column(
-        String(50),
+        String(100),
         nullable=False,
         unique=True,
     )
@@ -188,7 +188,6 @@ class MovieModel(Base):
             "time",
             name="uq_movies_name_year_time",
         ),
-        CheckConstraint("year >= 1888", name="valid_release_year"),
         CheckConstraint("time > 0", name="positive_duration"),
         CheckConstraint(
             "imdb >= 0 AND imdb <= 10",
@@ -218,13 +217,13 @@ class MovieModel(Base):
         unique=True,
         default=uuid4,
     )
-    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
     year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     time: Mapped[int] = mapped_column(Integer, nullable=False)
     imdb: Mapped[float] = mapped_column(Float, nullable=False, index=True)
     votes: Mapped[int] = mapped_column(Integer, nullable=False)
     meta_score: Mapped[Optional[float]] = mapped_column(Float)
-    gross: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(15, 2))
+    gross: Mapped[Optional[float]] = mapped_column(Float)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     price: Mapped[Decimal] = mapped_column(
         DECIMAL(10, 2),
@@ -259,10 +258,6 @@ class MovieModel(Base):
     def validate_name(self, _key: str, value: str) -> str:
         return validators.validate_name(value)
 
-    @validates("year")
-    def validate_year(self, _key: str, value: int) -> int:
-        return validators.validate_release_year(value)
-
     @validates("time")
     def validate_time(self, _key: str, value: int) -> int:
         return validators.validate_duration(value)
@@ -287,9 +282,9 @@ class MovieModel(Base):
     def validate_gross(
         self,
         _key: str,
-        value: Optional[Decimal],
-    ) -> Optional[Decimal]:
-        return validators.validate_non_negative_decimal(value, "gross")
+        value: Optional[float],
+    ) -> Optional[float]:
+        return validators.validate_non_negative_float(value, "gross")
 
     @validates("price")
     def validate_price(self, _key: str, value: Decimal) -> Decimal:

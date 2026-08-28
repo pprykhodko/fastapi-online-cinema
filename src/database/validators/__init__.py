@@ -10,7 +10,7 @@ from src.database.validators.movies import (
     validate_meta_score,
     validate_name,
     validate_non_negative_decimal,
-    validate_release_year,
+    validate_non_negative_float,
     validate_votes,
 )
 
@@ -22,7 +22,7 @@ __all__ = [
     "validate_meta_score",
     "validate_name",
     "validate_non_negative_decimal",
+    "validate_non_negative_float",
     "validate_password_strength",
-    "validate_release_year",
     "validate_votes",
 ]

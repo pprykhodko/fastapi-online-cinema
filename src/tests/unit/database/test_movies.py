@@ -1,9 +1,15 @@
-from datetime import datetime, timezone
 from decimal import Decimal
 from typing import cast
 
 import pytest
-from sqlalchemy import Table, UniqueConstraint, create_engine, inspect
+from sqlalchemy import (
+    Float,
+    String,
+    Table,
+    UniqueConstraint,
+    create_engine,
+    inspect,
+)
 
 from src.database import Base
 from src.database.models.movies import (
@@ -17,14 +23,12 @@ from src.database.models.movies import (
     StarModel,
 )
 from src.database.validators.movies import (
-    EARLIEST_MOVIE_YEAR,
-    FUTURE_RELEASE_YEAR_LIMIT,
     validate_duration,
     validate_imdb_rating,
     validate_meta_score,
     validate_name,
     validate_non_negative_decimal,
-    validate_release_year,
+    validate_non_negative_float,
     validate_votes,
 )
 
@@ -37,20 +41,6 @@ def test_validate_name_rejects_empty_values(name: str) -> None:
 
 def test_validate_name_strips_whitespace() -> None:
     assert validate_name("  The Matrix  ") == "The Matrix"
-
-
-@pytest.mark.parametrize(
-    "year",
-    [
-        EARLIEST_MOVIE_YEAR - 1,
-        datetime.now(timezone.utc).year + FUTURE_RELEASE_YEAR_LIMIT + 1,
-    ],
-)
-def test_validate_release_year_rejects_out_of_range_years(
-    year: int,
-) -> None:
-    with pytest.raises(ValueError):
-        validate_release_year(year)
 
 
 @pytest.mark.parametrize("duration", [0, -1])
@@ -87,6 +77,11 @@ def test_validate_non_negative_decimal_rejects_negative_value() -> None:
         validate_non_negative_decimal(Decimal("-0.01"), "price")
 
 
+def test_validate_non_negative_float_rejects_negative_value() -> None:
+    with pytest.raises(ValueError):
+        validate_non_negative_float(-0.01, "gross")
+
+
 def test_named_models_normalize_names() -> None:
     names = [
         GenreModel(name="  Action ").name,
@@ -111,7 +106,7 @@ def test_movie_model_validates_and_normalizes_values() -> None:
         imdb=8.7,
         votes=2_000_000,
         meta_score=73,
-        gross=Decimal("467200000.00"),
+        gross=467_200_000.0,
         description="A hacker discovers the nature of reality.",
         price=Decimal("9.99"),
         certification_id=1,
@@ -120,6 +115,21 @@ def test_movie_model_validates_and_normalizes_values() -> None:
     assert movie.name == "The Matrix"
     assert movie.year == 1999
     assert movie.price == Decimal("9.99")
+
+
+def test_movie_columns_match_assignment_schema() -> None:
+    movie_table = cast(Table, MovieModel.__table__)
+    genre_table = cast(Table, GenreModel.__table__)
+    star_table = cast(Table, StarModel.__table__)
+    director_table = cast(Table, DirectorModel.__table__)
+    certification_table = cast(Table, CertificationModel.__table__)
+
+    assert cast(String, movie_table.c.name.type).length == 250
+    assert isinstance(movie_table.c.gross.type, Float)
+    assert cast(String, genre_table.c.name.type).length == 100
+    assert cast(String, star_table.c.name.type).length == 100
+    assert cast(String, director_table.c.name.type).length == 100
+    assert cast(String, certification_table.c.name.type).length == 100
 
 
 def test_movie_identity_has_unique_constraint() -> None:

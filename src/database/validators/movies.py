@@ -1,10 +1,5 @@
-from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
-
-
-EARLIEST_MOVIE_YEAR = 1888
-FUTURE_RELEASE_YEAR_LIMIT = 5
 
 
 def validate_name(name: str) -> str:
@@ -12,15 +7,6 @@ def validate_name(name: str) -> str:
     if not normalized_name:
         raise ValueError("Name must not be empty.")
     return normalized_name
-
-
-def validate_release_year(year: int) -> int:
-    latest_year = datetime.now(timezone.utc).year + FUTURE_RELEASE_YEAR_LIMIT
-    if not EARLIEST_MOVIE_YEAR <= year <= latest_year:
-        raise ValueError(
-            f"Year must be between {EARLIEST_MOVIE_YEAR} and {latest_year}."
-        )
-    return year
 
 
 def validate_duration(duration: int) -> int:
@@ -51,6 +37,15 @@ def validate_non_negative_decimal(
     value: Optional[Decimal],
     field_name: str,
 ) -> Optional[Decimal]:
+    if value is not None and value < 0:
+        raise ValueError(f"{field_name.capitalize()} must not be negative.")
+    return value
+
+
+def validate_non_negative_float(
+    value: Optional[float],
+    field_name: str,
+) -> Optional[float]:
     if value is not None and value < 0:
         raise ValueError(f"{field_name.capitalize()} must not be negative.")
     return value
