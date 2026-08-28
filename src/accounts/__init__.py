@@ -1,1 +1,0 @@
-"""User accounts domain package."""
