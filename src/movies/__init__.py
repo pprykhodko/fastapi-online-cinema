@@ -1,1 +1,0 @@
-"""Movie catalog domain package."""
