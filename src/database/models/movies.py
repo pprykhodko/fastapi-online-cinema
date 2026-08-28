@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -21,6 +21,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from src.database.models.base import Base
 from src.database.validators import movies as validators
+
+if TYPE_CHECKING:
+    from src.database.models.cart import CartItemModel
 
 
 MoviesGenresModel = Table(
@@ -246,6 +249,10 @@ class MovieModel(Base):
     stars: Mapped[List[StarModel]] = relationship(
         secondary=MoviesStarsModel,
         back_populates="movies",
+    )
+    cart_items: Mapped[List[CartItemModel]] = relationship(
+        back_populates="movie",
+        passive_deletes=True,
     )
 
     @validates("name")

@@ -1,6 +1,8 @@
 from src.database.models import (
     ActivationTokenModel,
     Base,
+    CartItemModel,
+    CartModel,
     CertificationModel,
     DirectorModel,
     GenderEnum,
@@ -22,6 +24,8 @@ from src.database.models import (
 __all__ = [
     "ActivationTokenModel",
     "Base",
+    "CartItemModel",
+    "CartModel",
     "CertificationModel",
     "DirectorModel",
     "GenderEnum",

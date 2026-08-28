@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 from datetime import date, datetime, timedelta, timezone
-from typing import List, NoReturn, Optional
+from typing import TYPE_CHECKING, List, NoReturn, Optional
 
 from sqlalchemy import (
     Boolean,
@@ -23,6 +23,9 @@ from src.database.models.base import Base
 from src.database.validators import accounts as validators
 from src.security.passwords import hash_password, verify_password
 from src.security.utils import generate_secure_token
+
+if TYPE_CHECKING:
+    from src.database.models.cart import CartModel
 
 
 class UserGroupEnum(str, enum.Enum):
@@ -118,6 +121,12 @@ class UserModel(Base):
         passive_deletes=True,
     )
     profile: Mapped[Optional[UserProfileModel]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+    )
+    cart: Mapped[Optional[CartModel]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -262,7 +271,6 @@ class RefreshTokenModel(TokenBaseModel):
         days_valid: int,
         token: str,
     ) -> RefreshTokenModel:
-        """Create a refresh token with a calculated expiration time."""
         expires_at = datetime.now(timezone.utc) + timedelta(days=days_valid)
         return cls(user_id=user_id, expires_at=expires_at, token=token)
 

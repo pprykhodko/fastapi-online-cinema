@@ -10,6 +10,7 @@ from src.database.models.accounts import (
     UserProfileModel,
 )
 from src.database.models.base import Base
+from src.database.models.cart import CartItemModel, CartModel
 from src.database.models.movies import (
     CertificationModel,
     DirectorModel,
@@ -25,6 +26,8 @@ from src.database.models.movies import (
 __all__ = [
     "ActivationTokenModel",
     "Base",
+    "CartItemModel",
+    "CartModel",
     "CertificationModel",
     "DirectorModel",
     "GenderEnum",
