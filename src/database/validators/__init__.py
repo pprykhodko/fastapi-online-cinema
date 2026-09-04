@@ -13,6 +13,10 @@ from src.database.validators.movies import (
     validate_non_negative_float,
     validate_votes,
 )
+from src.database.validators.orders import (
+    validate_price_at_order,
+    validate_total_amount,
+)
 
 
 __all__ = [
@@ -24,5 +28,7 @@ __all__ = [
     "validate_non_negative_decimal",
     "validate_non_negative_float",
     "validate_password_strength",
+    "validate_price_at_order",
+    "validate_total_amount",
     "validate_votes",
 ]

@@ -21,6 +21,11 @@ from src.database.models.movies import (
     MoviesStarsModel,
     StarModel,
 )
+from src.database.models.orders import (
+    OrderItemModel,
+    OrderModel,
+    OrderStatusEnum,
+)
 
 
 __all__ = [
@@ -36,6 +41,9 @@ __all__ = [
     "MoviesDirectorsModel",
     "MoviesGenresModel",
     "MoviesStarsModel",
+    "OrderItemModel",
+    "OrderModel",
+    "OrderStatusEnum",
     "PasswordResetTokenModel",
     "RefreshTokenModel",
     "StarModel",

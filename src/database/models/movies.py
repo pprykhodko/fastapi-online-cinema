@@ -24,6 +24,7 @@ from src.database.validators import movies as validators
 
 if TYPE_CHECKING:
     from src.database.models.cart import CartItemModel
+    from src.database.models.orders import OrderItemModel
 
 
 MoviesGenresModel = Table(
@@ -250,6 +251,10 @@ class MovieModel(Base):
         back_populates="movies",
     )
     cart_items: Mapped[List[CartItemModel]] = relationship(
+        back_populates="movie",
+        passive_deletes=True,
+    )
+    order_items: Mapped[List[OrderItemModel]] = relationship(
         back_populates="movie",
         passive_deletes=True,
     )
