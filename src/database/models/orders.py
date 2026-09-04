@@ -14,6 +14,7 @@ from src.database.validators import orders as validators
 if TYPE_CHECKING:
     from src.database.models.accounts import UserModel
     from src.database.models.movies import MovieModel
+    from src.database.models.payments import PaymentItemModel, PaymentModel
 
 
 class OrderStatusEnum(str, enum.Enum):
@@ -62,6 +63,10 @@ class OrderModel(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    payments: Mapped[List[PaymentModel]] = relationship(
+        back_populates="order",
+        passive_deletes=True,
+    )
 
     @validates("total_amount")
     def validate_total_amount(
@@ -102,6 +107,10 @@ class OrderItemModel(Base):
 
     order: Mapped[OrderModel] = relationship(back_populates="items")
     movie: Mapped[MovieModel] = relationship(back_populates="order_items")
+    payment_items: Mapped[List[PaymentItemModel]] = relationship(
+        back_populates="order_item",
+        passive_deletes=True,
+    )
 
     @validates("price_at_order")
     def validate_price_at_order(

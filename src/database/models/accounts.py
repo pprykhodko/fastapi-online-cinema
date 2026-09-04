@@ -27,6 +27,7 @@ from src.security.utils import generate_secure_token
 if TYPE_CHECKING:
     from src.database.models.cart import CartModel
     from src.database.models.orders import OrderModel
+    from src.database.models.payments import PaymentModel
 
 
 class UserGroupEnum(str, enum.Enum):
@@ -134,6 +135,10 @@ class UserModel(Base):
         uselist=False,
     )
     orders: Mapped[List[OrderModel]] = relationship(
+        back_populates="user",
+        passive_deletes=True,
+    )
+    payments: Mapped[List[PaymentModel]] = relationship(
         back_populates="user",
         passive_deletes=True,
     )

@@ -26,6 +26,11 @@ from src.database.models.orders import (
     OrderModel,
     OrderStatusEnum,
 )
+from src.database.models.payments import (
+    PaymentItemModel,
+    PaymentModel,
+    PaymentStatusEnum,
+)
 
 
 __all__ = [
@@ -44,6 +49,9 @@ __all__ = [
     "OrderItemModel",
     "OrderModel",
     "OrderStatusEnum",
+    "PaymentItemModel",
+    "PaymentModel",
+    "PaymentStatusEnum",
     "PasswordResetTokenModel",
     "RefreshTokenModel",
     "StarModel",
