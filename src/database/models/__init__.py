@@ -11,6 +11,8 @@ from src.database.models.accounts import (
 )
 from src.database.models.base import Base
 from src.database.models.cart import CartItemModel, CartModel
+from src.database.models.comments import CommentLikeModel, MovieCommentModel
+from src.database.models.favorites import MovieFavoriteModel
 from src.database.models.movies import (
     CertificationModel,
     DirectorModel,
@@ -31,6 +33,8 @@ from src.database.models.payments import (
     PaymentModel,
     PaymentStatusEnum,
 )
+from src.database.models.ratings import MovieRatingModel
+from src.database.models.reactions import MovieReactionEnum, MovieReactionModel
 
 
 __all__ = [
@@ -39,10 +43,16 @@ __all__ = [
     "CartItemModel",
     "CartModel",
     "CertificationModel",
+    "CommentLikeModel",
     "DirectorModel",
     "GenderEnum",
     "GenreModel",
+    "MovieCommentModel",
+    "MovieFavoriteModel",
     "MovieModel",
+    "MovieRatingModel",
+    "MovieReactionEnum",
+    "MovieReactionModel",
     "MoviesDirectorsModel",
     "MoviesGenresModel",
     "MoviesStarsModel",

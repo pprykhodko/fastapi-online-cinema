@@ -4,6 +4,7 @@ from src.database.validators.accounts import (
     validate_email,
     validate_password_strength,
 )
+from src.database.validators.comments import validate_comment_content
 from src.database.validators.movies import (
     validate_duration,
     validate_imdb_rating,
@@ -21,13 +22,17 @@ from src.database.validators.payments import (
     validate_payment_amount,
     validate_price_at_payment,
 )
+from src.database.validators.ratings import validate_user_rating
+from src.database.validators.reactions import validate_movie_reaction
 
 
 __all__ = [
+    "validate_comment_content",
     "validate_duration",
     "validate_email",
     "validate_imdb_rating",
     "validate_meta_score",
+    "validate_movie_reaction",
     "validate_name",
     "validate_non_negative_decimal",
     "validate_non_negative_float",
@@ -36,5 +41,6 @@ __all__ = [
     "validate_price_at_order",
     "validate_price_at_payment",
     "validate_total_amount",
+    "validate_user_rating",
     "validate_votes",
 ]

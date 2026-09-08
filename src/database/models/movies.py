@@ -24,7 +24,11 @@ from src.database.validators import movies as validators
 
 if TYPE_CHECKING:
     from src.database.models.cart import CartItemModel
+    from src.database.models.comments import MovieCommentModel
+    from src.database.models.favorites import MovieFavoriteModel
     from src.database.models.orders import OrderItemModel
+    from src.database.models.ratings import MovieRatingModel
+    from src.database.models.reactions import MovieReactionModel
 
 
 MoviesGenresModel = Table(
@@ -257,6 +261,24 @@ class MovieModel(Base):
     order_items: Mapped[List[OrderItemModel]] = relationship(
         back_populates="movie",
         passive_deletes=True,
+    )
+    favorites: Mapped[List[MovieFavoriteModel]] = relationship(
+        back_populates="movie",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    ratings: Mapped[List[MovieRatingModel]] = relationship(
+        back_populates="movie",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    reactions: Mapped[List[MovieReactionModel]] = relationship(
+        back_populates="movie",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    comments: Mapped[List[MovieCommentModel]] = relationship(
+        back_populates="movie", passive_deletes="all",
     )
 
     @validates("name")

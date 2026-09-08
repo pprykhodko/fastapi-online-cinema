@@ -26,8 +26,15 @@ from src.security.utils import generate_secure_token
 
 if TYPE_CHECKING:
     from src.database.models.cart import CartModel
+    from src.database.models.comments import (
+        CommentLikeModel,
+        MovieCommentModel,
+    )
+    from src.database.models.favorites import MovieFavoriteModel
     from src.database.models.orders import OrderModel
     from src.database.models.payments import PaymentModel
+    from src.database.models.ratings import MovieRatingModel
+    from src.database.models.reactions import MovieReactionModel
 
 
 class UserGroupEnum(str, enum.Enum):
@@ -140,6 +147,29 @@ class UserModel(Base):
     )
     payments: Mapped[List[PaymentModel]] = relationship(
         back_populates="user",
+        passive_deletes=True,
+    )
+    favorite_movies: Mapped[List[MovieFavoriteModel]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    movie_ratings: Mapped[List[MovieRatingModel]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    movie_reactions: Mapped[List[MovieReactionModel]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    movie_comments: Mapped[List[MovieCommentModel]] = relationship(
+        back_populates="user", passive_deletes="all",
+    )
+    comment_likes: Mapped[List[CommentLikeModel]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
         passive_deletes=True,
     )
 
