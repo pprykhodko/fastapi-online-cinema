@@ -2,8 +2,11 @@ import re
 
 import email_validator
 
+from src.security.passwords import validate_password_for_bcrypt
+
 
 def validate_password_strength(password: str) -> str:
+    validate_password_for_bcrypt(password)
     if len(password) < 8:
         raise ValueError("Password must contain at least 8 characters.")
     if not re.search(r"[A-Z]", password):

@@ -67,8 +67,6 @@ class MovieCommentModel(Base):
 
     user: Mapped[UserModel] = relationship(back_populates="movie_comments")
     movie: Mapped[MovieModel] = relationship(back_populates="comments")
-    # Only parent_id is written by this relationship. movie_id is owned by
-    # movie; the composite foreign key still enforces the same-film rule.
     parent: Mapped[Optional[MovieCommentModel]] = relationship(
         back_populates="replies", remote_side=[id], foreign_keys=[parent_id],
     )

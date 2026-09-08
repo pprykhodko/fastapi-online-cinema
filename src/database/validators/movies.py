@@ -1,6 +1,8 @@
 from decimal import Decimal
 from typing import Optional
 
+from src.database.validators.money import validate_money
+
 
 def validate_name(name: str) -> str:
     normalized_name = name.strip()
@@ -37,9 +39,9 @@ def validate_non_negative_decimal(
     value: Optional[Decimal],
     field_name: str,
 ) -> Optional[Decimal]:
-    if value is not None and value < 0:
-        raise ValueError(f"{field_name.capitalize()} must not be negative.")
-    return value
+    if value is None:
+        return None
+    return validate_money(value, field_name)
 
 
 def validate_non_negative_float(

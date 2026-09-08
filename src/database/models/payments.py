@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     DECIMAL,
     Enum,
@@ -32,6 +33,12 @@ class PaymentStatusEnum(str, enum.Enum):
 
 class PaymentModel(Base):
     __tablename__ = "payments"
+    __table_args__ = (
+        CheckConstraint(
+            "amount >= 0 AND amount <= 99999999.99",
+            name="valid_payment_amount",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -59,6 +66,8 @@ class PaymentModel(Base):
             name="payment_status_enum",
             native_enum=False,
             length=50,
+            create_constraint=True,
+            validate_strings=True,
             values_callable=lambda enum_type: [
                 item.value for item in enum_type
             ],
@@ -81,6 +90,10 @@ class PaymentModel(Base):
         passive_deletes=True,
     )
 
+    @validates("status")
+    def validate_status(self, _key: str, value: str) -> PaymentStatusEnum:
+        return PaymentStatusEnum(validators.validate_payment_status(value))
+
     @validates("amount")
     def validate_amount(self, _key: str, value: Decimal) -> Decimal:
         return validators.validate_payment_amount(value)
@@ -94,6 +107,12 @@ class PaymentModel(Base):
 
 class PaymentItemModel(Base):
     __tablename__ = "payment_items"
+    __table_args__ = (
+        CheckConstraint(
+            "price_at_payment >= 0 AND price_at_payment <= 99999999.99",
+            name="valid_price_at_payment",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer,

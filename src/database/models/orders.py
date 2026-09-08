@@ -5,7 +5,9 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import DateTime, DECIMAL, Enum, ForeignKey, Integer, func
+from sqlalchemy import (
+    CheckConstraint, DateTime, DECIMAL, Enum, ForeignKey, Integer, func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from src.database.models.base import Base
@@ -25,6 +27,12 @@ class OrderStatusEnum(str, enum.Enum):
 
 class OrderModel(Base):
     __tablename__ = "orders"
+    __table_args__ = (
+        CheckConstraint(
+            "total_amount >= 0 AND total_amount <= 99999999.99",
+            name="valid_order_total_amount",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -47,6 +55,8 @@ class OrderModel(Base):
             name="order_status_enum",
             native_enum=False,
             length=50,
+            create_constraint=True,
+            validate_strings=True,
             values_callable=lambda enum_type: [
                 item.value for item in enum_type
             ],
@@ -68,6 +78,10 @@ class OrderModel(Base):
         passive_deletes=True,
     )
 
+    @validates("status")
+    def validate_status(self, _key: str, value: str) -> OrderStatusEnum:
+        return OrderStatusEnum(validators.validate_order_status(value))
+
     @validates("total_amount")
     def validate_total_amount(
         self,
@@ -85,6 +99,12 @@ class OrderModel(Base):
 
 class OrderItemModel(Base):
     __tablename__ = "order_items"
+    __table_args__ = (
+        CheckConstraint(
+            "price_at_order >= 0 AND price_at_order <= 99999999.99",
+            name="valid_price_at_order",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer,

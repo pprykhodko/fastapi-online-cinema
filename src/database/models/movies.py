@@ -209,6 +209,7 @@ class MovieModel(Base):
             name="non_negative_gross",
         ),
         CheckConstraint("price >= 0", name="non_negative_price"),
+        CheckConstraint("price <= 99999999.99", name="valid_price_limit"),
     )
 
     id: Mapped[int] = mapped_column(

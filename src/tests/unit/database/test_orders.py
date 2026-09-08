@@ -45,6 +45,8 @@ def test_order_columns_match_assignment_schema() -> None:
     assert table.c.status.nullable is False
     assert status_type.length == 50
     assert status_type.native_enum is False
+    assert status_type.create_constraint is True
+    assert status_type.validate_strings is True
     assert status_type.enums == ["pending", "paid", "canceled"]
     assert str(status_default.arg) == "pending"
     assert table.c.total_amount.nullable is True

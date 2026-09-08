@@ -48,6 +48,8 @@ def test_payment_columns_match_assignment_schema() -> None:
     assert table.c.status.nullable is False
     assert status_type.length == 50
     assert status_type.native_enum is False
+    assert status_type.create_constraint is True
+    assert status_type.validate_strings is True
     assert status_type.enums == ["successful", "canceled", "refunded"]
     assert str(status_default.arg) == "successful"
     assert table.c.amount.nullable is False
