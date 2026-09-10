@@ -3,6 +3,8 @@ from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
 from src.database.validators.comments import validate_comment_content
+from src.schemas.pagination import PaginationResponseSchema
+from src.schemas.queries import PaginationQuerySchema
 
 
 class MovieCommentCreateRequestSchema(BaseModel):
@@ -33,20 +35,12 @@ class MovieCommentResponseSchema(BaseModel):
     }
 
 
-class MovieCommentListQuerySchema(BaseModel):
-    page: int = Field(default=1, ge=1)
-    per_page: int = Field(default=10, ge=1, le=100)
-
-    model_config = {
-        "extra": "forbid"
-    }
+class MovieCommentListQuerySchema(PaginationQuerySchema):
+    pass
 
 
-class MovieCommentListResponseSchema(BaseModel):
+class MovieCommentListResponseSchema(PaginationResponseSchema):
     items: list[MovieCommentResponseSchema]
-    total: int = Field(ge=0)
-    page: int = Field(ge=1)
-    per_page: int = Field(ge=1, le=100)
 
 
 class CommentLikeResponseSchema(BaseModel):

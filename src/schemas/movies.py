@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.database.validators import movies as movies_validators
 from src.database.validators.money import validate_money
+from src.schemas.pagination import PaginationResponseSchema
+from src.schemas.queries import PaginationQuerySchema
 
 
 class BaseMovieIdRequestSchema(BaseModel):
@@ -170,9 +172,7 @@ class MovieDetailResponseSchema(BaseMovieSchema):
     }
 
 
-class MovieListQuerySchema(BaseModel):
-    page: int = Field(default=1, ge=1)
-    per_page: int = Field(default=10, ge=1, le=100)
+class MovieListQuerySchema(PaginationQuerySchema):
     year: int | None = None
     min_imdb: float | None = Field(
         default=None, ge=0, le=10, allow_inf_nan=False,
@@ -182,10 +182,6 @@ class MovieListQuerySchema(BaseModel):
     sort_by: Literal["price", "year", "popularity"] = "year"
     sort_order: Literal["asc", "desc"] = "desc"
 
-    model_config = {
-        "extra": "forbid"
-    }
-
     @field_validator("search")
     @classmethod
     def validate_search(cls, value: str | None) -> str | None:
@@ -194,8 +190,5 @@ class MovieListQuerySchema(BaseModel):
         return movies_validators.validate_name(value)
 
 
-class MovieListResponseSchema(BaseModel):
+class MovieListResponseSchema(PaginationResponseSchema):
     items: list[MovieListItemResponseSchema]
-    total: int = Field(ge=0)
-    page: int = Field(ge=1)
-    per_page: int = Field(ge=1, le=100)
