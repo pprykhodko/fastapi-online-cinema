@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID
@@ -6,6 +7,14 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.database.validators import movies as movies_validators
 from src.database.validators.money import validate_money
+
+
+class BaseMovieIdRequestSchema(BaseModel):
+    movie_id: int = Field(gt=0, strict=True)
+
+    model_config = {
+        "extra": "forbid"
+    }
 
 
 class BaseNameRequestSchema(BaseModel):
@@ -132,6 +141,16 @@ class MovieListItemResponseSchema(BaseModel):
     imdb: float
     price: Decimal
     genres: list[GenreResponseSchema]
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class BaseMovieItemResponseSchema(BaseModel):
+    id: int = Field(gt=0)
+    movie: MovieListItemResponseSchema
+    added_at: datetime
 
     model_config = {
         "from_attributes": True

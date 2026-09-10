@@ -1,28 +1,18 @@
-from datetime import datetime
-
 from pydantic import BaseModel, Field
 
 from src.schemas.movies import (
-    MovieListItemResponseSchema, MovieListQuerySchema,
+    BaseMovieIdRequestSchema,
+    BaseMovieItemResponseSchema,
+    MovieListQuerySchema,
 )
 
 
-class MovieFavoriteCreateRequestSchema(BaseModel):
-    movie_id: int = Field(gt=0, strict=True)
-
-    model_config = {
-        "extra": "forbid"
-    }
+class MovieFavoriteCreateRequestSchema(BaseMovieIdRequestSchema):
+    pass
 
 
-class MovieFavoriteResponseSchema(BaseModel):
-    id: int = Field(gt=0)
-    movie: MovieListItemResponseSchema
-    added_at: datetime
-
-    model_config = {
-        "from_attributes": True
-    }
+class MovieFavoriteResponseSchema(BaseMovieItemResponseSchema):
+    pass
 
 
 class MovieFavoriteListQuerySchema(MovieListQuerySchema):
