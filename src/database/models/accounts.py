@@ -57,7 +57,10 @@ class UserGroupModel(Base):
         autoincrement=True,
     )
     name: Mapped[UserGroupEnum] = mapped_column(
-        Enum(UserGroupEnum, name="user_group_enum"),
+        Enum(
+            UserGroupEnum, name="user_group_enum", native_enum=False,
+            length=50, create_constraint=True, validate_strings=True,
+        ),
         nullable=False,
         unique=True,
     )
@@ -223,7 +226,10 @@ class UserProfileModel(Base):
     last_name: Mapped[Optional[str]] = mapped_column(String(100))
     avatar: Mapped[Optional[str]] = mapped_column(String(255))
     gender: Mapped[Optional[GenderEnum]] = mapped_column(
-        Enum(GenderEnum, name="gender_enum")
+        Enum(
+            GenderEnum, name="gender_enum", native_enum=False,
+            length=10, create_constraint=True, validate_strings=True,
+        )
     )
     date_of_birth: Mapped[Optional[date]] = mapped_column(Date)
     info: Mapped[Optional[str]] = mapped_column(Text)

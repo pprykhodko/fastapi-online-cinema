@@ -1,4 +1,5 @@
 from decimal import Decimal
+from math import isfinite
 from typing import Optional
 
 from src.database.validators.money import validate_money
@@ -48,6 +49,8 @@ def validate_non_negative_float(
     value: Optional[float],
     field_name: str,
 ) -> Optional[float]:
-    if value is not None and value < 0:
-        raise ValueError(f"{field_name.capitalize()} must not be negative.")
+    if value is not None and (not isfinite(value) or value < 0):
+        raise ValueError(
+            f"{field_name.capitalize()} must be finite and non-negative."
+        )
     return value

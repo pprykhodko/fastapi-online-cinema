@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     DECIMAL,
@@ -16,6 +17,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
@@ -231,9 +233,15 @@ class MovieModel(Base):
     meta_score: Mapped[Optional[float]] = mapped_column(Float)
     gross: Mapped[Optional[float]] = mapped_column(Float)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    price: Mapped[Decimal] = mapped_column(
+    price: Mapped[Optional[Decimal]] = mapped_column(
         DECIMAL(10, 2),
+        nullable=True,
+    )
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean(create_constraint=True, name="movie_is_deleted_boolean"),
         nullable=False,
+        default=False,
+        server_default=false(),
     )
     certification_id: Mapped[int] = mapped_column(
         ForeignKey("certifications.id", ondelete="RESTRICT"),
@@ -315,14 +323,20 @@ class MovieModel(Base):
         return validators.validate_non_negative_float(value, "gross")
 
     @validates("price")
-    def validate_price(self, _key: str, value: Decimal) -> Decimal:
-        validated_price = validators.validate_non_negative_decimal(
-            value,
-            "price",
-        )
-        if validated_price is None:
-            raise ValueError("Price must not be null.")
-        return validated_price
+    def validate_price(
+        self, _key: str, value: Optional[Decimal],
+    ) -> Optional[Decimal]:
+        return validators.validate_non_negative_decimal(value, "price")
+
+    @validates("is_deleted")
+    def validate_is_deleted(self, _key: str, value: bool) -> bool:
+        if not isinstance(value, bool):
+            raise ValueError("is_deleted must be a boolean.")
+        return value
+
+    @property
+    def is_available_for_purchase(self) -> bool:
+        return not self.is_deleted and self.price is not None
 
     @classmethod
     def default_order_by(cls):

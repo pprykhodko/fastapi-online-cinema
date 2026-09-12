@@ -6,7 +6,6 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from src.database.validators import movies as movies_validators
-from src.database.validators.money import validate_money
 from src.schemas.common import PaginationQuerySchema, PaginationResponseSchema
 
 
@@ -83,7 +82,7 @@ class BaseMovieSchema(BaseModel):
     imdb: float = Field(ge=0, le=10, allow_inf_nan=False)
     votes: int = Field(ge=0, strict=True)
     description: str
-    price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    price: Decimal | None = Field(ge=0, max_digits=10, decimal_places=2)
     meta_score: float | None = Field(
         default=None, ge=0, le=100, allow_inf_nan=False,
     )
@@ -96,8 +95,8 @@ class BaseMovieSchema(BaseModel):
 
     @field_validator("price")
     @classmethod
-    def validate_price(cls, value: Decimal) -> Decimal:
-        return validate_money(value, "price")
+    def validate_price(cls, value: Decimal | None) -> Decimal | None:
+        return movies_validators.validate_non_negative_decimal(value, "price")
 
 
 class MovieCreateRequestSchema(BaseMovieSchema):
@@ -140,7 +139,8 @@ class MovieListItemResponseSchema(BaseModel):
     year: int
     time: int
     imdb: float
-    price: Decimal
+    price: Decimal | None
+    is_available_for_purchase: bool
     genres: list[GenreResponseSchema]
 
     model_config = {
@@ -161,6 +161,7 @@ class BaseMovieItemResponseSchema(BaseModel):
 class MovieDetailResponseSchema(BaseMovieSchema):
     id: int = Field(gt=0)
     uuid: UUID
+    is_available_for_purchase: bool
     certification: CertificationResponseSchema
     genres: list[GenreResponseSchema]
     stars: list[StarResponseSchema]
