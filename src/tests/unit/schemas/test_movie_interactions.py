@@ -4,15 +4,12 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from src.database import MovieReactionEnum
-from src.schemas.comments import (
+from src.schemas.interactions import (
     MovieCommentCreateRequestSchema, MovieCommentListQuerySchema,
     MovieCommentListResponseSchema,
-)
-from src.schemas.favorites import (
     MovieFavoriteCreateRequestSchema, MovieFavoriteListResponseSchema,
+    MovieRatingRequestSchema, MovieReactionRequestSchema,
 )
-from src.schemas.ratings import MovieRatingRequestSchema
-from src.schemas.reactions import MovieReactionRequestSchema
 
 
 @pytest.mark.parametrize("score", [1, 5, 10])

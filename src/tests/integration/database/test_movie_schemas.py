@@ -14,26 +14,23 @@ from src.database import (
     StarModel,
     UserModel,
 )
-from src.schemas.comments import (
+from src.schemas.interactions import (
     CommentLikeResponseSchema,
     MovieCommentCreateRequestSchema,
     MovieCommentListResponseSchema,
     MovieCommentResponseSchema,
-)
-from src.schemas.favorites import (
-    MovieFavoriteListResponseSchema, MovieFavoriteResponseSchema,
+    MovieFavoriteListResponseSchema,
+    MovieFavoriteResponseSchema,
+    MovieRatingRequestSchema,
+    MovieRatingResponseSchema,
+    MovieReactionRequestSchema,
+    MovieReactionResponseSchema,
 )
 from src.schemas.movies import (
     MovieCreateRequestSchema,
     MovieDetailResponseSchema,
     MovieListItemResponseSchema,
     MovieListResponseSchema,
-)
-from src.schemas.ratings import (
-    MovieRatingRequestSchema, MovieRatingResponseSchema,
-)
-from src.schemas.reactions import (
-    MovieReactionRequestSchema, MovieReactionResponseSchema,
 )
 
 

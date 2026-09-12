@@ -3,8 +3,9 @@ from typing import Any
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from src.schemas.comments import MovieCommentListResponseSchema
-from src.schemas.favorites import MovieFavoriteListResponseSchema
+from src.schemas.interactions import (
+    MovieCommentListResponseSchema, MovieFavoriteListResponseSchema,
+)
 from src.schemas.movies import MovieListResponseSchema
 from src.schemas.orders import OrderListResponseSchema
 from src.schemas.payments import PaymentListResponseSchema

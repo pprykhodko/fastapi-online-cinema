@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from src.schemas.favorites import MovieFavoriteListQuerySchema
+from src.schemas.interactions import MovieFavoriteListQuerySchema
 from src.schemas.movies import (
     GenreCreateRequestSchema,
     GenreUpdateRequestSchema,
