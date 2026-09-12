@@ -7,6 +7,7 @@ from src.database.models.orders import OrderStatusEnum
 from src.database.validators import orders as orders_validators
 from src.schemas.common import (
     AdminTransactionListQuerySchema,
+    MessageResponseSchema,
     PaginationQuerySchema,
     PaginationResponseSchema,
 )
@@ -55,6 +56,16 @@ class OrderResponseSchema(BaseModel):
     @classmethod
     def validate_total_amount(cls, value: Decimal | None) -> Decimal | None:
         return orders_validators.validate_total_amount(value)
+
+
+class OrderExcludedItemSchema(BaseModel):
+    movie_id: int = Field(gt=0)
+    reason: str = Field(min_length=1)
+
+
+class OrderCreateResponseSchema(MessageResponseSchema):
+    order: OrderResponseSchema | None
+    excluded_items: list[OrderExcludedItemSchema]
 
 
 class OrderListQuerySchema(PaginationQuerySchema):

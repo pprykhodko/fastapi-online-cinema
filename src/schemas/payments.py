@@ -7,6 +7,7 @@ from src.database.models.payments import PaymentStatusEnum
 from src.database.validators import payments as payments_validators
 from src.schemas.common import (
     AdminTransactionListQuerySchema,
+    MessageResponseSchema,
     PaginationQuerySchema,
     PaginationResponseSchema,
 )
@@ -23,6 +24,18 @@ class PaymentCreateRequestSchema(BaseModel):
 class PaymentCheckoutResponseSchema(BaseModel):
     order_id: int = Field(gt=0)
     checkout_url: HttpUrl
+
+
+class PaymentRefundRequestSchema(BaseModel):
+    payment_id: int = Field(gt=0, strict=True)
+
+    model_config = {
+        "extra": "forbid"
+    }
+
+
+class PaymentRefundResponseSchema(MessageResponseSchema):
+    payment_id: int = Field(gt=0)
 
 
 class PaymentItemResponseSchema(BaseModel):

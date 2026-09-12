@@ -5,6 +5,9 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from src.database.models.accounts import GenderEnum, UserGroupEnum
 from src.database.validators import accounts as accounts_validators
+from src.schemas.common import (
+    MessageResponseSchema, PaginationQuerySchema, PaginationResponseSchema,
+)
 from src.security.passwords import validate_password_for_bcrypt
 
 
@@ -190,7 +193,13 @@ class UserProfileResponseSchema(BaseUserProfileSchema):
     model_config = {"from_attributes": True}
 
 
-class AccountMessageResponseSchema(BaseModel):
-    message: str = Field(min_length=1)
+class AccountMessageResponseSchema(MessageResponseSchema):
+    pass
 
-    model_config = {"from_attributes": True}
+
+class UserListQuerySchema(PaginationQuerySchema):
+    pass
+
+
+class UserListResponseSchema(PaginationResponseSchema):
+    items: list[UserResponseSchema]

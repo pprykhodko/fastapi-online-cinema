@@ -3,6 +3,17 @@ from datetime import date
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 
+class MessageResponseSchema(BaseModel):
+    message: str = Field(min_length=1)
+
+    model_config = {"from_attributes": True}
+
+
+class ErrorResponseSchema(BaseModel):
+    detail: str = Field(min_length=1)
+    recommendation: str | None = Field(default=None, min_length=1)
+
+
 class PaginationQuerySchema(BaseModel):
     page: int = Field(default=1, ge=1)
     per_page: int = Field(default=10, ge=1, le=100)
