@@ -68,7 +68,7 @@ def test_movie_requests_reject_invalid_fields(
 
 
 @pytest.mark.parametrize("field", [
-    "name", "year", "time", "imdb", "votes", "description", "price",
+    "name", "year", "time", "imdb", "votes", "description",
     "certification_id", "genre_ids", "star_ids", "director_ids",
 ])
 def test_movie_update_does_not_allow_null_for_required_columns_or_lists(
@@ -201,3 +201,32 @@ def test_movie_request_json_schema_contains_constraints() -> None:
     assert schema["properties"]["name"]["maxLength"] == 250
     assert schema["properties"]["imdb"]["maximum"] == 10
     assert "price" in schema["required"]
+
+
+@pytest.mark.parametrize("schema", [
+    MovieCreateRequestSchema, MovieUpdateRequestSchema,
+])
+def test_movie_requests_allow_explicit_null_price(
+    schema: type[BaseModel], movie_data: dict[str, Any],
+) -> None:
+    response = schema.model_validate({**movie_data, "price": None})
+    assert response.model_dump()["price"] is None
+
+
+@pytest.mark.parametrize("field", ["is_deleted", "is_available_for_purchase"])
+def test_movie_request_cannot_bypass_deletion_workflow(
+    movie_data: dict[str, Any], field: str,
+) -> None:
+    with pytest.raises(ValidationError) as error:
+        MovieUpdateRequestSchema.model_validate({**movie_data, field: True})
+    assert error.value.errors()[0]["type"] == "extra_forbidden"
+
+
+def test_movie_price_is_nullable_but_not_silently_defaulted(
+    movie_data: dict[str, Any],
+) -> None:
+    schema = MovieCreateRequestSchema.model_json_schema()
+    assert {"type": "null"} in schema["properties"]["price"]["anyOf"]
+    movie_data.pop("price")
+    with pytest.raises(ValidationError):
+        MovieCreateRequestSchema.model_validate(movie_data)

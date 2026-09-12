@@ -66,9 +66,11 @@ def test_money_fields_do_not_depend_on_decimal_context(
 
 
 @pytest.mark.parametrize(("model", "field"), MONEY_FIELDS)
-def test_only_order_total_can_be_null(model: type[Base], field: str) -> None:
-    if model is OrderModel:
-        assert OrderModel(total_amount=None).total_amount is None
+def test_money_nullability_matches_assignment(
+    model: type[Base], field: str,
+) -> None:
+    if model in (MovieModel, OrderModel):
+        assert getattr(model(**{field: None}), field) is None
     else:
         with pytest.raises(ValueError):
             model(**{field: None})

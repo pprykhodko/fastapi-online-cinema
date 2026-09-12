@@ -24,6 +24,7 @@ def cart_item_data() -> dict[str, Any]:
             "time": 136,
             "imdb": 8.7,
             "price": Decimal("9.99"),
+            "is_available_for_purchase": True,
             "genres": [{"id": 1, "name": "Action"}],
         },
     }

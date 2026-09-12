@@ -178,7 +178,7 @@ def test_database_preserves_money_nullability_from_assignment(
     table: str, column: str,
 ) -> None:
     record = financial_records[table]
-    if table == "orders":
+    if table in ("movies", "orders"):
         setattr(record, column, None)
         db_session.commit()
         db_session.expire_all()

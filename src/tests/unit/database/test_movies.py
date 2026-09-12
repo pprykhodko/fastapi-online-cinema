@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 
 import pytest
 from sqlalchemy import (
@@ -126,6 +126,8 @@ def test_movie_columns_match_assignment_schema() -> None:
 
     assert cast(String, movie_table.c.name.type).length == 250
     assert isinstance(movie_table.c.gross.type, Float)
+    assert movie_table.c.price.nullable is True
+    assert movie_table.c.is_deleted.nullable is False
     assert cast(String, genre_table.c.name.type).length == 100
     assert cast(String, star_table.c.name.type).length == 100
     assert cast(String, director_table.c.name.type).length == 100
@@ -176,3 +178,32 @@ def test_metadata_creates_complete_schema_in_sqlite() -> None:
         "movies",
         "stars",
     }.issubset(table_names)
+
+
+@pytest.mark.parametrize(("price", "deleted", "available"), [
+    (None, False, False), (Decimal("0"), False, True),
+    (Decimal("9.99"), False, True), (None, True, False),
+    (Decimal("0"), True, False), (Decimal("9.99"), True, False),
+])
+def test_purchase_availability_uses_price_and_deletion_flag(
+    price: Decimal | None, deleted: bool, available: bool,
+) -> None:
+    movie = MovieModel(price=price, is_deleted=deleted)
+    assert movie.is_available_for_purchase is available
+
+
+def test_new_movie_defaults_to_not_deleted_before_insert() -> None:
+    movie = MovieModel(price=Decimal("0"))
+    assert movie.is_available_for_purchase is True
+
+
+@pytest.mark.parametrize("value", [None, 0, 1, "false", "true"])
+def test_movie_deletion_flag_requires_boolean(value: Any) -> None:
+    with pytest.raises(ValueError):
+        MovieModel(is_deleted=value)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf")])
+def test_movie_gross_rejects_non_finite_values(value: float) -> None:
+    with pytest.raises(ValueError):
+        MovieModel(gross=value)
