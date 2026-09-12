@@ -7,8 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.database.validators import movies as movies_validators
 from src.database.validators.money import validate_money
-from src.schemas.pagination import PaginationResponseSchema
-from src.schemas.queries import PaginationQuerySchema
+from src.schemas.common import PaginationQuerySchema, PaginationResponseSchema
 
 
 class BaseMovieIdRequestSchema(BaseModel):
@@ -36,7 +35,7 @@ class GenreCreateRequestSchema(BaseNameRequestSchema):
     pass
 
 
-class GenreUpdateRequestSchema(GenreCreateRequestSchema):
+class GenreUpdateRequestSchema(BaseNameRequestSchema):
     pass
 
 
@@ -44,7 +43,7 @@ class StarCreateRequestSchema(BaseNameRequestSchema):
     pass
 
 
-class StarUpdateRequestSchema(StarCreateRequestSchema):
+class StarUpdateRequestSchema(BaseNameRequestSchema):
     pass
 
 

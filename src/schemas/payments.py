@@ -5,9 +5,10 @@ from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 from src.database.models.payments import PaymentStatusEnum
 from src.database.validators import payments as payments_validators
-from src.schemas.pagination import PaginationResponseSchema
-from src.schemas.queries import (
-    AdminTransactionListQuerySchema, PaginationQuerySchema,
+from src.schemas.common import (
+    AdminTransactionListQuerySchema,
+    PaginationQuerySchema,
+    PaginationResponseSchema,
 )
 
 

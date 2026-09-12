@@ -12,6 +12,12 @@ class PaginationQuerySchema(BaseModel):
     }
 
 
+class PaginationResponseSchema(BaseModel):
+    total: int = Field(ge=0)
+    page: int = Field(ge=1)
+    per_page: int = Field(ge=1, le=100)
+
+
 class AdminTransactionListQuerySchema(PaginationQuerySchema):
     user_id: int | None = Field(default=None, gt=0)
     date_from: date | None = None

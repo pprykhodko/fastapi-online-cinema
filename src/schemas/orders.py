@@ -5,9 +5,10 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.database.models.orders import OrderStatusEnum
 from src.database.validators import orders as orders_validators
-from src.schemas.pagination import PaginationResponseSchema
-from src.schemas.queries import (
-    AdminTransactionListQuerySchema, PaginationQuerySchema,
+from src.schemas.common import (
+    AdminTransactionListQuerySchema,
+    PaginationQuerySchema,
+    PaginationResponseSchema,
 )
 
 
