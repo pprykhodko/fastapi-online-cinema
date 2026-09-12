@@ -25,6 +25,8 @@ from src.schemas.accounts import (
     UserGroupResponseSchema,
     UserGroupUpdateRequestSchema,
     UserLoginRequestSchema,
+    UserListQuerySchema,
+    UserListResponseSchema,
     UserProfileCreateRequestSchema,
     UserProfileResponseSchema,
     UserProfileUpdateRequestSchema,
@@ -319,3 +321,36 @@ def test_json_schema_documents_passwords_and_input_restrictions() -> None:
     activation = AccountActivationRequestSchema.model_json_schema()
     assert activation["properties"]["token"]["maxLength"] == 255
     assert activation["properties"]["token"]["writeOnly"] is True
+
+
+def test_user_list_query_accepts_pagination() -> None:
+    assert UserListQuerySchema().model_dump() == {"page": 1, "per_page": 10}
+    query = UserListQuerySchema.model_validate({"page": "2", "per_page": "20"})
+    assert query.page == 2
+    assert query.per_page == 20
+
+
+@pytest.mark.parametrize("data", [
+    {"page": 0}, {"per_page": 0}, {"per_page": 101}, {"unknown": "filter"},
+])
+def test_user_list_query_rejects_invalid_parameters(
+    data: dict[str, Any],
+) -> None:
+    with pytest.raises(ValidationError):
+        UserListQuerySchema.model_validate(data)
+
+
+def test_user_list_response_serializes_users_without_passwords() -> None:
+    user = {
+        "id": 1, "email": "user@example.com", "is_active": True,
+        "created_at": datetime(2026, 9, 12, tzinfo=timezone.utc),
+        "updated_at": datetime(2026, 9, 12, tzinfo=timezone.utc),
+        "group": {"id": 1, "name": "user"},
+        "hashed_password": "private-hash",
+    }
+    response = UserListResponseSchema.model_validate({
+        "items": [user], "total": 1, "page": 1, "per_page": 10,
+    })
+    assert response.items[0].email == "user@example.com"
+    assert "private-hash" not in response.model_dump_json()
+    assert "hashed_password" not in response.model_dump_json()

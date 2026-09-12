@@ -3,6 +3,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel, ValidationError
 
+from src.schemas.accounts import UserListResponseSchema
 from src.schemas.interactions import (
     MovieCommentListResponseSchema, MovieFavoriteListResponseSchema,
 )
@@ -12,6 +13,7 @@ from src.schemas.payments import PaymentListResponseSchema
 
 
 @pytest.fixture(params=[
+    UserListResponseSchema,
     MovieCommentListResponseSchema,
     MovieFavoriteListResponseSchema,
     MovieListResponseSchema,

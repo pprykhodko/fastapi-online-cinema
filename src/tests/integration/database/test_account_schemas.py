@@ -12,6 +12,7 @@ from src.database import (
     UserProfileModel,
 )
 from src.schemas.accounts import (
+    UserListResponseSchema,
     UserProfileResponseSchema,
     UserProfileUpdateRequestSchema,
     UserResponseSchema,
@@ -47,6 +48,11 @@ def test_persisted_user_response_does_not_expose_tokens_or_password_hash(
         "id", "email", "is_active", "created_at", "updated_at", "group",
     }
     serialized = response.model_dump_json()
+    page = UserListResponseSchema.model_validate({
+        "items": [user], "total": 1, "page": 1, "per_page": 10,
+    })
+    assert page.items[0].id == user_id
+    serialized += page.model_dump_json()
     for secret in (
         "unused-in-database-tests", "private-activation", "private-reset",
         "private-refresh",

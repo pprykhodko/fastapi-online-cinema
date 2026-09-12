@@ -8,6 +8,8 @@ from pydantic import BaseModel, ValidationError
 from src.database import OrderStatusEnum
 from src.schemas.orders import (
     AdminOrderListQuerySchema,
+    OrderCreateResponseSchema,
+    OrderExcludedItemSchema,
     OrderItemResponseSchema,
     OrderListQuerySchema,
     OrderListResponseSchema,
@@ -222,3 +224,69 @@ def test_order_schemas_expose_status_and_date_metadata() -> None:
     response = OrderResponseSchema.model_json_schema()
     assert "total_amount" in response["required"]
     assert "OrderItemResponseSchema" in response["$defs"]
+
+
+def test_order_creation_response_includes_order_and_exclusion_reasons(
+    order_data: dict[str, Any],
+) -> None:
+    response = OrderCreateResponseSchema.model_validate({
+        "message": "Order created. Some movies were excluded.",
+        "order": order_data,
+        "excluded_items": [
+            {"movie_id": 5, "reason": "Movie has already been purchased."},
+            {"movie_id": 6, "reason": "Movie is unavailable in your region."},
+            {"movie_id": 7, "reason": "Movie no longer exists."},
+        ],
+    })
+    assert response.order is not None
+    assert response.order.id == 1
+    assert response.model_dump(mode="json")["order"]["total_amount"] == "9.99"
+    assert [item.movie_id for item in response.excluded_items] == [5, 6, 7]
+    assert "already been purchased" in response.excluded_items[0].reason
+
+
+def test_order_creation_response_allows_no_exclusions(
+    order_data: dict[str, Any],
+) -> None:
+    response = OrderCreateResponseSchema.model_validate({
+        "message": "Order created.", "order": order_data, "excluded_items": [],
+    })
+    assert response.excluded_items == []
+
+
+def test_order_creation_response_handles_all_movies_excluded() -> None:
+    response = OrderCreateResponseSchema.model_validate({
+        "message": "No order was created: no movies available for purchase.",
+        "order": None,
+        "excluded_items": [{"movie_id": 1, "reason": "Already purchased."}],
+    })
+    assert response.model_dump(mode="json")["order"] is None
+    assert response.excluded_items[0].movie_id == 1
+
+
+@pytest.mark.parametrize("field", ["message", "order", "excluded_items"])
+def test_order_creation_response_requires_explicit_result(field: str) -> None:
+    data: dict[str, Any] = {
+        "message": "No order created.", "order": None, "excluded_items": [],
+    }
+    data.pop(field)
+    with pytest.raises(ValidationError) as error:
+        OrderCreateResponseSchema.model_validate(data)
+    assert error.value.errors()[0]["type"] == "missing"
+
+
+@pytest.mark.parametrize("data", [
+    {"movie_id": 0, "reason": "Unavailable."},
+    {"movie_id": 1, "reason": ""}, {"movie_id": 1},
+    {"movie_id": 1, "reason": None},
+])
+def test_excluded_movie_requires_id_and_reason(data: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError):
+        OrderExcludedItemSchema.model_validate(data)
+
+
+def test_order_creation_metadata_includes_exclusions() -> None:
+    schema = OrderCreateResponseSchema.model_json_schema()
+    assert {"type": "null"} in schema["properties"]["order"]["anyOf"]
+    assert set(schema["required"]) == {"message", "order", "excluded_items"}
+    assert "OrderExcludedItemSchema" in schema["$defs"]

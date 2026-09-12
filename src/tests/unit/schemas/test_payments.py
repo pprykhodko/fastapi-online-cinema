@@ -13,6 +13,8 @@ from src.schemas.payments import (
     PaymentItemResponseSchema,
     PaymentListQuerySchema,
     PaymentListResponseSchema,
+    PaymentRefundRequestSchema,
+    PaymentRefundResponseSchema,
     PaymentResponseSchema,
 )
 
@@ -271,3 +273,59 @@ def test_payment_schemas_expose_required_fields_and_status_metadata() -> None:
     ]
     assert "status" in response["required"]
     assert "default" not in response["properties"]["status"]
+
+
+def test_refund_request_accepts_only_payment_id() -> None:
+    request = PaymentRefundRequestSchema(payment_id=3)
+    assert request.model_dump() == {"payment_id": 3}
+
+
+@pytest.mark.parametrize("payment_id", [0, -1, True, "3", 3.0, None])
+def test_refund_request_rejects_invalid_id(payment_id: Any) -> None:
+    with pytest.raises(ValidationError):
+        PaymentRefundRequestSchema(payment_id=payment_id)
+
+
+@pytest.mark.parametrize("field", [
+    "user_id", "amount", "status", "external_payment_id", "items",
+])
+def test_refund_request_does_not_accept_client_amount_or_status(
+    field: str,
+) -> None:
+    with pytest.raises(ValidationError) as error:
+        PaymentRefundRequestSchema.model_validate({"payment_id": 3, field: 1})
+    assert error.value.errors()[0]["type"] == "extra_forbidden"
+
+
+def test_refund_request_requires_payment_id() -> None:
+    with pytest.raises(ValidationError):
+        PaymentRefundRequestSchema.model_validate({})
+
+
+def test_refund_response_acknowledges_request_without_claiming_completion(
+) -> None:
+    response = PaymentRefundResponseSchema(
+        payment_id=3, message="Refund request accepted.",
+    )
+    assert response.model_dump() == {
+        "payment_id": 3, "message": "Refund request accepted.",
+    }
+    assert "status" not in response.model_dump()
+    assert "amount" not in response.model_dump()
+
+
+@pytest.mark.parametrize("data", [
+    {"payment_id": 0, "message": "Accepted."},
+    {"payment_id": 3, "message": ""},
+    {"payment_id": 3}, {"message": "Accepted."},
+])
+def test_refund_response_requires_id_and_message(data: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError):
+        PaymentRefundResponseSchema.model_validate(data)
+
+
+def test_refund_schema_exposes_only_client_payment_id() -> None:
+    schema = PaymentRefundRequestSchema.model_json_schema()
+    assert schema["additionalProperties"] is False
+    assert schema["required"] == ["payment_id"]
+    assert set(schema["properties"]) == {"payment_id"}

@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session, selectinload
 from src.database import (
     MovieModel, OrderItemModel, OrderModel, OrderStatusEnum, UserModel,
 )
-from src.schemas.orders import OrderListResponseSchema, OrderResponseSchema
+from src.schemas.orders import (
+    OrderCreateResponseSchema, OrderListResponseSchema, OrderResponseSchema,
+)
 
 
 def test_order_response_preserves_price_snapshots_after_movie_price_changes(
@@ -57,6 +59,16 @@ def test_order_response_preserves_price_snapshots_after_movie_price_changes(
     }
     assert "email" not in page.model_dump_json()
     assert "hashed_password" not in page.model_dump_json()
+
+    created = OrderCreateResponseSchema.model_validate({
+        "message": "Order created. Unavailable movies were excluded.",
+        "order": stored_order,
+        "excluded_items": [{"movie_id": 999, "reason": "Movie unavailable."}],
+    })
+    assert created.order is not None
+    assert created.order.id == order_id
+    assert created.order.total_amount == Decimal("19.98")
+    assert created.excluded_items[0].movie_id == 999
 
 
 def test_order_response_preserves_null_total_instead_of_returning_zero(
