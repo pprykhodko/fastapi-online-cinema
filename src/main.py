@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from src.database.session_postgresql import postgresql_engine
+from src.database import engine
 
 
 @asynccontextmanager
@@ -11,7 +11,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        await postgresql_engine.dispose()
+        await engine.dispose()
 
 
 app = FastAPI(

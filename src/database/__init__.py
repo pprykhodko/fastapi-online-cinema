@@ -1,3 +1,4 @@
+from src.core.config import get_settings
 from src.database.models import (
     ActivationTokenModel,
     Base,
@@ -33,7 +34,24 @@ from src.database.models import (
 )
 
 
+if get_settings().DATABASE_TYPE == "sqlite":
+    from src.database.session_sqlite import (
+        get_sqlite_db as get_db,
+        get_sqlite_db_contextmanager as get_db_contextmanager,
+        sqlite_engine as engine,
+    )
+else:
+    from src.database.session_postgresql import (
+        get_postgresql_db as get_db,
+        get_postgresql_db_contextmanager as get_db_contextmanager,
+        postgresql_engine as engine,
+    )
+
+
 __all__ = [
+    "engine",
+    "get_db",
+    "get_db_contextmanager",
     "ActivationTokenModel",
     "Base",
     "CartItemModel",

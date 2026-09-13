@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -9,6 +9,7 @@ from sqlalchemy import URL
 
 class BaseAppSettings(BaseSettings):
     BASE_DIR: ClassVar[Path] = Path(__file__).resolve().parents[2]
+    DATABASE_TYPE: Literal["sqlite", "postgresql"] = "sqlite"
     PATH_TO_DB: str = Field(default="db.sqlite3", min_length=1)
     DATABASE_ECHO: bool = False
 
@@ -36,6 +37,12 @@ class Settings(BaseAppSettings):
     POSTGRES_PASSWORD: str = Field(default="", repr=False)
 
     @property
+    def DATABASE_URL(self) -> URL:
+        if self.DATABASE_TYPE == "sqlite":
+            return self.SQLITE_DATABASE_URL
+        return self.POSTGRESQL_DATABASE_URL
+
+    @property
     def POSTGRESQL_DATABASE_URL(self) -> URL:
         return URL.create(
             drivername="postgresql+asyncpg",
@@ -53,6 +60,7 @@ class TestingSettings(BaseAppSettings):
     model_config = {"env_file": None}
 
     def model_post_init(self, __context: Any) -> None:
+        self.DATABASE_TYPE = "sqlite"
         self.PATH_TO_DB = ":memory:"
 
 
