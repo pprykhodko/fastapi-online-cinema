@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from src.api.v1.routers import accounts_router
 from src.database import engine
 
 
@@ -21,4 +22,12 @@ app = FastAPI(
         "shopping carts, orders, and payments."
     ),
     lifespan=lifespan,
+)
+
+api_version_prefix = "/api/v1"
+
+app.include_router(
+    accounts_router,
+    prefix=f"{api_version_prefix}/accounts",
+    tags=["accounts"],
 )
