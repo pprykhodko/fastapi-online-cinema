@@ -1,7 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter, Depends, Form, HTTPException, Query, Request, status,
+)
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,16 +18,57 @@ from src.database.models import (
     UserGroupModel,
     UserModel,
 )
+from src.notifications.emails import (
+    TEMPLATES_DIR, EmailDeliveryError, EmailSender, get_email_sender,
+)
 from src.schemas.accounts import (
     AccountActivationRequestSchema,
     AccountMessageResponseSchema,
+    ActivationResendRequestSchema,
     UserRegistrationRequestSchema,
     UserResponseSchema,
 )
 from src.schemas.common import ErrorResponseSchema
+from src.security.utils import generate_secure_token
 
 
 router = APIRouter()
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
+ACTIVATION_PAGE_HEADERS = {
+    "Cache-Control": "no-store",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": (
+        "default-src 'none'; base-uri 'none'; "
+        "frame-ancestors 'none'; form-action 'self'"
+    ),
+}
+
+
+@router.get(
+    "/activate",
+    response_class=HTMLResponse,
+    summary="Open the account activation page",
+    description=(
+        "Opens an HTML confirmation form linked from the activation email. "
+        "Accepts a token query parameter. The form submits to "
+        "POST /accounts/activate/confirm without JavaScript. "
+        "This GET request does not activate the account."
+    ),
+)
+async def activation_page(
+    request: Request,
+    token: str = Query(min_length=1, max_length=255, pattern=r"^\S+$"),
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request,
+        name="account_activation.html",
+        context={
+            "token": token,
+            "form_action": request.url_for("confirm_account_activation").path,
+        },
+        headers=ACTIVATION_PAGE_HEADERS,
+    )
 
 
 @router.post(
@@ -34,7 +79,8 @@ router = APIRouter()
     description=(
         "Register an inactive USER account with an email and a strong "
         "password. Creates an empty cart and an activation token valid "
-        "for 24 hours. Email delivery is not implemented yet."
+        "for 24 hours, then sends an activation email. If email delivery "
+        "fails, the account remains saved; use activation/resend to retry."
     ),
     responses={
         409: {
@@ -47,13 +93,17 @@ router = APIRouter()
         },
         503: {
             "model": ErrorResponseSchema,
-            "description": "The database or registration is unavailable.",
+            "description": (
+                "The database or email delivery is unavailable. If the "
+                "account was saved, retry through activation/resend."
+            ),
         },
     },
 )
 async def register_user(
     user_data: UserRegistrationRequestSchema,
     db: AsyncSession = Depends(get_db),
+    email_sender: EmailSender = Depends(get_email_sender),
 ) -> UserResponseSchema:
     user_stmt = select(UserModel).where(UserModel.email == user_data.email)
 
@@ -113,6 +163,21 @@ async def register_user(
             detail="Registration is temporarily unavailable.",
         ) from error
 
+    try:
+        await email_sender.send_activation_email(
+            new_user.email,
+            activation_token.token,
+            activation_token.expires_at,
+        )
+    except EmailDeliveryError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Account created, but the activation email could not be "
+                "sent. Please request the activation email again."
+            ),
+        ) from error
+
     return UserResponseSchema.model_validate(new_user)
 
 
@@ -125,6 +190,8 @@ async def register_user(
         "Accepts an activation token in the JSON body. The token must "
         "exist and must not have expired (24 hours after registration). "
         "Activates the account and deletes the token in one transaction. "
+        "Then sends a confirmation email. If that email cannot be sent, "
+        "activation still succeeds and the response message reports it. "
         "No authentication is required. A used token cannot be reused."
     ),
     responses={
@@ -145,6 +212,7 @@ async def register_user(
 async def activate_user(
     activation_data: AccountActivationRequestSchema,
     db: AsyncSession = Depends(get_db),
+    email_sender: EmailSender = Depends(get_email_sender),
 ) -> AccountMessageResponseSchema:
     try:
         stmt = (
@@ -192,6 +260,142 @@ async def activate_user(
             detail="Account activation is temporarily unavailable.",
         ) from error
 
+    try:
+        await email_sender.send_activation_complete_email(user.email)
+    except EmailDeliveryError:
+        return AccountMessageResponseSchema(
+            message=(
+                "Account activated successfully, but the confirmation "
+                "email could not be sent."
+            ),
+        )
+
     return AccountMessageResponseSchema(
         message="Account activated successfully.",
     )
+
+
+@router.post(
+    "/activate/confirm",
+    response_class=HTMLResponse,
+    summary="Activate an account using the HTML form",
+    description=(
+        "Accepts a token as a form field and uses the same activation "
+        "logic as the JSON endpoint. Returns an HTML success or error "
+        "page. No JavaScript or authentication is required."
+    ),
+    responses={
+        400: {
+            "description": "Invalid or expired token; HTML error page."
+        },
+        409: {
+            "description": "Account already active; HTML error page."
+        },
+        503: {
+            "description": "Activation unavailable; HTML error page."
+        },
+    },
+)
+async def confirm_account_activation(
+    request: Request,
+    token: str = Form(min_length=1, max_length=255, pattern=r"^\S+$"),
+    db: AsyncSession = Depends(get_db),
+    email_sender: EmailSender = Depends(get_email_sender),
+) -> HTMLResponse:
+    status_code = status.HTTP_200_OK
+    try:
+        result = await activate_user(
+            AccountActivationRequestSchema(token=token), db, email_sender,
+        )
+        context = {"message": result.message}
+    except HTTPException as error:
+        status_code = error.status_code
+        context = {"error": error.detail}
+
+    return templates.TemplateResponse(
+        request=request,
+        name="account_activation.html",
+        context=context,
+        status_code=status_code,
+        headers=ACTIVATION_PAGE_HEADERS,
+    )
+
+
+@router.post(
+    "/activation/resend",
+    response_model=AccountMessageResponseSchema,
+    summary="Resend an activation email",
+    description=(
+        "Accepts an email address. For an inactive account, replaces an "
+        "expired or missing token with a new token valid for 24 hours. "
+        "An unexpired token is resent without extending its expiration. "
+        "Returns the same success message for unknown or active accounts "
+        "without sending an email. No authentication is required. "
+        "If email delivery fails, the saved token can be resent."
+    ),
+    responses={
+        503: {
+            "model": ErrorResponseSchema,
+            "description": "The database or email delivery is unavailable.",
+        },
+    },
+)
+async def resend_activation_email(
+    email_data: ActivationResendRequestSchema,
+    db: AsyncSession = Depends(get_db),
+    email_sender: EmailSender = Depends(get_email_sender),
+) -> AccountMessageResponseSchema:
+    response = AccountMessageResponseSchema(
+        message=(
+            "If an inactive account exists for this email, "
+            "an activation email has been sent."
+        ),
+    )
+    try:
+        result = await db.execute(
+            select(UserModel).where(UserModel.email == email_data.email)
+        )
+        user = result.scalars().first()
+        if not user or user.is_active:
+            return response
+
+        token_result = await db.execute(
+            select(ActivationTokenModel)
+            .where(ActivationTokenModel.user_id == user.id)
+            .with_for_update()
+        )
+        activation_token = token_result.scalars().first()
+        await db.refresh(user)
+        if user.is_active:
+            return response
+
+        now = datetime.now(timezone.utc)
+        if activation_token is None:
+            activation_token = ActivationTokenModel(user_id=user.id)
+            db.add(activation_token)
+        else:
+            expires_at = activation_token.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at <= now:
+                activation_token.token = generate_secure_token()
+                activation_token.expires_at = now + timedelta(hours=24)
+        await db.commit()
+
+    except SQLAlchemyError as error:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Activation email resend is temporarily unavailable.",
+        ) from error
+
+    try:
+        await email_sender.send_activation_email(
+            user.email, activation_token.token, activation_token.expires_at,
+        )
+    except EmailDeliveryError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The activation email could not be sent. Please try again.",
+        ) from error
+    return response

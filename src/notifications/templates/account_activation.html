@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Activate your Online Cinema account</title>
+</head>
+<body>
+<h1>Online Cinema</h1>
+{% if message %}
+    <p role="status">{{ message }}</p>
+    <p>You can close this page.</p>
+{% elif error %}
+    <p role="alert">{{ error }}</p>
+{% else %}
+    <p>Confirm that you want to activate your account.</p>
+    <form method="post" action="{{ form_action }}">
+        <input type="hidden" name="token" value="{{ token }}">
+        <button type="submit">Activate account</button>
+    </form>
+{% endif %}
+</body>
+</html>
