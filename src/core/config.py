@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
-from pydantic import Field
+from pydantic import EmailStr, Field, HttpUrl, model_validator
 from pydantic_settings import BaseSettings
 from sqlalchemy import URL
 
@@ -35,6 +35,29 @@ class Settings(BaseAppSettings):
     POSTGRES_DB: str = Field(default="online_cinema", min_length=1)
     POSTGRES_USER: str = Field(default="postgres", min_length=1)
     POSTGRES_PASSWORD: str = Field(default="", repr=False)
+
+    SMTP_HOST: str = Field(default="localhost", min_length=1)
+    SMTP_PORT: int = Field(default=1025, ge=1, le=65535)
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = Field(default="", repr=False)
+    SMTP_FROM_EMAIL: EmailStr = "noreply@example.com"
+    SMTP_USE_TLS: bool = False
+    SMTP_START_TLS: bool = False
+    SMTP_TIMEOUT: float = Field(default=10, gt=0)
+    ACCOUNT_ACTIVATION_URL: HttpUrl = HttpUrl(
+        "http://localhost:8000/api/v1/accounts/activate"
+    )
+    CELERY_BROKER_URL: str = Field(
+        default="redis://localhost:6379/0", min_length=1, repr=False,
+    )
+
+    @model_validator(mode="after")
+    def validate_smtp_tls(self) -> "Settings":
+        if self.SMTP_USE_TLS and self.SMTP_START_TLS:
+            raise ValueError(
+                "Choose SMTP_USE_TLS or SMTP_START_TLS, not both."
+            )
+        return self
 
     @property
     def DATABASE_URL(self) -> URL:
