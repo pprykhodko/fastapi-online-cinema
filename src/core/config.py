@@ -2,7 +2,9 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
-from pydantic import EmailStr, Field, HttpUrl, model_validator
+from pydantic import (
+    EmailStr, Field, HttpUrl, SecretStr, field_validator, model_validator,
+)
 from pydantic_settings import BaseSettings
 from sqlalchemy import URL
 
@@ -50,6 +52,33 @@ class Settings(BaseAppSettings):
     CELERY_BROKER_URL: str = Field(
         default="redis://localhost:6379/0", min_length=1, repr=False,
     )
+
+    JWT_ACCESS_SECRET_KEY: SecretStr | None = Field(
+        default=None, min_length=32, repr=False,
+    )
+    JWT_REFRESH_SECRET_KEY: SecretStr | None = Field(
+        default=None, min_length=32, repr=False,
+    )
+    JWT_ALGORITHM: Literal["HS256"] = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, gt=0, le=1440)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, gt=0, le=365)
+
+    @field_validator("JWT_ACCESS_SECRET_KEY", "JWT_REFRESH_SECRET_KEY")
+    @classmethod
+    def validate_jwt_secret(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and not value.get_secret_value().strip():
+            raise ValueError("JWT secret keys must not be blank.")
+        return value
+
+    @model_validator(mode="after")
+    def validate_jwt_keys(self) -> "Settings":
+        if (
+            self.JWT_ACCESS_SECRET_KEY is not None
+            and self.JWT_REFRESH_SECRET_KEY is not None
+            and self.JWT_ACCESS_SECRET_KEY == self.JWT_REFRESH_SECRET_KEY
+        ):
+            raise ValueError("JWT access and refresh keys must be different.")
+        return self
 
     @model_validator(mode="after")
     def validate_smtp_tls(self) -> "Settings":
