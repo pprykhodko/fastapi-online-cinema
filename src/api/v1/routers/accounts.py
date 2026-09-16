@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi import (
-    APIRouter, Depends, Form, HTTPException, Query, Request, status,
+    APIRouter, Depends, Form, HTTPException, Query, Request, Response, status,
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse
@@ -14,6 +14,7 @@ from src.database import get_db
 from src.database.models import (
     ActivationTokenModel,
     CartModel,
+    RefreshTokenModel,
     UserGroupEnum,
     UserGroupModel,
     UserModel,
@@ -25,10 +26,13 @@ from src.schemas.accounts import (
     AccountActivationRequestSchema,
     AccountMessageResponseSchema,
     ActivationResendRequestSchema,
+    TokenPairResponseSchema,
+    UserLoginRequestSchema,
     UserRegistrationRequestSchema,
     UserResponseSchema,
 )
 from src.schemas.common import ErrorResponseSchema
+from src.security.tokens import JWTAuthManager, get_jwt_auth_manager
 from src.security.utils import generate_secure_token
 
 
@@ -43,6 +47,86 @@ ACTIVATION_PAGE_HEADERS = {
         "frame-ancestors 'none'; form-action 'self'"
     ),
 }
+
+
+@router.post(
+    "/login",
+    response_model=TokenPairResponseSchema,
+    summary="Log in to an activated account",
+    description=(
+        "Accepts email and password in a JSON body. Returns access and "
+        "refresh JWTs for an active account and saves the refresh token "
+        "in the database. Use the access token in the Authorization "
+        "header: Bearer <access_token>."
+    ),
+    responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Incorrect email or password.",
+        },
+        403: {
+            "model": ErrorResponseSchema,
+            "description": "The account has not been activated.",
+        },
+        503: {
+            "model": ErrorResponseSchema,
+            "description": "The database is unavailable.",
+        },
+    },
+)
+async def login_user(
+    login_data: UserLoginRequestSchema,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    jwt_manager: JWTAuthManager = Depends(get_jwt_auth_manager),
+) -> TokenPairResponseSchema:
+    try:
+        stmt = select(UserModel).where(UserModel.email == login_data.email)
+        result = await db.execute(stmt)
+        user = result.scalars().first()
+
+        if user is None or not await run_in_threadpool(
+            user.verify_password, login_data.password,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Activate your account before logging in.",
+            )
+
+        jwt_access_token = jwt_manager.create_access_token(user.id)
+        jwt_refresh_token = jwt_manager.create_refresh_token(user.id)
+
+        refresh_payload = jwt_manager.decode_refresh_token(jwt_refresh_token)
+        expires_at = datetime.fromtimestamp(
+            refresh_payload["exp"], tz=timezone.utc,
+        )
+        refresh_token = RefreshTokenModel(
+            user_id=user.id,
+            token=jwt_refresh_token,
+            expires_at=expires_at,
+        )
+        db.add(refresh_token)
+        await db.commit()
+    except SQLAlchemyError as error:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Login is temporarily unavailable. Please try again later.",
+        ) from error
+
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+    return TokenPairResponseSchema(
+        access_token=jwt_access_token,
+        refresh_token=jwt_refresh_token,
+    )
 
 
 @router.get(
