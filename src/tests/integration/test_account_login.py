@@ -19,7 +19,7 @@ from src.security.passwords import hash_password
 from src.security.tokens import JWTAuthManager, get_jwt_auth_manager
 
 
-LOGIN_URL = "/api/v1/accounts/login"
+LOGIN_URL = "/api/v1/accounts/login/"
 PASSWORD = "StrongPassword1!"
 
 

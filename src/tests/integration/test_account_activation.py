@@ -81,7 +81,7 @@ async def test_registration_email_activation_and_replay(
     activation_api, completion_email,
 ):
     client, sessions, send_email = activation_api
-    response = await client.post(f"{PREFIX}/register", json={
+    response = await client.post(f"{PREFIX}/register/", json={
         "email": "User@Example.com", "password": "StrongPassword1!",
     })
     assert response.status_code == 201
@@ -97,13 +97,13 @@ async def test_registration_email_activation_and_replay(
         cart = await db.scalar(select(CartModel))
         assert record.token == token
         assert record.user_id == cart.user_id == user_id
-    response = await client.post(f"{PREFIX}/activate", json={"token": token})
+    response = await client.post(f"{PREFIX}/activate/", json={"token": token})
     assert response.status_code == 200
     completion_email.assert_awaited_once_with("user@example.com")
     async with sessions() as db:
         assert (await db.get(UserModel, user_id)).is_active
         assert await db.scalar(select(ActivationTokenModel)) is None
-    response = await client.post(f"{PREFIX}/activate", json={"token": token})
+    response = await client.post(f"{PREFIX}/activate/", json={"token": token})
     assert response.status_code == 400
     completion_email.assert_awaited_once()
 
@@ -112,7 +112,7 @@ async def test_registration_email_activation_and_replay(
 async def test_registration_mail_failure_can_be_retried(activation_api):
     client, sessions, send_email = activation_api
     send_email.side_effect = EmailDeliveryError("private SMTP failure")
-    response = await client.post(f"{PREFIX}/register", json={
+    response = await client.post(f"{PREFIX}/register/", json={
         "email": "user@example.com", "password": "StrongPassword1!",
     })
     assert response.status_code == 503
@@ -124,7 +124,7 @@ async def test_registration_mail_failure_can_be_retried(activation_api):
         assert (await db.scalar(select(ActivationTokenModel))).token == token
     send_email.side_effect = None
     response = await client.post(
-        f"{PREFIX}/activation/resend", json={"email": "USER@example.com"},
+        f"{PREFIX}/activation/resend/", json={"email": "USER@example.com"},
     )
     assert response.status_code == 200
     assert send_email.call_args.args[1] == token
@@ -142,7 +142,7 @@ async def test_resend_replaces_only_expired_or_missing_token(
     )
     user_id = await create_account(sessions, expires_at=expiry)
     response = await client.post(
-        f"{PREFIX}/activation/resend", json={"email": "User@Example.com"},
+        f"{PREFIX}/activation/resend/", json={"email": "User@Example.com"},
     )
     assert response.status_code == 200
     async with sessions() as db:
@@ -163,7 +163,7 @@ async def test_resend_replaces_only_expired_or_missing_token(
             )
     if expired:
         response = await client.post(
-            f"{PREFIX}/activate", json={"token": "original-token"},
+            f"{PREFIX}/activate/", json={"token": "original-token"},
         )
         assert response.status_code == 400
 
@@ -172,11 +172,11 @@ async def test_resend_replaces_only_expired_or_missing_token(
 async def test_unknown_and_active_accounts_get_same_response(activation_api):
     client, sessions, send_email = activation_api
     unknown = await client.post(
-        f"{PREFIX}/activation/resend", json={"email": "user@example.com"},
+        f"{PREFIX}/activation/resend/", json={"email": "user@example.com"},
     )
     await create_account(sessions, active=True)
     active = await client.post(
-        f"{PREFIX}/activation/resend", json={"email": "user@example.com"},
+        f"{PREFIX}/activation/resend/", json={"email": "user@example.com"},
     )
     assert unknown.status_code == active.status_code == 200
     assert unknown.json() == active.json()
@@ -193,7 +193,7 @@ async def test_resend_mail_failure_preserves_new_token(activation_api):
     )
     send_email.side_effect = EmailDeliveryError("private failure")
     response = await client.post(
-        f"{PREFIX}/activation/resend", json={"email": "user@example.com"},
+        f"{PREFIX}/activation/resend/", json={"email": "user@example.com"},
     )
     assert response.status_code == 503
     assert "private" not in response.text
@@ -201,7 +201,7 @@ async def test_resend_mail_failure_preserves_new_token(activation_api):
     assert token != "original-token"
     send_email.side_effect = None
     response = await client.post(
-        f"{PREFIX}/activation/resend", json={"email": "user@example.com"},
+        f"{PREFIX}/activation/resend/", json={"email": "user@example.com"},
     )
     assert response.status_code == 200
     assert send_email.call_args.args[1] == token
@@ -213,7 +213,7 @@ async def test_resend_mail_failure_preserves_new_token(activation_api):
 }])
 async def test_resend_rejects_invalid_input(activation_api, payload):
     client, _, send_email = activation_api
-    response = await client.post(f"{PREFIX}/activation/resend", json=payload)
+    response = await client.post(f"{PREFIX}/activation/resend/", json=payload)
     assert response.status_code == 422
     send_email.assert_not_awaited()
 
@@ -234,7 +234,7 @@ async def test_resend_commit_failure_rolls_back(activation_api, monkeypatch):
         monkeypatch.setitem(app.dependency_overrides, get_db, override_db)
         monkeypatch.setattr(failing_db, "commit", failing_commit)
         response = await client.post(
-            f"{PREFIX}/activation/resend", json={"email": "user@example.com"},
+            f"{PREFIX}/activation/resend/", json={"email": "user@example.com"},
         )
         assert response.status_code == 503
         assert "private" not in response.text
@@ -252,7 +252,7 @@ async def test_activation_page_get_only_renders_form(activation_api):
         sessions, expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
     )
     response = await client.get(
-        f"{PREFIX}/activate", params={"token": "original-token"},
+        f"{PREFIX}/activate/", params={"token": "original-token"},
     )
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
@@ -260,7 +260,7 @@ async def test_activation_page_get_only_renders_form(activation_api):
     assert response.headers["referrer-policy"] == "no-referrer"
     assert 'name="token" value="original-token"' in response.text
     assert '<form method="post"' in response.text
-    assert f'action="{PREFIX}/activate/confirm"' in response.text
+    assert f'action="{PREFIX}/activate/confirm/"' in response.text
     assert "<button" in response.text
     assert "<script" not in response.text
     assert "You can close this page." not in response.text
@@ -274,7 +274,7 @@ async def test_activation_page_get_only_renders_form(activation_api):
 async def test_activation_page_escapes_token(activation_api):
     client, _, _ = activation_api
     token = '\"><script>alert(1)</script>'
-    response = await client.get(f"{PREFIX}/activate", params={"token": token})
+    response = await client.get(f"{PREFIX}/activate/", params={"token": token})
     assert response.status_code == 200
     assert token not in response.text
     assert "&lt;script&gt;" in response.text
@@ -293,7 +293,7 @@ async def test_activation_rejects_expired_or_active_account(
         expires_at=datetime.now(timezone.utc) + timedelta(hours=hours),
     )
     response = await client.post(
-        f"{PREFIX}/activate", json={"token": "original-token"},
+        f"{PREFIX}/activate/", json={"token": "original-token"},
     )
     assert response.status_code == status_code
     completion_email.assert_not_awaited()
@@ -304,8 +304,8 @@ async def test_activation_rejects_expired_or_active_account(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("path, payload", [
-    ("/activation/resend", {"email": "user@example.com"}),
-    ("/activate", {"token": "original-token"}),
+    ("/activation/resend/", {"email": "user@example.com"}),
+    ("/activate/", {"token": "original-token"}),
 ])
 async def test_activation_database_errors_are_safe(
     activation_api, monkeypatch, path, payload,
@@ -326,13 +326,13 @@ async def test_activation_database_errors_are_safe(
 
 def test_activation_openapi_contract():
     paths = app.openapi()["paths"]
-    assert "get" in paths[f"{PREFIX}/activate"]
-    assert "post" in paths[f"{PREFIX}/activate"]
-    resend = paths[f"{PREFIX}/activation/resend"]["post"]
+    assert "get" in paths[f"{PREFIX}/activate/"]
+    assert "post" in paths[f"{PREFIX}/activate/"]
+    resend = paths[f"{PREFIX}/activation/resend/"]["post"]
     assert set(resend["responses"]) == {"200", "422", "503"}
     schema = resend["requestBody"]["content"]["application/json"]["schema"]
     assert schema["$ref"].endswith("/ActivationResendRequestSchema")
-    form = paths[f"{PREFIX}/activate/confirm"]["post"]
+    form = paths[f"{PREFIX}/activate/confirm/"]["post"]
     content = form["requestBody"]["content"]
     assert "application/x-www-form-urlencoded" in content
 
@@ -347,7 +347,7 @@ async def test_confirmation_mail_failure_does_not_undo_activation(
     )
     completion_email.side_effect = EmailDeliveryError("private failure")
     response = await client.post(
-        f"{PREFIX}/activate", json={"token": "original-token"},
+        f"{PREFIX}/activate/", json={"token": "original-token"},
     )
     assert response.status_code == 200
     assert "confirmation email could not be sent" in response.json()["message"]
@@ -375,7 +375,7 @@ async def test_confirmation_email_is_sent_after_commit(
 
     completion_email.side_effect = check_saved_account
     response = await client.post(
-        f"{PREFIX}/activate", json={"token": "original-token"},
+        f"{PREFIX}/activate/", json={"token": "original-token"},
     )
     assert response.status_code == 200
     completion_email.assert_awaited_once_with("user@example.com")
@@ -400,7 +400,7 @@ async def test_activation_commit_failure_does_not_send_confirmation(
         monkeypatch.setitem(app.dependency_overrides, get_db, broken_db)
         monkeypatch.setattr(db, "commit", failing_commit)
         response = await client.post(
-            f"{PREFIX}/activate", json={"token": "original-token"},
+            f"{PREFIX}/activate/", json={"token": "original-token"},
         )
     assert response.status_code == 503
     completion_email.assert_not_awaited()
@@ -418,7 +418,7 @@ async def test_form_activation_returns_html_and_prevents_replay(
         sessions, expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
     )
     response = await client.post(
-        f"{PREFIX}/activate/confirm", data={"token": "original-token"},
+        f"{PREFIX}/activate/confirm/", data={"token": "original-token"},
     )
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
@@ -435,7 +435,7 @@ async def test_form_activation_returns_html_and_prevents_replay(
         assert await db.scalar(select(ActivationTokenModel)) is None
 
     response = await client.post(
-        f"{PREFIX}/activate/confirm", data={"token": "original-token"},
+        f"{PREFIX}/activate/confirm/", data={"token": "original-token"},
     )
     assert response.status_code == 400
     assert "invalid or expired" in response.text
@@ -456,7 +456,7 @@ async def test_form_activation_returns_html_errors(
         expires_at=datetime.now(timezone.utc) + timedelta(hours=hours),
     )
     response = await client.post(
-        f"{PREFIX}/activate/confirm", data={"token": "original-token"},
+        f"{PREFIX}/activate/confirm/", data={"token": "original-token"},
     )
     assert response.status_code == expected_status
     assert "text/html" in response.headers["content-type"]
@@ -477,7 +477,7 @@ async def test_form_activation_reports_confirmation_email_failure(
     )
     completion_email.side_effect = EmailDeliveryError("private failure")
     response = await client.post(
-        f"{PREFIX}/activate/confirm", data={"token": "original-token"},
+        f"{PREFIX}/activate/confirm/", data={"token": "original-token"},
     )
     assert response.status_code == 200
     assert "confirmation email could not be sent" in response.text
@@ -495,6 +495,6 @@ async def test_form_activation_validates_input(
     activation_api, completion_email, payload,
 ):
     client, _, _ = activation_api
-    response = await client.post(f"{PREFIX}/activate/confirm", data=payload)
+    response = await client.post(f"{PREFIX}/activate/confirm/", data=payload)
     assert response.status_code == 422
     completion_email.assert_not_awaited()
