@@ -1,0 +1,284 @@
+from datetime import datetime, timedelta, timezone
+
+from fastapi import HTTPException, status
+from fastapi.concurrency import run_in_threadpool
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
+from src.database.models import (
+    ActivationTokenModel, RefreshTokenModel, UserModel,
+)
+from src.notifications.emails import EmailDeliveryError, EmailSender
+from src.repositories.accounts import AccountRepository
+from src.schemas.accounts import (
+    AccountActivationRequestSchema, AccountMessageResponseSchema,
+    ActivationResendRequestSchema, TokenPairResponseSchema,
+    UserLoginRequestSchema, UserRegistrationRequestSchema, UserResponseSchema,
+)
+from src.security.tokens import JWTAuthManager
+from src.security.utils import generate_secure_token
+
+
+class AccountService:
+    def __init__(
+        self, repository: AccountRepository, email_sender: EmailSender,
+    ):
+        self.repository = repository
+        self.email_sender = email_sender
+
+    @staticmethod
+    def is_token_expired(expires_at: datetime, now: datetime) -> bool:
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        return expires_at <= now
+
+    async def register_user(
+        self, user_data: UserRegistrationRequestSchema,
+    ) -> UserResponseSchema:
+        try:
+            existing_user = await self.repository.get_user_by_email(
+                user_data.email,
+            )
+
+            if existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A user with this email already exists.",
+                )
+
+            user_group = await self.repository.get_default_group()
+
+            if not user_group:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Registration is temporarily unavailable.",
+                )
+
+            new_user = await run_in_threadpool(
+                UserModel.create,
+                email=str(user_data.email),
+                raw_password=user_data.password,
+                group_id=user_group.id,
+            )
+            new_user.is_active = False
+            new_user.group = user_group
+            await self.repository.add_user(new_user)
+            self.repository.add_cart(new_user.id)
+            activation_token = ActivationTokenModel(user_id=new_user.id)
+            self.repository.add_activation_token(activation_token)
+            await self.repository.commit()
+
+        except IntegrityError as error:
+            await self.repository.rollback()
+            existing_user = await self.repository.get_user_by_email(
+                user_data.email,
+            )
+
+            if existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A user with this email already exists.",
+                ) from error
+
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="The account could not be saved.",
+            ) from error
+
+        except SQLAlchemyError as error:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Registration is temporarily unavailable.",
+            ) from error
+
+        try:
+            await self.email_sender.send_activation_email(
+                new_user.email,
+                activation_token.token,
+                activation_token.expires_at,
+            )
+
+        except EmailDeliveryError as error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    "Account created, but the activation email could not be "
+                    "sent. Please request the activation email again."
+                ),
+            ) from error
+
+        return UserResponseSchema.model_validate(new_user)
+
+    async def activate_account(
+        self, activation_data: AccountActivationRequestSchema,
+    ) -> AccountMessageResponseSchema:
+        try:
+            activation_token = await self.repository.get_activation_token(
+                activation_data.token,
+            )
+
+            if not activation_token:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="The activation token is invalid or expired.",
+                )
+
+            if self.is_token_expired(
+                activation_token.expires_at, datetime.now(timezone.utc),
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="The activation token is invalid or expired.",
+                )
+
+            user = await self.repository.get_user_by_id(
+                activation_token.user_id,
+            )
+
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="The activation token is invalid or expired.",
+                )
+
+            if user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="The account is already active.",
+                )
+
+            user.is_active = True
+            await self.repository.delete_activation_token(activation_token)
+            await self.repository.commit()
+
+        except SQLAlchemyError as error:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Account activation is temporarily unavailable.",
+            ) from error
+
+        try:
+            await self.email_sender.send_activation_complete_email(user.email)
+
+        except EmailDeliveryError:
+            return AccountMessageResponseSchema(
+                message=(
+                    "Account activated successfully, but the confirmation "
+                    "email could not be sent."
+                ),
+            )
+
+        return AccountMessageResponseSchema(
+            message="Account activated successfully.",
+        )
+
+    async def resend_activation_link(
+        self, email_data: ActivationResendRequestSchema,
+    ) -> AccountMessageResponseSchema:
+        response = AccountMessageResponseSchema(
+            message=(
+                "If an inactive account exists for this email, "
+                "an activation email has been sent."
+            ),
+        )
+        try:
+            user = await self.repository.get_user_by_email(email_data.email)
+
+            if not user or user.is_active:
+                return response
+
+            activation_token = await self.repository.get_user_activation_token(
+                user.id,
+            )
+            await self.repository.refresh_user(user)
+
+            if user.is_active:
+                return response
+
+            now = datetime.now(timezone.utc)
+
+            if activation_token is None:
+                activation_token = ActivationTokenModel(user_id=user.id)
+                self.repository.add_activation_token(activation_token)
+
+            elif self.is_token_expired(activation_token.expires_at, now):
+                activation_token.token = generate_secure_token()
+                activation_token.expires_at = now + timedelta(hours=24)
+
+            await self.repository.commit()
+
+        except SQLAlchemyError as error:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Activation email resend is temporarily unavailable.",
+            ) from error
+
+        try:
+            await self.email_sender.send_activation_email(
+                user.email,
+                activation_token.token,
+                activation_token.expires_at,
+            )
+        except EmailDeliveryError as error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    "The activation email could not be sent. Please try again."
+                ),
+            ) from error
+
+        return response
+
+    async def login(
+        self, login_data: UserLoginRequestSchema, jwt_manager: JWTAuthManager,
+    ) -> TokenPairResponseSchema:
+        try:
+            user = await self.repository.get_user_by_email(login_data.email)
+
+            if user is None or not await run_in_threadpool(
+                user.verify_password, login_data.password,
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Incorrect email or password.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            if not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Activate your account before logging in.",
+                )
+
+            jwt_access_token = jwt_manager.create_access_token(user.id)
+            jwt_refresh_token = jwt_manager.create_refresh_token(user.id)
+
+            refresh_payload = jwt_manager.decode_refresh_token(
+                jwt_refresh_token,
+            )
+            expires_at = datetime.fromtimestamp(
+                refresh_payload["exp"], tz=timezone.utc,
+            )
+            refresh_token = RefreshTokenModel(
+                user_id=user.id,
+                token=jwt_refresh_token,
+                expires_at=expires_at,
+            )
+            self.repository.add_refresh_token(refresh_token)
+            await self.repository.commit()
+
+        except SQLAlchemyError as error:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    "Login is temporarily unavailable. Please try again later."
+                ),
+            ) from error
+
+        return TokenPairResponseSchema(
+            access_token=jwt_access_token,
+            refresh_token=jwt_refresh_token,
+        )
