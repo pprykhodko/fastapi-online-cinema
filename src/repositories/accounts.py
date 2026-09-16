@@ -49,6 +49,19 @@ class AccountRepository:
     def add_refresh_token(self, token: RefreshTokenModel) -> None:
         self.db.add(token)
 
+    async def get_refresh_token(self, token: str) -> RefreshTokenModel | None:
+        stmt = (
+            select(RefreshTokenModel)
+            .where(RefreshTokenModel.token == token)
+            .with_for_update()
+        )
+        result = await self.db.execute(stmt)
+
+        return result.scalars().first()
+
+    async def delete_refresh_token(self, token: RefreshTokenModel) -> None:
+        await self.db.delete(token)
+
     async def get_activation_token(
         self, token: str,
     ) -> ActivationTokenModel | None:

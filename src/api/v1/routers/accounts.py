@@ -7,10 +7,13 @@ from fastapi.templating import Jinja2Templates
 from src.api.dependencies import get_account_service
 from src.notifications.emails import TEMPLATES_DIR
 from src.schemas.accounts import (
+    AccessTokenResponseSchema,
     AccountActivationRequestSchema,
     AccountMessageResponseSchema,
     ActivationResendRequestSchema,
+    LogoutRequestSchema,
     TokenPairResponseSchema,
+    TokenRefreshRequestSchema,
     UserLoginRequestSchema,
     UserRegistrationRequestSchema,
     UserResponseSchema,
@@ -70,6 +73,75 @@ async def login_user(
     response.headers["Pragma"] = "no-cache"
 
     return tokens
+
+
+@router.post(
+    "/token/refresh/",
+    response_model=AccessTokenResponseSchema,
+    summary="Refresh the access token",
+    description=(
+        "Accepts refresh_token in a JSON body. Validates the refresh JWT, "
+        "its database record and the user's active status. Returns a new "
+        "access token without replacing or extending the refresh token. "
+        "An access token is not required."
+    ),
+    responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid, expired or revoked refresh token.",
+        },
+        403: {
+            "model": ErrorResponseSchema,
+            "description": "The account is not active.",
+        },
+        503: {
+            "model": ErrorResponseSchema,
+            "description": "Token refresh is temporarily unavailable.",
+        },
+    },
+)
+async def refresh_access_token(
+    token_data: TokenRefreshRequestSchema,
+    response: Response,
+    service: AccountService = Depends(get_account_service),
+    jwt_manager: JWTAuthManager = Depends(get_jwt_auth_manager),
+) -> AccessTokenResponseSchema:
+    token = await service.refresh_access_token(token_data, jwt_manager)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+
+    return token
+
+
+@router.post(
+    "/logout/",
+    response_model=AccountMessageResponseSchema,
+    summary="Log out of the current session",
+    description=(
+        "Accepts refresh_token in a JSON body. Deletes the matching valid "
+        "refresh token from the database. Other sessions are unchanged. "
+        "An access token is not required; inactive users may also log out. "
+        "Already issued access tokens remain valid until they expire. "
+        "Repeated logout with the deleted refresh token returns 401."
+    ),
+    responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid, expired or revoked refresh token.",
+        },
+        503: {
+            "model": ErrorResponseSchema,
+            "description": "Logout is temporarily unavailable.",
+        },
+    },
+)
+async def logout_user(
+    logout_data: LogoutRequestSchema,
+    service: AccountService = Depends(get_account_service),
+    jwt_manager: JWTAuthManager = Depends(get_jwt_auth_manager),
+) -> AccountMessageResponseSchema:
+
+    return await service.logout(logout_data, jwt_manager)
 
 
 @router.post(

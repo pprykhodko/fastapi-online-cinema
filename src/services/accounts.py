@@ -10,11 +10,13 @@ from src.database.models import (
 from src.notifications.emails import EmailDeliveryError, EmailSender
 from src.repositories.accounts import AccountRepository
 from src.schemas.accounts import (
+    AccessTokenResponseSchema,
     AccountActivationRequestSchema, AccountMessageResponseSchema,
-    ActivationResendRequestSchema, TokenPairResponseSchema,
+    ActivationResendRequestSchema, LogoutRequestSchema,
+    TokenPairResponseSchema, TokenRefreshRequestSchema,
     UserLoginRequestSchema, UserRegistrationRequestSchema, UserResponseSchema,
 )
-from src.security.tokens import JWTAuthManager
+from src.security.tokens import InvalidTokenError, JWTAuthManager
 from src.security.utils import generate_secure_token
 
 
@@ -282,3 +284,85 @@ class AccountService:
             access_token=jwt_access_token,
             refresh_token=jwt_refresh_token,
         )
+
+    async def _get_valid_refresh_token(
+        self, raw_token: str, jwt_manager: JWTAuthManager,
+    ) -> RefreshTokenModel:
+        token_error = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+        try:
+            payload = jwt_manager.decode_refresh_token(raw_token)
+
+        except InvalidTokenError as error:
+            raise token_error from error
+
+        token = await self.repository.get_refresh_token(raw_token)
+
+        if token is None:
+            raise token_error
+
+        if token.user_id != int(payload["sub"]):
+            raise token_error
+
+        if self.is_token_expired(token.expires_at, datetime.now(timezone.utc)):
+            raise token_error
+
+        return token
+
+    async def refresh_access_token(
+        self, token_data: TokenRefreshRequestSchema,
+        jwt_manager: JWTAuthManager,
+    ) -> AccessTokenResponseSchema:
+        try:
+            token = await self._get_valid_refresh_token(
+                token_data.refresh_token, jwt_manager,
+            )
+            user = await self.repository.get_user_by_id(token.user_id)
+
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or expired refresh token.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            if not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Your account is not active.",
+                )
+
+            access_token = jwt_manager.create_access_token(user.id)
+            await self.repository.commit()
+
+        except SQLAlchemyError as error:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Token refresh is temporarily unavailable.",
+            ) from error
+
+        return AccessTokenResponseSchema(access_token=access_token)
+
+    async def logout(
+        self, logout_data: LogoutRequestSchema, jwt_manager: JWTAuthManager,
+    ) -> AccountMessageResponseSchema:
+        try:
+            token = await self._get_valid_refresh_token(
+                logout_data.refresh_token, jwt_manager,
+            )
+            await self.repository.delete_refresh_token(token)
+            await self.repository.commit()
+
+        except SQLAlchemyError as error:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Logout is temporarily unavailable.",
+            ) from error
+
+        return AccountMessageResponseSchema(message="Logged out successfully.")
