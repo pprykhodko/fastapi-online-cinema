@@ -90,6 +90,31 @@ class EmailSender:
             "Thank you for joining Online Cinema!",
         )
 
+    async def send_password_reset_email(
+        self, email: str, token: str, expires_at: datetime,
+    ) -> None:
+        url_parts = urlsplit(str(self._settings.PASSWORD_RESET_URL))
+        query = dict(parse_qsl(url_parts.query))
+        query["token"] = token
+        reset_link = urlunsplit(url_parts._replace(query=urlencode(query)))
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        expiration = expires_at.astimezone(timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S UTC"
+        )
+        template = self._env.get_template("password_reset_request.html")
+        html_content = template.render(
+            email=email, reset_link=reset_link, expires_at=expiration,
+        )
+        await self._send_email(
+            email,
+            "Reset your Online Cinema password",
+            html_content,
+            f"Reset your password:\n{reset_link}\n\n"
+            f"This link expires at {expiration}.\n"
+            "If you did not request a reset, you can ignore this email.",
+        )
+
 
 def get_email_sender() -> EmailSender:
     return EmailSender(get_settings())

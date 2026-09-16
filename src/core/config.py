@@ -49,6 +49,9 @@ class Settings(BaseAppSettings):
     ACCOUNT_ACTIVATION_URL: HttpUrl = HttpUrl(
         "http://localhost:8000/api/v1/accounts/activate"
     )
+    PASSWORD_RESET_URL: HttpUrl = HttpUrl(
+        "http://localhost:8000/api/v1/accounts/password/reset/confirm/"
+    )
     CELERY_BROKER_URL: str = Field(
         default="redis://localhost:6379/0", min_length=1, repr=False,
     )

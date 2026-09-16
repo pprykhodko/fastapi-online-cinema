@@ -5,7 +5,8 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.database.models import (
-    ActivationTokenModel, RefreshTokenModel, UserModel,
+    ActivationTokenModel, PasswordResetTokenModel,
+    RefreshTokenModel, UserModel,
 )
 from src.notifications.emails import EmailDeliveryError, EmailSender
 from src.repositories.accounts import AccountRepository
@@ -13,10 +14,13 @@ from src.schemas.accounts import (
     AccessTokenResponseSchema,
     AccountActivationRequestSchema, AccountMessageResponseSchema,
     ActivationResendRequestSchema, LogoutRequestSchema,
+    PasswordChangeRequestSchema, PasswordResetConfirmRequestSchema,
+    PasswordResetRequestSchema,
     TokenPairResponseSchema, TokenRefreshRequestSchema,
     UserLoginRequestSchema, UserRegistrationRequestSchema, UserResponseSchema,
 )
 from src.security.tokens import InvalidTokenError, JWTAuthManager
+from src.security.passwords import hash_password
 from src.security.utils import generate_secure_token
 
 
@@ -366,3 +370,135 @@ class AccountService:
             ) from error
 
         return AccountMessageResponseSchema(message="Logged out successfully.")
+
+    async def change_password(
+        self, current_user: UserModel,
+        password_data: PasswordChangeRequestSchema,
+    ) -> AccountMessageResponseSchema:
+        if not await run_in_threadpool(
+            current_user.verify_password, password_data.old_password,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Incorrect current password.",
+            )
+
+        if password_data.old_password == password_data.new_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New password must differ from the current password.",
+            )
+
+        try:
+            current_user._hashed_password = await run_in_threadpool(
+                hash_password, password_data.new_password,
+            )
+            await self.repository.delete_user_refresh_tokens(current_user.id)
+            await self.repository.delete_user_password_reset_tokens(
+                current_user.id,
+            )
+            await self.repository.commit()
+
+        except SQLAlchemyError as error:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Password change is temporarily unavailable.",
+            ) from error
+
+        return AccountMessageResponseSchema(
+            message="Password changed successfully. Please log in again.",
+        )
+
+    async def request_password_reset(
+        self, email_data: PasswordResetRequestSchema,
+    ) -> AccountMessageResponseSchema:
+        response = AccountMessageResponseSchema(
+            message=(
+                "If an active account exists for this email, "
+                "password reset instructions have been sent."
+            ),
+        )
+
+        try:
+            user = await self.repository.get_user_by_email(email_data.email)
+
+            if user is None or not user.is_active:
+                return response
+
+            reset_token = await self.repository.get_user_password_reset_token(
+                user.id,
+            )
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+
+            if reset_token is None:
+                reset_token = PasswordResetTokenModel(
+                    user_id=user.id, expires_at=expires_at,
+                )
+                self.repository.add_password_reset_token(reset_token)
+
+            else:
+                reset_token.token = generate_secure_token()
+                reset_token.expires_at = expires_at
+            await self.repository.commit()
+
+        except SQLAlchemyError as error:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Password reset is temporarily unavailable.",
+            ) from error
+
+        try:
+            await self.email_sender.send_password_reset_email(
+                user.email, reset_token.token, reset_token.expires_at,
+            )
+
+        except EmailDeliveryError as error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="The reset email could not be sent. Please try again.",
+            ) from error
+
+        return response
+
+    async def reset_password(
+        self, reset_data: PasswordResetConfirmRequestSchema,
+    ) -> AccountMessageResponseSchema:
+        token_error = HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token.",
+        )
+
+        try:
+            reset_token = await self.repository.get_password_reset_token(
+                reset_data.token,
+            )
+
+            if reset_token is None or self.is_token_expired(
+                reset_token.expires_at, datetime.now(timezone.utc),
+            ):
+                raise token_error
+
+            user = await self.repository.get_user_by_id(reset_token.user_id)
+
+            if user is None or not user.is_active:
+                raise token_error
+
+            user._hashed_password = await run_in_threadpool(
+                hash_password, reset_data.new_password,
+            )
+            await self.repository.delete_user_password_reset_tokens(user.id)
+            await self.repository.delete_user_refresh_tokens(user.id)
+            await self.repository.commit()
+
+        except SQLAlchemyError as error:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Password reset is temporarily unavailable.",
+            ) from error
+
+        return AccountMessageResponseSchema(
+            message="Password reset successfully. Please log in again.",
+        )

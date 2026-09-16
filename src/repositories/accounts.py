@@ -1,9 +1,10 @@
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from src.database.models import (
-    ActivationTokenModel, CartModel, RefreshTokenModel,
+    ActivationTokenModel, CartModel,
+    PasswordResetTokenModel, RefreshTokenModel,
     UserGroupEnum, UserGroupModel, UserModel,
 )
 
@@ -61,6 +62,47 @@ class AccountRepository:
 
     async def delete_refresh_token(self, token: RefreshTokenModel) -> None:
         await self.db.delete(token)
+
+    async def delete_user_refresh_tokens(self, user_id: int) -> None:
+        await self.db.execute(
+            delete(RefreshTokenModel).where(
+                RefreshTokenModel.user_id == user_id,
+            )
+        )
+
+    def add_password_reset_token(self, token: PasswordResetTokenModel) -> None:
+        self.db.add(token)
+
+    async def get_password_reset_token(
+        self, token: str,
+    ) -> PasswordResetTokenModel | None:
+        stmt = (
+            select(PasswordResetTokenModel)
+            .where(PasswordResetTokenModel.token == token)
+            .with_for_update()
+        )
+        result = await self.db.execute(stmt)
+
+        return result.scalars().first()
+
+    async def get_user_password_reset_token(
+        self, user_id: int,
+    ) -> PasswordResetTokenModel | None:
+        stmt = (
+            select(PasswordResetTokenModel)
+            .where(PasswordResetTokenModel.user_id == user_id)
+            .with_for_update()
+        )
+        result = await self.db.execute(stmt)
+
+        return result.scalars().first()
+
+    async def delete_user_password_reset_tokens(self, user_id: int) -> None:
+        await self.db.execute(
+            delete(PasswordResetTokenModel).where(
+                PasswordResetTokenModel.user_id == user_id,
+            )
+        )
 
     async def get_activation_token(
         self, token: str,

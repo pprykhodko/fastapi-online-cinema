@@ -3,8 +3,10 @@ from fastapi import (
 )
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import ValidationError
 
 from src.api.dependencies import get_account_service
+from src.database.models import UserModel
 from src.notifications.emails import TEMPLATES_DIR
 from src.schemas.accounts import (
     AccessTokenResponseSchema,
@@ -12,6 +14,9 @@ from src.schemas.accounts import (
     AccountMessageResponseSchema,
     ActivationResendRequestSchema,
     LogoutRequestSchema,
+    PasswordChangeRequestSchema,
+    PasswordResetConfirmRequestSchema,
+    PasswordResetRequestSchema,
     TokenPairResponseSchema,
     TokenRefreshRequestSchema,
     UserLoginRequestSchema,
@@ -19,6 +24,7 @@ from src.schemas.accounts import (
     UserResponseSchema,
 )
 from src.schemas.common import ErrorResponseSchema
+from src.security.dependencies import get_current_user
 from src.security.tokens import JWTAuthManager, get_jwt_auth_manager
 from src.services.accounts import AccountService
 
@@ -142,6 +148,143 @@ async def logout_user(
 ) -> AccountMessageResponseSchema:
 
     return await service.logout(logout_data, jwt_manager)
+
+
+@router.post(
+    "/password/change/",
+    response_model=AccountMessageResponseSchema,
+    summary="Change the current user's password",
+    description=(
+        "Requires an access token. Accepts old_password and new_password "
+        "in JSON. Checks the current password and password complexity. "
+        "Revokes all refresh tokens and outstanding password reset links. "
+        "Existing access tokens remain valid until they expire."
+    ),
+    responses={
+        400: {"model": ErrorResponseSchema,
+              "description": "Wrong current password or unchanged password."},
+        401: {"model": ErrorResponseSchema,
+              "description": "Missing or invalid access token."},
+        403: {"model": ErrorResponseSchema,
+              "description": "The account is not active."},
+        503: {"model": ErrorResponseSchema,
+              "description": "Password change is temporarily unavailable."},
+    },
+)
+async def change_password(
+    password_data: PasswordChangeRequestSchema,
+    current_user: UserModel = Depends(get_current_user),
+    service: AccountService = Depends(get_account_service),
+) -> AccountMessageResponseSchema:
+
+    return await service.change_password(current_user, password_data)
+
+
+@router.post(
+    "/password/reset/",
+    response_model=AccountMessageResponseSchema,
+    summary="Request a password reset email",
+    description=(
+        "Accepts email in JSON. For an active account, saves a one-use "
+        "reset token valid for 24 hours and sends a reset link. A new "
+        "request replaces the previous token. Unknown and inactive "
+        "accounts receive the same success response without an email."
+    ),
+    responses={
+        503: {"model": ErrorResponseSchema,
+              "description": "Database or email delivery is unavailable."},
+    },
+)
+async def request_password_reset(
+    email_data: PasswordResetRequestSchema,
+    service: AccountService = Depends(get_account_service),
+) -> AccountMessageResponseSchema:
+
+    return await service.request_password_reset(email_data)
+
+
+@router.post(
+    "/password/reset/confirm/",
+    response_model=AccountMessageResponseSchema,
+    summary="Set a new password using a reset token",
+    description=(
+        "Accepts token and new_password in JSON; no access token or old "
+        "password is required. Checks token expiry and account activity. "
+        "Updates the password and removes the reset token and all refresh "
+        "tokens in one transaction. A used link cannot be used again. "
+        "Existing access tokens remain valid until they expire."
+    ),
+    responses={
+        400: {"model": ErrorResponseSchema,
+              "description": "Invalid or expired reset token."},
+        503: {"model": ErrorResponseSchema,
+              "description": "Password reset is temporarily unavailable."},
+    },
+)
+async def confirm_password_reset(
+    reset_data: PasswordResetConfirmRequestSchema,
+    service: AccountService = Depends(get_account_service),
+) -> AccountMessageResponseSchema:
+
+    return await service.reset_password(reset_data)
+
+
+@router.get(
+    "/password/reset/confirm/",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def password_reset_page(
+    request: Request,
+    token: str = Query(min_length=1, max_length=255, pattern=r"^\S+$"),
+) -> HTMLResponse:
+
+    return templates.TemplateResponse(
+        request=request,
+        name="password_reset.html",
+        context={
+            "token": token,
+            "form_action": request.url_for("confirm_password_reset_form").path,
+        },
+        headers=ACTIVATION_PAGE_HEADERS,
+    )
+
+
+@router.post(
+    "/password/reset/confirm/form/",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def confirm_password_reset_form(
+    request: Request,
+    token: str = Form(min_length=1, max_length=255, pattern=r"^\S+$"),
+    new_password: str = Form(),
+    service: AccountService = Depends(get_account_service),
+) -> HTMLResponse:
+    status_code = status.HTTP_200_OK
+
+    try:
+        reset_data = PasswordResetConfirmRequestSchema(
+            token=token, new_password=new_password,
+        )
+        result = await service.reset_password(reset_data)
+        context = {"message": result.message}
+
+    except ValidationError:
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        context = {"error": "The new password does not meet the requirements."}
+
+    except HTTPException as error:
+        status_code = error.status_code
+        context = {"error": error.detail}
+
+    return templates.TemplateResponse(
+        request=request,
+        name="password_reset.html",
+        context=context,
+        status_code=status_code,
+        headers=ACTIVATION_PAGE_HEADERS,
+    )
 
 
 @router.post(
