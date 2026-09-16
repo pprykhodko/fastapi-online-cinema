@@ -6,14 +6,16 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from src.database.models import (
-    ActivationTokenModel, UserGroupEnum, UserGroupModel, UserModel,
+    ActivationTokenModel, RefreshTokenModel,
+    UserGroupEnum, UserGroupModel, UserModel,
 )
 from src.notifications.emails import EmailSender
 from src.repositories.accounts import AccountRepository
 from src.schemas.accounts import (
     AccountActivationRequestSchema, ActivationResendRequestSchema,
-    UserRegistrationRequestSchema,
+    TokenRefreshRequestSchema, UserRegistrationRequestSchema,
 )
+from src.security.tokens import JWTAuthManager
 from src.services.accounts import AccountService
 
 
@@ -123,3 +125,24 @@ def test_token_expiration_handles_boundary_and_timezone(
         expires_at = expires_at.astimezone(token_timezone)
 
     assert AccountService.is_token_expired(expires_at, now) is expected
+
+
+@pytest.mark.asyncio
+async def test_refresh_rejects_missing_user(repository, email_sender):
+    manager = create_autospec(JWTAuthManager, instance=True)
+    manager.decode_refresh_token.return_value = {"sub": "1"}
+    repository.get_refresh_token.return_value = RefreshTokenModel(
+        user_id=1, token="refresh-token",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+    repository.get_user_by_id.return_value = None
+    service = AccountService(repository, email_sender)
+
+    with pytest.raises(HTTPException) as error:
+        await service.refresh_access_token(
+            TokenRefreshRequestSchema(refresh_token="refresh-token"), manager,
+        )
+
+    assert error.value.status_code == 401
+    manager.create_access_token.assert_not_called()
+    repository.commit.assert_not_awaited()
