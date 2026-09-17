@@ -1,6 +1,6 @@
 from fastapi import (
-    APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request,
-    Response, status,
+    APIRouter, BackgroundTasks, Depends, Form, HTTPException, Path, Query,
+    Request, Response, status,
 )
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -19,12 +19,13 @@ from src.schemas.accounts import (
     PasswordResetRequestSchema,
     TokenPairResponseSchema,
     TokenRefreshRequestSchema,
+    UserGroupUpdateRequestSchema,
     UserLoginRequestSchema,
     UserRegistrationRequestSchema,
     UserResponseSchema,
 )
 from src.schemas.common import ErrorResponseSchema
-from src.security.dependencies import get_current_user
+from src.security.dependencies import get_current_admin, get_current_user
 from src.security.tokens import JWTAuthManager, get_jwt_auth_manager
 from src.services.accounts import AccountService
 
@@ -404,3 +405,66 @@ async def resend_activation_email(
 ) -> AccountMessageResponseSchema:
 
     return await service.resend_activation_link(email_data)
+
+
+@router.patch(
+    "/{user_id}/group/",
+    response_model=UserResponseSchema,
+    dependencies=[Depends(get_current_admin)],
+    summary="Change a user's group as an administrator",
+    description=(
+        "Requires an active ADMIN account and an access token. Accepts "
+        "group in JSON: user, moderator or admin. Returns the updated "
+        "account. The same group may be submitted again. Permissions are "
+        "read from the database on each request, so existing access tokens "
+        "use the new role on subsequent requests."
+    ),
+    responses={
+        401: {"model": ErrorResponseSchema,
+              "description": "Missing or invalid access token."},
+        403: {"model": ErrorResponseSchema,
+              "description": "Inactive account or insufficient permissions."},
+        404: {"model": ErrorResponseSchema,
+              "description": "The user does not exist."},
+        503: {"model": ErrorResponseSchema,
+              "description": "Database unavailable or group not configured."},
+    },
+)
+async def change_user_group(
+    group_data: UserGroupUpdateRequestSchema,
+    user_id: int = Path(gt=0, le=2**63 - 1),
+    service: AccountService = Depends(get_account_service),
+) -> UserResponseSchema:
+    return await service.change_user_group(user_id, group_data)
+
+
+@router.post(
+    "/{user_id}/activate/",
+    response_model=AccountMessageResponseSchema,
+    dependencies=[Depends(get_current_admin)],
+    summary="Activate a user account as an administrator",
+    description=(
+        "Requires an active ADMIN account and an access token. No request "
+        "body or activation token is needed. Activates the account and "
+        "deletes its activation token, if present, in one transaction. "
+        "Then sends a confirmation email. If email delivery fails, the "
+        "account stays active and the success message reports the failure."
+    ),
+    responses={
+        401: {"model": ErrorResponseSchema,
+              "description": "Missing or invalid access token."},
+        403: {"model": ErrorResponseSchema,
+              "description": "Inactive account or insufficient permissions."},
+        404: {"model": ErrorResponseSchema,
+              "description": "The user does not exist."},
+        409: {"model": ErrorResponseSchema,
+              "description": "The account is already active."},
+        503: {"model": ErrorResponseSchema,
+              "description": "Account activation is temporarily unavailable."},
+    },
+)
+async def activate_user_manually(
+    user_id: int = Path(gt=0, le=2**63 - 1),
+    service: AccountService = Depends(get_account_service),
+) -> AccountMessageResponseSchema:
+    return await service.activate_user_manually(user_id)

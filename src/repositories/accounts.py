@@ -37,6 +37,14 @@ class AccountRepository:
 
         return result.scalars().first()
 
+    async def get_group_by_name(
+        self, name: UserGroupEnum,
+    ) -> UserGroupModel | None:
+        stmt = select(UserGroupModel).where(UserGroupModel.name == name)
+        result = await self.db.execute(stmt)
+
+        return result.scalars().first()
+
     async def add_user(self, user: UserModel) -> None:
         self.db.add(user)
         await self.db.flush()

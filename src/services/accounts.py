@@ -17,6 +17,7 @@ from src.schemas.accounts import (
     PasswordChangeRequestSchema, PasswordResetConfirmRequestSchema,
     PasswordResetRequestSchema,
     TokenPairResponseSchema, TokenRefreshRequestSchema,
+    UserGroupUpdateRequestSchema,
     UserLoginRequestSchema, UserRegistrationRequestSchema, UserResponseSchema,
 )
 from src.security.tokens import InvalidTokenError, JWTAuthManager
@@ -164,8 +165,13 @@ class AccountService:
                 detail="Account activation is temporarily unavailable.",
             ) from error
 
+        return await self._send_activation_confirmation(user.email)
+
+    async def _send_activation_confirmation(
+        self, email: str,
+    ) -> AccountMessageResponseSchema:
         try:
-            await self.email_sender.send_activation_complete_email(user.email)
+            await self.email_sender.send_activation_complete_email(email)
 
         except EmailDeliveryError:
             return AccountMessageResponseSchema(
@@ -178,6 +184,76 @@ class AccountService:
         return AccountMessageResponseSchema(
             message="Account activated successfully.",
         )
+
+    async def change_user_group(
+        self, user_id: int, group_data: UserGroupUpdateRequestSchema,
+    ) -> UserResponseSchema:
+        try:
+            user = await self.repository.get_user_by_id(user_id)
+
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found.",
+                )
+
+            group = await self.repository.get_group_by_name(group_data.group)
+
+            if group is None:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="The requested user group is not configured.",
+                )
+
+            user.group = group
+            await self.repository.commit()
+            await self.repository.refresh_user(user)
+
+        except SQLAlchemyError as error:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="User group update is temporarily unavailable.",
+            ) from error
+
+        return UserResponseSchema.model_validate(user)
+
+    async def activate_user_manually(
+        self, user_id: int,
+    ) -> AccountMessageResponseSchema:
+        try:
+            activation_token = await self.repository.get_user_activation_token(
+                user_id,
+            )
+            user = await self.repository.get_user_by_id(user_id)
+
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found.",
+                )
+
+            if user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="The account is already active.",
+                )
+
+            user.is_active = True
+
+            if activation_token is not None:
+                await self.repository.delete_activation_token(activation_token)
+
+            await self.repository.commit()
+
+        except SQLAlchemyError as error:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Account activation is temporarily unavailable.",
+            ) from error
+
+        return await self._send_activation_confirmation(user.email)
 
     async def resend_activation_link(
         self, email_data: ActivationResendRequestSchema,
