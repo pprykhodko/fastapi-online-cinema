@@ -4,7 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
-from src.database.models import UserModel
+from src.database.models import UserGroupEnum, UserModel
 from src.repositories.accounts import AccountRepository
 from src.security.tokens import (
     InvalidTokenError, JWTAuthManager, get_jwt_auth_manager,
@@ -61,3 +61,15 @@ async def get_current_user(
         )
 
     return user
+
+
+async def get_current_admin(
+    current_user: UserModel = Depends(get_current_user),
+) -> UserModel:
+    if current_user.group.name != UserGroupEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access is required.",
+        )
+
+    return current_user
