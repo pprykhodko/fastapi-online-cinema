@@ -10,6 +10,7 @@ from sqlalchemy import URL
 
 
 class BaseAppSettings(BaseSettings):
+
     BASE_DIR: ClassVar[Path] = Path(__file__).resolve().parents[2]
     DATABASE_TYPE: Literal["sqlite", "postgresql"] = "sqlite"
     PATH_TO_DB: str = Field(default="db.sqlite3", min_length=1)
@@ -26,12 +27,15 @@ class BaseAppSettings(BaseSettings):
     def SQLITE_DATABASE_URL(self) -> URL:
         if self.PATH_TO_DB == ":memory:":
             database = self.PATH_TO_DB
+
         else:
             database = str((self.BASE_DIR / self.PATH_TO_DB).resolve())
+
         return URL.create("sqlite+aiosqlite", database=database)
 
 
 class Settings(BaseAppSettings):
+
     POSTGRES_HOST: str = Field(default="localhost", min_length=1)
     POSTGRES_DB_PORT: int = Field(default=5432, ge=1, le=65535)
     POSTGRES_DB: str = Field(default="online_cinema", min_length=1)
@@ -48,9 +52,6 @@ class Settings(BaseAppSettings):
     SMTP_TIMEOUT: float = Field(default=10, gt=0)
     ACCOUNT_ACTIVATION_URL: HttpUrl = HttpUrl(
         "http://localhost:8000/api/v1/accounts/activate"
-    )
-    PASSWORD_RESET_URL: HttpUrl = HttpUrl(
-        "http://localhost:8000/api/v1/accounts/password/reset/confirm/"
     )
     CELERY_BROKER_URL: str = Field(
         default="redis://localhost:6379/0", min_length=1, repr=False,
@@ -71,6 +72,7 @@ class Settings(BaseAppSettings):
     def validate_jwt_secret(cls, value: SecretStr | None) -> SecretStr | None:
         if value is not None and not value.get_secret_value().strip():
             raise ValueError("JWT secret keys must not be blank.")
+
         return value
 
     @model_validator(mode="after")
@@ -81,6 +83,7 @@ class Settings(BaseAppSettings):
             and self.JWT_ACCESS_SECRET_KEY == self.JWT_REFRESH_SECRET_KEY
         ):
             raise ValueError("JWT access and refresh keys must be different.")
+
         return self
 
     @model_validator(mode="after")
@@ -89,12 +92,14 @@ class Settings(BaseAppSettings):
             raise ValueError(
                 "Choose SMTP_USE_TLS or SMTP_START_TLS, not both."
             )
+
         return self
 
     @property
     def DATABASE_URL(self) -> URL:
         if self.DATABASE_TYPE == "sqlite":
             return self.SQLITE_DATABASE_URL
+
         return self.POSTGRESQL_DATABASE_URL
 
     @property
@@ -110,6 +115,7 @@ class Settings(BaseAppSettings):
 
 
 class TestingSettings(BaseAppSettings):
+
     PATH_TO_DB: str = ":memory:"
 
     model_config = {"env_file": None}
@@ -121,4 +127,5 @@ class TestingSettings(BaseAppSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+
     return Settings()

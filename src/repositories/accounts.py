@@ -74,11 +74,11 @@ class AccountRepository:
         self.db.add(token)
 
     async def get_password_reset_token(
-        self, token: str,
+        self, token_hash: str,
     ) -> PasswordResetTokenModel | None:
         stmt = (
             select(PasswordResetTokenModel)
-            .where(PasswordResetTokenModel.token == token)
+            .where(PasswordResetTokenModel.token == token_hash)
             .with_for_update()
         )
         result = await self.db.execute(stmt)

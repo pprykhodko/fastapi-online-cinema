@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
@@ -21,7 +21,7 @@ from src.schemas.accounts import (
 )
 from src.security.tokens import InvalidTokenError, JWTAuthManager
 from src.security.passwords import hash_password
-from src.security.utils import generate_secure_token
+from src.security.utils import generate_secure_token, hash_reset_token
 
 
 class AccountService:
@@ -412,11 +412,12 @@ class AccountService:
 
     async def request_password_reset(
         self, email_data: PasswordResetRequestSchema,
+        background_tasks: BackgroundTasks,
     ) -> AccountMessageResponseSchema:
         response = AccountMessageResponseSchema(
             message=(
                 "If an active account exists for this email, "
-                "password reset instructions have been sent."
+                "you will receive password reset instructions."
             ),
         )
 
@@ -430,15 +431,17 @@ class AccountService:
                 user.id,
             )
             expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+            token = generate_secure_token()
+            token_hash = hash_reset_token(token)
 
             if reset_token is None:
                 reset_token = PasswordResetTokenModel(
-                    user_id=user.id, expires_at=expires_at,
+                    user_id=user.id, token=token_hash, expires_at=expires_at,
                 )
                 self.repository.add_password_reset_token(reset_token)
 
             else:
-                reset_token.token = generate_secure_token()
+                reset_token.token = token_hash
                 reset_token.expires_at = expires_at
             await self.repository.commit()
 
@@ -449,16 +452,10 @@ class AccountService:
                 detail="Password reset is temporarily unavailable.",
             ) from error
 
-        try:
-            await self.email_sender.send_password_reset_email(
-                user.email, reset_token.token, reset_token.expires_at,
-            )
-
-        except EmailDeliveryError as error:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="The reset email could not be sent. Please try again.",
-            ) from error
+        background_tasks.add_task(
+            self.email_sender.send_password_reset_email_background,
+            user.email, token, expires_at,
+        )
 
         return response
 
@@ -472,7 +469,7 @@ class AccountService:
 
         try:
             reset_token = await self.repository.get_password_reset_token(
-                reset_data.token,
+                hash_reset_token(reset_data.token),
             )
 
             if reset_token is None or self.is_token_expired(
