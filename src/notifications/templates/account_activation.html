@@ -12,12 +12,6 @@
     <p>You can close this page.</p>
 {% elif error %}
     <p role="alert">{{ error }}</p>
-{% else %}
-    <p>Confirm that you want to activate your account.</p>
-    <form method="post" action="{{ form_action }}">
-        <input type="hidden" name="token" value="{{ token }}">
-        <button type="submit">Activate account</button>
-    </form>
 {% endif %}
 </body>
 </html>

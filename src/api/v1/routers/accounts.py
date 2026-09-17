@@ -1,5 +1,5 @@
 from fastapi import (
-    APIRouter, BackgroundTasks, Depends, Form, HTTPException, Path, Query,
+    APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query,
     Request, Response, status,
 )
 from fastapi.responses import HTMLResponse
@@ -38,7 +38,7 @@ ACTIVATION_PAGE_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": (
         "default-src 'none'; base-uri 'none'; "
-        "frame-ancestors 'none'; form-action 'self'"
+        "frame-ancestors 'none'; form-action 'none'"
     ),
 }
 
@@ -273,25 +273,42 @@ async def activate_user(
 @router.get(
     "/activate/",
     response_class=HTMLResponse,
-    summary="Open the account activation page",
+    summary="Activate an account using the email link",
     description=(
-        "Opens an HTML confirmation form linked from the activation email. "
-        "Accepts a token query parameter. The form submits to "
-        "POST /accounts/activate/confirm/ without JavaScript. "
-        "This GET request does not activate the account."
+        "Accepts a token query parameter from the activation email. "
+        "Activates the account immediately and returns an HTML result page "
+        "without forms, buttons or JavaScript. Uses the same logic as POST "
+        "/activate/. The token is single-use. This GET changes account state; "
+        "automated email link scanners can also trigger activation."
     ),
+    responses={
+        400: {"description": "Invalid or expired token; HTML error page."},
+        409: {"description": "Account already active; HTML error page."},
+        503: {"description": "Activation unavailable; HTML error page."},
+    },
 )
 async def activation_page(
     request: Request,
     token: str = Query(min_length=1, max_length=255, pattern=r"^\S+$"),
+    service: AccountService = Depends(get_account_service),
 ) -> HTMLResponse:
+    status_code = status.HTTP_200_OK
+
+    try:
+        result = await service.activate_account(
+            AccountActivationRequestSchema(token=token),
+        )
+        context = {"message": result.message}
+
+    except HTTPException as error:
+        status_code = error.status_code
+        context = {"error": error.detail}
+
     return templates.TemplateResponse(
         request=request,
         name="account_activation.html",
-        context={
-            "token": token,
-            "form_action": request.url_for("confirm_account_activation").path,
-        },
+        context=context,
+        status_code=status_code,
         headers=ACTIVATION_PAGE_HEADERS,
     )
 
@@ -331,53 +348,6 @@ async def register_user(
 ) -> UserResponseSchema:
 
     return await service.register_user(user_data)
-
-
-@router.post(
-    "/activate/confirm/",
-    response_class=HTMLResponse,
-    summary="Activate an account using the HTML form",
-    description=(
-        "Accepts a token as a form field and uses the same activation "
-        "logic as the JSON endpoint. Returns an HTML success or error "
-        "page. No JavaScript or authentication is required."
-    ),
-    responses={
-        400: {
-            "description": "Invalid or expired token; HTML error page."
-        },
-        409: {
-            "description": "Account already active; HTML error page."
-        },
-        503: {
-            "description": "Activation unavailable; HTML error page."
-        },
-    },
-)
-async def confirm_account_activation(
-    request: Request,
-    token: str = Form(min_length=1, max_length=255, pattern=r"^\S+$"),
-    service: AccountService = Depends(get_account_service),
-) -> HTMLResponse:
-    status_code = status.HTTP_200_OK
-
-    try:
-        result = await service.activate_account(
-            AccountActivationRequestSchema(token=token),
-        )
-        context = {"message": result.message}
-
-    except HTTPException as error:
-        status_code = error.status_code
-        context = {"error": error.detail}
-
-    return templates.TemplateResponse(
-        request=request,
-        name="account_activation.html",
-        context=context,
-        status_code=status_code,
-        headers=ACTIVATION_PAGE_HEADERS,
-    )
 
 
 @router.post(
