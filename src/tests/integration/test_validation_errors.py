@@ -64,13 +64,12 @@ async def test_password_change_validation_hides_both_passwords(login_api):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method,path,kwargs", [
     ("GET", "activate", {"params": {"token": TOKEN}}),
-    ("POST", "activate/confirm", {"data": {"token": TOKEN}}),
     ("POST", "register", {
         "content": '{"password": "SensitivePassword1!",',
         "headers": {"Content-Type": "application/json"},
     }),
 ])
-async def test_validation_hides_query_form_and_malformed_json_input(
+async def test_validation_hides_query_and_malformed_json_input(
     login_api, method, path, kwargs,
 ):
     client, _, _, _ = login_api
