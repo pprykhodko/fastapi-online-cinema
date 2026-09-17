@@ -118,3 +118,26 @@ async def test_email_templates_escape_dynamic_values(monkeypatch):
     html = send.call_args.args[2]
     assert "<script>" not in html
     assert "&lt;script&gt;" in html
+
+
+@pytest.mark.parametrize("template_name", [
+    "activation_request.html",
+    "activation_complete.html",
+    "password_reset_request.html",
+])
+def test_email_layout_is_self_contained_and_preserves_escaping(template_name):
+    sender = emails.EmailSender(Settings(_env_file=None))
+    html = sender._env.get_template(template_name).render(
+        email="<script>alert(1)</script>@example.com",
+        activation_link="https://cinema.example/activate/?token=example",
+        token="test-reset-token",
+        expires_at="2030-01-02 12:00:00 UTC",
+    )
+    assert '<meta name="viewport"' in html
+    assert '<table role="presentation"' in html
+    assert "Online Cinema" in html
+    assert "Please do not reply." in html
+    assert "&lt;script&gt;" in html
+    assert "<script" not in html
+    assert "<form" not in html
+    assert "<link" not in html
