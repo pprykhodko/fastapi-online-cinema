@@ -159,6 +159,53 @@ async def test_reset_password_full_flow(login_api, reset_email):
 
 
 @pytest.mark.asyncio
+async def test_reset_rejects_current_password_without_consuming_tokens(
+    login_api, reset_email,
+):
+    client, sessions, _, user_id = login_api
+    login = await client.post(f"{PREFIX}/login/", json={
+        "email": "user@example.com", "password": OLD_PASSWORD,
+    })
+    refresh_token = login.json()["refresh_token"]
+    await client.post(FORGOT, json={"email": "user@example.com"})
+    token = reset_email.call_args.args[1]
+    async with sessions() as db:
+        original_hash = (await db.get(UserModel, user_id))._hashed_password
+        original_expiry = (
+            await db.scalar(select(PasswordResetTokenModel))
+        ).expires_at
+
+    response = await client.post(RESET, json={
+        "token": token, "new_password": OLD_PASSWORD,
+    })
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "New password must differ from the current password.",
+    }
+    async with sessions() as db:
+        user = await db.get(UserModel, user_id)
+        assert user._hashed_password == original_hash
+        reset_record = await db.scalar(select(PasswordResetTokenModel))
+        assert reset_record.token == hash_reset_token(token)
+        assert reset_record.expires_at == original_expiry
+        refresh_record = await db.scalar(select(RefreshTokenModel))
+        assert refresh_record.token == refresh_token
+
+    response = await client.post(RESET, json={
+        "token": token, "new_password": NEW_PASSWORD,
+    })
+    assert response.status_code == 200
+    async with sessions() as db:
+        assert (await db.get(UserModel, user_id)).verify_password(NEW_PASSWORD)
+        assert await db.scalar(select(PasswordResetTokenModel)) is None
+        assert await db.scalar(select(RefreshTokenModel)) is None
+    old_login = await client.post(f"{PREFIX}/login/", json={
+        "email": "user@example.com", "password": OLD_PASSWORD,
+    })
+    assert old_login.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_reset_unknown_inactive_and_active_have_same_response(
     login_api, reset_email,
 ):
