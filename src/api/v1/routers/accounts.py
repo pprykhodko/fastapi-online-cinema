@@ -322,8 +322,8 @@ async def activation_page(
     summary="Register a user",
     description=(
         "Register an inactive USER account with an email and a strong "
-        "password. Creates an empty cart and an activation token valid "
-        "for 24 hours, then sends an activation email. If email delivery "
+        "password. Creates an empty profile, cart and an activation token "
+        "valid for 24 hours, then sends an activation email. If delivery "
         "fails, the account remains saved; use activation/resend to retry."
     ),
     responses={

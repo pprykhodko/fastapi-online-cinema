@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from src.database.models import (
     ActivationTokenModel, CartModel,
     PasswordResetTokenModel, RefreshTokenModel,
-    UserGroupEnum, UserGroupModel, UserModel,
+    UserGroupEnum, UserGroupModel, UserModel, UserProfileModel,
 )
 
 
@@ -51,6 +51,9 @@ class AccountRepository:
 
     def add_cart(self, user_id: int) -> None:
         self.db.add(CartModel(user_id=user_id))
+
+    def add_profile(self, user_id: int) -> None:
+        self.db.add(UserProfileModel(user_id=user_id))
 
     def add_activation_token(self, token: ActivationTokenModel) -> None:
         self.db.add(token)

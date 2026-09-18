@@ -69,6 +69,7 @@ class AccountService:
             new_user.is_active = False
             new_user.group = user_group
             await self.repository.add_user(new_user)
+            self.repository.add_profile(new_user.id)
             self.repository.add_cart(new_user.id)
             activation_token = ActivationTokenModel(user_id=new_user.id)
             self.repository.add_activation_token(activation_token)
