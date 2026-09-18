@@ -558,6 +558,16 @@ class AccountService:
             if user is None or not user.is_active:
                 raise token_error
 
+            if await run_in_threadpool(
+                user.verify_password, reset_data.new_password,
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "New password must differ from the current password."
+                    ),
+                )
+
             user._hashed_password = await run_in_threadpool(
                 hash_password, reset_data.new_password,
             )

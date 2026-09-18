@@ -215,13 +215,15 @@ async def request_password_reset(
     description=(
         "Accepts token and new_password in JSON; no access token or old "
         "password is required. Checks token expiry and account activity. "
+        "The new password must differ from the current password. A rejected "
+        "attempt does not consume the reset token or revoke refresh tokens. "
         "Updates the password and removes the reset token and all refresh "
         "tokens in one transaction. A used token cannot be used again. "
         "Existing access tokens remain valid until they expire."
     ),
     responses={
         400: {"model": ErrorResponseSchema,
-              "description": "Invalid or expired reset token."},
+              "description": "Invalid/expired token or unchanged password."},
         503: {"model": ErrorResponseSchema,
               "description": "Password reset is temporarily unavailable."},
     },
