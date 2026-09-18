@@ -14,7 +14,10 @@ from src.security.passwords import validate_password_for_bcrypt
 class BaseEmailSchema(BaseModel):
     email: EmailStr = Field(max_length=255)
 
-    model_config = {"extra": "forbid", "hide_input_in_errors": True}
+    model_config = {
+        "extra": "forbid",
+        "hide_input_in_errors": True
+    }
 
     @field_validator("email")
     @classmethod
@@ -26,7 +29,10 @@ class BaseEmailPasswordSchema(BaseEmailSchema):
     password: str = Field(
         min_length=8, max_length=72, repr=False, exclude=True,
         description="Strong password; at most 72 bytes in UTF-8.",
-        json_schema_extra={"format": "password", "writeOnly": True},
+        json_schema_extra={
+            "format": "password",
+            "writeOnly": True
+        },
     )
 
     @field_validator("password")
@@ -42,7 +48,10 @@ class UserRegistrationRequestSchema(BaseEmailPasswordSchema):
 class UserLoginRequestSchema(BaseEmailSchema):
     password: str = Field(
         min_length=1, max_length=72, repr=False, exclude=True,
-        json_schema_extra={"format": "password", "writeOnly": True},
+        json_schema_extra={
+            "format": "password",
+            "writeOnly": True
+        },
     )
 
     @field_validator("password")
@@ -57,7 +66,10 @@ class AccountActivationRequestSchema(BaseModel):
         json_schema_extra={"writeOnly": True},
     )
 
-    model_config = {"extra": "forbid", "hide_input_in_errors": True}
+    model_config = {
+        "extra": "forbid",
+        "hide_input_in_errors": True
+    }
 
 
 class ActivationResendRequestSchema(BaseEmailSchema):
@@ -70,7 +82,10 @@ class TokenRefreshRequestSchema(BaseModel):
         json_schema_extra={"writeOnly": True},
     )
 
-    model_config = {"extra": "forbid", "hide_input_in_errors": True}
+    model_config = {
+        "extra": "forbid",
+        "hide_input_in_errors": True
+    }
 
 
 class LogoutRequestSchema(TokenRefreshRequestSchema):
@@ -88,7 +103,10 @@ class PasswordChangeRequestSchema(BaseModel):
         json_schema_extra={"format": "password", "writeOnly": True},
     )
 
-    model_config = {"extra": "forbid", "hide_input_in_errors": True}
+    model_config = {
+        "extra": "forbid",
+        "hide_input_in_errors": True
+    }
 
     @field_validator("old_password")
     @classmethod
@@ -116,7 +134,10 @@ class PasswordResetConfirmRequestSchema(BaseModel):
         json_schema_extra={"format": "password", "writeOnly": True},
     )
 
-    model_config = {"extra": "forbid", "hide_input_in_errors": True}
+    model_config = {
+        "extra": "forbid",
+        "hide_input_in_errors": True
+    }
 
     @field_validator("new_password")
     @classmethod
@@ -163,26 +184,33 @@ class UserResponseSchema(BaseModel):
 class UserGroupUpdateRequestSchema(BaseModel):
     group: UserGroupEnum
 
-    model_config = {"extra": "forbid", "hide_input_in_errors": True}
+    model_config = {
+        "extra": "forbid",
+        "hide_input_in_errors": True
+    }
 
 
-class BaseUserProfileSchema(BaseModel):
+class UserProfileUpdateRequestSchema(BaseModel):
     first_name: str | None = Field(default=None, max_length=100)
     last_name: str | None = Field(default=None, max_length=100)
-    avatar: str | None = Field(
-        default=None, max_length=255,
-        description="Avatar URL or storage object key.",
-    )
     gender: GenderEnum | None = None
     date_of_birth: date | None = None
     info: str | None = None
 
+    model_config = {
+        "extra": "forbid",
+        "hide_input_in_errors": True
+    }
+
+
+class BaseUserProfileSchema(UserProfileUpdateRequestSchema):
+    avatar: str | None = Field(
+        default=None, max_length=255,
+        description="Avatar URL or storage object key.",
+    )
+
 
 class UserProfileCreateRequestSchema(BaseUserProfileSchema):
-    model_config = {"extra": "forbid", "hide_input_in_errors": True}
-
-
-class UserProfileUpdateRequestSchema(UserProfileCreateRequestSchema):
     pass
 
 

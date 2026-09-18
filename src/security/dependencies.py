@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Path, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,6 +70,19 @@ async def get_current_admin(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Administrator access is required.",
+        )
+
+    return current_user
+
+
+async def get_profile_owner(
+    user_id: int = Path(gt=0, le=2**63 - 1),
+    current_user: UserModel = Depends(get_current_user),
+) -> UserModel:
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only edit your own profile.",
         )
 
     return current_user
