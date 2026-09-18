@@ -183,7 +183,7 @@ def test_profile_requests_accept_optional_fields(
 ) -> None:
     profile = schema.model_validate({
         "first_name": "Alex", "last_name": "Smith",
-        "avatar": "avatars/user-1.png", "gender": "man",
+        "gender": "man",
         "date_of_birth": "2000-01-02", "info": "Movie enthusiast.",
     })
     assert getattr(profile, "gender") is GenderEnum.MAN
@@ -208,12 +208,12 @@ def test_profile_requests_enforce_fields_and_database_limits(
 
 def test_profile_patch_distinguishes_omitted_fields_from_null() -> None:
     omitted = UserProfileUpdateRequestSchema.model_validate({})
-    cleared = UserProfileUpdateRequestSchema.model_validate({"avatar": None})
+    cleared = UserProfileUpdateRequestSchema.model_validate({"info": None})
     changed = UserProfileUpdateRequestSchema.model_validate({
         "first_name": "Alex", "info": None,
     })
     assert omitted.model_dump(exclude_unset=True) == {}
-    assert cleared.model_dump(exclude_unset=True) == {"avatar": None}
+    assert cleared.model_dump(exclude_unset=True) == {"info": None}
     assert changed.model_dump(exclude_unset=True) == {
         "first_name": "Alex", "info": None,
     }

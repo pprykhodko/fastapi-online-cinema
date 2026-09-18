@@ -72,7 +72,7 @@ def test_profile_patch_updates_only_supplied_fields_and_can_clear_values(
     db_session.commit()
     profile_id = profile.id
     patch = UserProfileUpdateRequestSchema.model_validate({
-        "first_name": "Sam", "avatar": None,
+        "first_name": "Sam", "date_of_birth": None,
     })
     for field, value in patch.model_dump(exclude_unset=True).items():
         setattr(profile, field, value)
@@ -83,6 +83,6 @@ def test_profile_patch_updates_only_supplied_fields_and_can_clear_values(
     response = UserProfileResponseSchema.model_validate(persisted)
     assert response.first_name == "Sam"
     assert response.last_name == "Smith"
-    assert response.avatar is None
+    assert response.avatar == "avatars/original.png"
     assert response.gender is GenderEnum.WOMAN
-    assert response.date_of_birth == date(2000, 1, 2)
+    assert response.date_of_birth is None
