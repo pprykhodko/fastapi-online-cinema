@@ -215,6 +215,9 @@ class UserProfileCreateRequestSchema(BaseUserProfileSchema):
 
 
 class UserProfileResponseSchema(BaseUserProfileSchema):
+    avatar: str | None = Field(
+        default=None, description="Temporary signed URL to view the avatar.",
+    )
     id: int = Field(gt=0)
     user_id: int = Field(gt=0)
 

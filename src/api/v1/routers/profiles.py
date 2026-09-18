@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, File, Path, UploadFile
 
 from src.api.dependencies import get_profile_service
+from src.api.profile_forms import get_profile_data
 from src.schemas.accounts import (
     UserProfileResponseSchema, UserProfileUpdateRequestSchema,
 )
@@ -34,7 +35,7 @@ async def get_profile(
 ) -> UserProfileResponseSchema:
     profile = await service.get_profile(user_id)
 
-    return UserProfileResponseSchema.model_validate(profile)
+    return await service.serialize_profile(profile)
 
 
 @router.patch(
@@ -44,16 +45,28 @@ async def get_profile(
     summary="Update your profile",
     description=(
         "Only the owner can update the profile, including for admin accounts. "
-        "Send a JSON object with first_name, last_name, gender (man/woman), "
-        "date_of_birth (YYYY-MM-DD), or info. Omitted fields stay unchanged; "
-        "null clears a field. An empty object makes no changes. "
-        "Avatar upload is not supported yet. A missing profile returns 404; "
-        "this endpoint never creates a profile."
+        "Send JSON for text fields, or multipart/form-data with an avatar. "
+        "Fields: first_name, last_name, gender (man/woman), date_of_birth "
+        "(YYYY-MM-DD), info. Omitted fields stay unchanged; JSON null or an "
+        "empty form field clears a value. Avatar must be JPEG/PNG, at most "
+        "5 MiB by default and 4096px per side. The avatar response is a "
+        "temporary signed URL; get the profile again when it expires. "
+        "This endpoint never creates a profile."
     ),
+    responses={
+        413: {"description": "Avatar exceeds the configured size limit."},
+        415: {"description": "Unsupported request content type."},
+    },
+    openapi_extra={"requestBody": {"content": {"application/json": {
+        "schema": UserProfileUpdateRequestSchema.model_json_schema(
+            ref_template="#/components/schemas/{model}",
+        ),
+    }}}},
 )
 async def update_profile(
-    data: UserProfileUpdateRequestSchema,
+    data: UserProfileUpdateRequestSchema = Depends(get_profile_data),
+    avatar: UploadFile | None = File(None),
     user_id: int = Path(gt=0, le=2**63 - 1),
     service: ProfileService = Depends(get_profile_service),
 ) -> UserProfileResponseSchema:
-    return await service.update_profile(user_id, data)
+    return await service.update_profile(user_id, data, avatar)

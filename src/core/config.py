@@ -57,6 +57,14 @@ class Settings(BaseAppSettings):
         default="redis://localhost:6379/0", min_length=1, repr=False,
     )
 
+    S3_ENDPOINT_URL: HttpUrl | None = None
+    S3_ACCESS_KEY: str = Field(default="", repr=False)
+    S3_SECRET_KEY: SecretStr = SecretStr("")
+    S3_BUCKET_NAME: str = Field(default="avatars", min_length=1)
+    S3_REGION: str = "us-east-1"
+    S3_URL_EXPIRE_SECONDS: int = Field(default=3600, ge=60, le=604800)
+    AVATAR_MAX_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)
+
     JWT_ACCESS_SECRET_KEY: SecretStr | None = Field(
         default=None, min_length=32, repr=False,
     )
