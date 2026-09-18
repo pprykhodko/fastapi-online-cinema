@@ -11,11 +11,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from src.database import get_db
 from src.database.models import (
     ActivationTokenModel, Base, CartModel, UserGroupEnum, UserGroupModel,
-    UserModel,
+    UserModel, UserProfileModel,
 )
 from src.database.session_sqlite import create_sqlite_engine
 from src.main import app
 from src.notifications.emails import EmailDeliveryError, EmailSender
+from src.repositories.accounts import AccountRepository
 
 
 PREFIX = "/api/v1/accounts"
@@ -96,8 +97,15 @@ async def test_registration_email_activation_and_replay(
     async with sessions() as db:
         record = await db.scalar(select(ActivationTokenModel))
         cart = await db.scalar(select(CartModel))
+        profile = await db.scalar(select(UserProfileModel))
         assert record.token == token
-        assert record.user_id == cart.user_id == user_id
+        assert record.user_id == cart.user_id == profile.user_id == user_id
+        for field in (
+            "first_name", "last_name", "avatar", "gender",
+            "date_of_birth", "info",
+        ):
+            assert getattr(profile, field) is None
+        profile_id = profile.id
     kwargs = {"json" if method == "POST" else "params": {"token": token}}
     response = await client.request(method, f"{PREFIX}/activate/", **kwargs)
     assert response.status_code == 200
@@ -105,6 +113,7 @@ async def test_registration_email_activation_and_replay(
     async with sessions() as db:
         assert (await db.get(UserModel, user_id)).is_active
         assert await db.scalar(select(ActivationTokenModel)) is None
+        assert (await db.scalar(select(UserProfileModel))).id == profile_id
     response = await client.request(method, f"{PREFIX}/activate/", **kwargs)
     assert response.status_code == 400
     completion_email.assert_awaited_once()
@@ -124,12 +133,64 @@ async def test_registration_mail_failure_can_be_retried(activation_api):
     async with sessions() as db:
         assert not (await db.scalar(select(UserModel))).is_active
         assert (await db.scalar(select(ActivationTokenModel))).token == token
+        user = await db.scalar(select(UserModel))
+        assert (await db.scalar(select(UserProfileModel))).user_id == user.id
     send_email.side_effect = None
     response = await client.post(
         f"{PREFIX}/activation/resend/", json={"email": "USER@example.com"},
     )
     assert response.status_code == 200
     assert send_email.call_args.args[1] == token
+
+
+@pytest.mark.asyncio
+async def test_duplicate_registration_does_not_add_profile(activation_api):
+    client, sessions, send_email = activation_api
+    data = {"email": "user@example.com", "password": "StrongPassword1!"}
+    response = await client.post(f"{PREFIX}/register/", json=data)
+    assert response.status_code == 201
+    response = await client.post(f"{PREFIX}/register/", json=data)
+    assert response.status_code == 409
+    async with sessions() as db:
+        assert len((await db.scalars(select(UserProfileModel))).all()) == 1
+    send_email.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["profile_insert", "after_flush"])
+async def test_registration_profile_failure_rolls_back(
+    activation_api, monkeypatch, failure,
+):
+    client, sessions, send_email = activation_api
+    if failure == "profile_insert":
+        def add_duplicate_profile(self, user_id):
+            self.db.add_all([
+                UserProfileModel(user_id=user_id),
+                UserProfileModel(user_id=user_id),
+            ])
+
+        monkeypatch.setattr(
+            AccountRepository, "add_profile", add_duplicate_profile,
+        )
+        expected_status = 500
+    else:
+        async def fail_commit(self):
+            await self.db.flush()
+            raise OperationalError("commit failed", {}, Exception())
+
+        monkeypatch.setattr(AccountRepository, "commit", fail_commit)
+        expected_status = 503
+
+    response = await client.post(f"{PREFIX}/register/", json={
+        "email": "user@example.com", "password": "StrongPassword1!",
+    })
+    assert response.status_code == expected_status
+    send_email.assert_not_awaited()
+    async with sessions() as db:
+        for model in (
+            UserModel, UserProfileModel, CartModel, ActivationTokenModel,
+        ):
+            assert await db.scalar(select(model)) is None
 
 
 @pytest.mark.asyncio
