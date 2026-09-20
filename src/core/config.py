@@ -58,6 +58,7 @@ class Settings(BaseAppSettings):
     )
 
     S3_ENDPOINT_URL: HttpUrl | None = None
+    S3_PUBLIC_ENDPOINT_URL: HttpUrl | None = None
     S3_ACCESS_KEY: str = Field(default="", repr=False)
     S3_SECRET_KEY: SecretStr = SecretStr("")
     S3_BUCKET_NAME: str = Field(default="avatars", min_length=1)

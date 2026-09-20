@@ -15,18 +15,22 @@ class S3Storage:
     def __init__(self, settings: Settings):
         self.settings = settings
 
-    def _client(self):
+    def _client(self, *, public: bool = False):
         if not (
             self.settings.S3_ACCESS_KEY
             and self.settings.S3_SECRET_KEY.get_secret_value()
         ):
             raise StorageError("S3 credentials are not configured.")
 
+        endpoint = self.settings.S3_ENDPOINT_URL
+
+        if public and self.settings.S3_PUBLIC_ENDPOINT_URL:
+            endpoint = self.settings.S3_PUBLIC_ENDPOINT_URL
+
         return boto3.client(
             "s3",
             endpoint_url=(
-                str(self.settings.S3_ENDPOINT_URL)
-                if self.settings.S3_ENDPOINT_URL else None
+                str(endpoint) if endpoint else None
             ),
             aws_access_key_id=self.settings.S3_ACCESS_KEY,
             aws_secret_access_key=(
@@ -55,7 +59,7 @@ class S3Storage:
 
     def get_file_url(self, object_key: str) -> str:
         try:
-            with self._client() as client:
+            with self._client(public=True) as client:
                 return client.generate_presigned_url(
                     "get_object",
                     Params={
