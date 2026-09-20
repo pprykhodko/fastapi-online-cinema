@@ -8,12 +8,12 @@ x-app: &app
     - ./src:/app/src
   environment:
     WATCHFILES_FORCE_POLLING: "true"
-    SMTP_HOST: mailhog
-    SMTP_PORT: "1025"
-    SMTP_USER: ""
-    SMTP_PASSWORD: ""
+    SMTP_HOST: sandbox.smtp.mailtrap.io
+    SMTP_PORT: "2525"
+    SMTP_USER: "4340cfa0e20f35"
+    SMTP_PASSWORD: "daeb3f151d0c94"
     SMTP_USE_TLS: "false"
-    SMTP_START_TLS: "false"
+    SMTP_START_TLS: "true"
     DATABASE_TYPE: postgresql
     POSTGRES_HOST: postgres
     POSTGRES_DB_PORT: "5432"
