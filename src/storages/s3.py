@@ -1,3 +1,5 @@
+from contextlib import closing
+
 import boto3  # type: ignore[import-untyped]
 from botocore.config import Config  # type: ignore[import-untyped]
 from botocore.exceptions import (  # type: ignore[import-untyped]
@@ -48,7 +50,7 @@ class S3Storage:
         self, data: bytes, object_key: str, content_type: str,
     ) -> None:
         try:
-            with self._client() as client:
+            with closing(self._client()) as client:
                 client.put_object(
                     Bucket=self.settings.S3_BUCKET_NAME, Key=object_key,
                     Body=data, ContentType=content_type,
@@ -59,7 +61,7 @@ class S3Storage:
 
     def get_file_url(self, object_key: str) -> str:
         try:
-            with self._client(public=True) as client:
+            with closing(self._client(public=True)) as client:
                 return client.generate_presigned_url(
                     "get_object",
                     Params={
@@ -74,7 +76,7 @@ class S3Storage:
 
     def delete_file(self, object_key: str) -> None:
         try:
-            with self._client() as client:
+            with closing(self._client()) as client:
                 client.delete_object(
                     Bucket=self.settings.S3_BUCKET_NAME, Key=object_key,
                 )
