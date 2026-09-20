@@ -39,8 +39,7 @@ def test_alembic_selects_database_without_connecting(monkeypatch, database):
 
 
 def test_signed_urls_use_public_endpoint_not_docker_hostname(monkeypatch):
-    client = MagicMock()
-    client.__enter__.return_value = client
+    client = Mock(spec=["put_object", "generate_presigned_url", "close"])
     factory = Mock(return_value=client)
     monkeypatch.setattr("src.storages.s3.boto3.client", factory)
     storage = S3Storage(Settings(

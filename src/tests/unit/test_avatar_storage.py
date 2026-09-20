@@ -1,7 +1,8 @@
 from io import BytesIO
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+from botocore.stub import Stubber  # type: ignore[import-untyped]
 from PIL import Image, PngImagePlugin
 import pytest
 
@@ -12,8 +13,9 @@ from src.storages.s3 import S3Storage, StorageError, get_s3_storage
 
 @pytest.fixture
 def storage_client(monkeypatch):
-    client = MagicMock()
-    client.__enter__.return_value = client
+    client = Mock(spec=[
+        "put_object", "generate_presigned_url", "delete_object", "close",
+    ])
     factory = Mock(return_value=client)
     monkeypatch.setattr("src.storages.s3.boto3.client", factory)
     storage = S3Storage(Settings(
@@ -38,7 +40,7 @@ def test_storage_upload_uses_private_object_and_explicit_credentials(
     assert options["aws_access_key_id"] == "test-access"
     assert options["aws_secret_access_key"] == "test-secret"
     assert options["config"].signature_version == "s3v4"
-    client.__exit__.assert_called_once()
+    client.close.assert_called_once()
 
 
 def test_storage_signed_url_and_delete(storage_client):
@@ -53,6 +55,7 @@ def test_storage_signed_url_and_delete(storage_client):
     client.delete_object.assert_called_once_with(
         Bucket="avatars", Key="avatars/1/a.png",
     )
+    assert client.close.call_count == 2
 
 
 @pytest.mark.parametrize("method,args,client_method", [
@@ -71,6 +74,37 @@ def test_storage_errors_are_wrapped(
     with pytest.raises(StorageError) as error:
         getattr(storage, method)(*args)
     assert "private" not in str(error.value)
+    client.close.assert_called_once()
+
+
+@pytest.mark.parametrize("method", ["upload", "url", "delete"])
+def test_real_boto3_client_is_closed_without_network(monkeypatch, method):
+    storage = S3Storage(Settings(
+        _env_file=None, S3_ENDPOINT_URL="http://localhost:9000",
+        S3_ACCESS_KEY="test-access", S3_SECRET_KEY="test-secret",
+    ))
+    client = storage._client()
+    close = Mock(wraps=client.close)
+    monkeypatch.setattr(client, "close", close)
+    monkeypatch.setattr(storage, "_client", lambda **kwargs: client)
+    with Stubber(client) as stubber:
+        if method == "upload":
+            stubber.add_response("put_object", {}, {
+                "Bucket": "avatars", "Key": "key", "Body": b"image",
+                "ContentType": "image/png",
+            })
+            storage.upload_file(b"image", "key", "image/png")
+        elif method == "delete":
+            stubber.add_response("delete_object", {}, {
+                "Bucket": "avatars", "Key": "key",
+            })
+            storage.delete_file("key")
+        else:
+            url = storage.get_file_url("key")
+            assert url.startswith("http://localhost:9000/avatars/key?")
+            assert "X-Amz-Signature=" in url
+        stubber.assert_no_pending_responses()
+    close.assert_called_once()
 
 
 def test_unconfigured_storage_does_not_use_metadata_credentials(monkeypatch):
