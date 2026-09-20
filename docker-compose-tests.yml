@@ -1,0 +1,23 @@
+name: online-cinema-tests
+
+services:
+  tests:
+    build:
+      context: .
+      args:
+        INSTALL_DEV: "true"
+    image: online-cinema:tests
+    command: ["python", "-m", "pytest", "src/tests", "-q", "-p", "no:cacheprovider"]
+    environment:
+      DATABASE_TYPE: sqlite
+      PATH_TO_DB: ":memory:"
+      DATABASE_ECHO: "false"
+      JWT_ACCESS_SECRET_KEY: test-only-access-secret-not-for-real-deployment
+      JWT_REFRESH_SECRET_KEY: test-only-refresh-secret-not-for-real-deployment
+      SMTP_HOST: localhost
+      SMTP_PORT: "1025"
+      SMTP_USE_TLS: "false"
+      SMTP_START_TLS: "false"
+    # Current tests use in-memory databases and mocked email/S3 integrations.
+    # No .env, working data volumes, or published ports.
+    network_mode: none
