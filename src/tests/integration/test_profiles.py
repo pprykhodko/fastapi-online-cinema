@@ -1,3 +1,4 @@
+from datetime import date
 from io import BytesIO
 from unittest.mock import Mock
 
@@ -271,16 +272,91 @@ async def test_form_updates_all_declared_profile_fields(profile_api):
     for key, value in fields.items():
         assert response.json()[key] == value
 
-    cleared = await client.patch(
+    unchanged = await client.patch(
         f"{PREFIX}/{user_id}/", headers=headers,
         data={"first_name": "", "gender": "", "date_of_birth": ""},
     )
-    assert cleared.status_code == 200
-    assert cleared.json()["first_name"] is None
-    assert cleared.json()["gender"] is None
-    assert cleared.json()["date_of_birth"] is None
-    assert cleared.json()["last_name"] == "Jones"
-    assert cleared.json()["info"] == "New biography"
+    assert unchanged.status_code == 200
+    assert unchanged.json() == response.json()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("multipart", [True, False])
+@pytest.mark.parametrize("birthday", ["1999-01-02", ""])
+async def test_empty_form_fields_preserve_profile(
+    profile_api, multipart, birthday,
+):
+    client, sessions, user_id, _, headers = profile_api
+    async with sessions() as db:
+        profile = await db.scalar(select(UserProfileModel).where(
+            UserProfileModel.user_id == user_id,
+        ))
+        profile.date_of_birth = date(2000, 1, 2)
+        await db.commit()
+    before = await client.get(f"{PREFIX}/{user_id}/", headers=headers)
+    fields = {
+        "first_name": "", "last_name": "", "gender": "",
+        "date_of_birth": birthday, "info": "", "avatar": "",
+    }
+    if multipart:
+        response = await client.patch(
+            f"{PREFIX}/{user_id}/", headers=headers,
+            files={key: (None, value) for key, value in fields.items()},
+        )
+    else:
+        response = await client.patch(
+            f"{PREFIX}/{user_id}/", headers=headers, data=fields,
+        )
+    expected = before.json()
+    if birthday:
+        expected["date_of_birth"] = birthday
+    assert response.status_code == 200
+    assert response.json() == expected
+    after = await client.get(f"{PREFIX}/{user_id}/", headers=headers)
+    assert after.json() == expected
+    S3Storage.upload_file.assert_not_called()
+    S3Storage.delete_file.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("avatar", [None, ""])
+async def test_text_update_preserves_avatar(profile_api, avatar):
+    client, sessions, user_id, _, headers = profile_api
+    fields = {
+        "first_name": "Sam", "last_name": "Jones", "gender": "man",
+        "date_of_birth": "2000-01-02", "info": "New biography",
+    }
+    files = {key: (None, value) for key, value in fields.items()}
+    if avatar is not None:
+        files["avatar"] = (None, avatar)
+    response = await client.patch(
+        f"{PREFIX}/{user_id}/", headers=headers, files=files,
+    )
+    assert response.status_code == 200
+    for key, value in fields.items():
+        assert response.json()[key] == value
+    assert response.json()["avatar"] == "avatars/existing.png"
+    async with sessions() as db:
+        profile = await db.scalar(select(UserProfileModel).where(
+            UserProfileModel.user_id == user_id,
+        ))
+        assert profile.avatar == "avatars/existing.png"
+        assert profile.first_name == "Sam"
+    S3Storage.upload_file.assert_not_called()
+    S3Storage.delete_file.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_nonempty_avatar_text_is_rejected(profile_api):
+    client, _, user_id, _, headers = profile_api
+    response = await client.patch(
+        f"{PREFIX}/{user_id}/", headers=headers,
+        files={"avatar": (None, "not-a-file")},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "avatar"]
+    S3Storage.upload_file.assert_not_called()
+    S3Storage.delete_file.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -296,7 +372,7 @@ async def test_upload_avatar_and_text_together(profile_api, png_bytes):
     assert data["first_name"] == "Sam"
     assert data["last_name"] == "Smith"
     assert data["gender"] == "woman"
-    assert data["info"] is None
+    assert data["info"] == "Movie fan"
     key = data["avatar"]
     assert key.startswith(f"avatars/{user_id}/") and key.endswith(".png")
     assert "unsafe" not in key
