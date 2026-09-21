@@ -1,7 +1,10 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, File, Path, UploadFile
+from pydantic import BeforeValidator
 
 from src.api.dependencies import get_profile_service
-from src.api.profile_forms import get_profile_data
+from src.api.profile_forms import empty_avatar_as_none, get_profile_data
 from src.schemas.accounts import (
     UserProfileResponseSchema, UserProfileUpdateRequestSchema,
 )
@@ -47,8 +50,9 @@ async def get_profile(
         "Only the owner can update the profile, including for admin accounts. "
         "Send JSON for text fields, or multipart/form-data with an avatar. "
         "Fields: first_name, last_name, gender (man/woman), date_of_birth "
-        "(YYYY-MM-DD), info. Omitted fields stay unchanged; JSON null or an "
-        "empty form field clears a value. Avatar must be JPEG/PNG, at most "
+        "(YYYY-MM-DD), info. Omitted fields and empty form fields stay "
+        "unchanged. Use JSON null to clear a text field. An empty avatar "
+        "field keeps the existing avatar. Avatar must be JPEG/PNG, at most "
         "5 MiB by default and 4096px per side. The avatar response is a "
         "temporary signed URL; get the profile again when it expires. "
         "This endpoint never creates a profile."
@@ -65,7 +69,9 @@ async def get_profile(
 )
 async def update_profile(
     data: UserProfileUpdateRequestSchema = Depends(get_profile_data),
-    avatar: UploadFile | None = File(None),
+    avatar: Annotated[
+        UploadFile | None, BeforeValidator(empty_avatar_as_none), File(),
+    ] = None,
     user_id: int = Path(gt=0, le=2**63 - 1),
     service: ProfileService = Depends(get_profile_service),
 ) -> UserProfileResponseSchema:

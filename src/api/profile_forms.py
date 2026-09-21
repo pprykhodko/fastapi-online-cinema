@@ -1,8 +1,15 @@
-from fastapi import Form, HTTPException, Request
+from fastapi import Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
 from src.schemas.accounts import UserProfileUpdateRequestSchema
+
+
+def empty_avatar_as_none(
+    value: UploadFile | str | None,
+) -> UploadFile | str | None:
+
+    return None if value == "" else value
 
 
 async def get_profile_data(
@@ -33,11 +40,11 @@ async def get_profile_data(
             "date_of_birth": date_of_birth,
             "info": info,
         }
-        # Only submitted fields belong in PATCH; keep extras for validation.
         data = {
-            key: fields.get(key, value) or None
+            key: fields.get(key, value)
             for key, value in form.items()
             if key != "avatar"
+            and (key not in fields or value != "")
         }
 
     else:
