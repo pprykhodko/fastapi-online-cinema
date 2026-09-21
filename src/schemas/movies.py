@@ -173,12 +173,13 @@ class MovieDetailResponseSchema(BaseMovieSchema):
 
 
 class MovieListQuerySchema(PaginationQuerySchema):
-    year: int | None = None
+    page: int = Field(default=1, ge=1, le=1_000_000)
+    year: int | None = Field(default=None, ge=-(2**31), le=2**31 - 1)
     min_imdb: float | None = Field(
         default=None, ge=0, le=10, allow_inf_nan=False,
     )
-    genre_id: int | None = Field(default=None, gt=0)
-    search: str | None = Field(default=None, min_length=1)
+    genre_id: int | None = Field(default=None, gt=0, le=2**31 - 1)
+    search: str | None = Field(default=None, min_length=1, max_length=250)
     sort_by: Literal["price", "year", "popularity"] = "year"
     sort_order: Literal["asc", "desc"] = "desc"
 

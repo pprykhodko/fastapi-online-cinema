@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from src.api.v1.routers import accounts_router, profiles_router
+from src.api.v1.routers import accounts_router, profiles_router, movies_router
 from src.database import engine
 
 
@@ -55,4 +55,10 @@ app.include_router(
     profiles_router,
     prefix=f"{api_version_prefix}/profiles",
     tags=["profiles"],
+)
+
+app.include_router(
+    movies_router,
+    prefix=f"{api_version_prefix}/movies",
+    tags=["movies"],
 )
