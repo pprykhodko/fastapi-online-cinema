@@ -75,6 +75,19 @@ async def get_current_admin(
     return current_user
 
 
+async def get_current_moderator(
+    current_user: UserModel = Depends(get_current_user),
+) -> UserModel:
+    if current_user.group.name not in (
+        UserGroupEnum.MODERATOR, UserGroupEnum.ADMIN,
+    ):
+        raise HTTPException(
+            403, "Moderator or administrator access is required.",
+        )
+
+    return current_user
+
+
 async def get_profile_owner(
     user_id: int = Path(gt=0, le=2**63 - 1),
     current_user: UserModel = Depends(get_current_user),
