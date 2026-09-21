@@ -100,7 +100,7 @@ class GenreModel(Base):
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str:
-        return validators.validate_name(value)
+        return validators.validate_genre_name(value)
 
     def __repr__(self) -> str:
         return f"<GenreModel(id={self.id}, name={self.name!r})>"

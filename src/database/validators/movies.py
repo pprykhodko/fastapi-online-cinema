@@ -12,6 +12,13 @@ def validate_name(name: str) -> str:
     return normalized_name
 
 
+def validate_genre_name(name: str) -> str:
+    name = validate_name(name)
+    if not name.isascii() or not name.isalpha():
+        raise ValueError("Genre name must contain only English letters.")
+    return name
+
+
 def validate_duration(duration: int) -> int:
     if duration <= 0:
         raise ValueError("Movie duration must be greater than zero.")

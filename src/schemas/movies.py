@@ -31,10 +31,13 @@ class BaseNameRequestSchema(BaseModel):
 
 
 class GenreCreateRequestSchema(BaseNameRequestSchema):
-    pass
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        return movies_validators.validate_genre_name(value)
 
 
-class GenreUpdateRequestSchema(BaseNameRequestSchema):
+class GenreUpdateRequestSchema(GenreCreateRequestSchema):
     pass
 
 

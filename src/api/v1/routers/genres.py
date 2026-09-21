@@ -14,7 +14,10 @@ from src.services.genres import GenreService
 
 router = APIRouter(
     responses={
-        503: {"model": ErrorResponseSchema, "description": "Database unavailable"}
+        503: {
+            "model": ErrorResponseSchema,
+            "description": "Database unavailable",
+        }
     }
 )
 write_responses: dict[int | str, dict[str, Any]] = {
@@ -59,7 +62,7 @@ async def get_genre(
     dependencies=[Depends(get_current_moderator)], responses=write_responses,
     summary="Create a genre",
     description=(
-        "MODERATOR or ADMIN only. Supply name (1–100 characters). "
+        "MODERATOR or ADMIN only. Supply name (1–100 English letters). "
         "Surrounding whitespace is removed; the name must be unique."
     ),
 )
@@ -76,7 +79,7 @@ async def create_genre(
     responses={**write_responses, **not_found}, summary="Rename a genre",
     description=(
         "MODERATOR or ADMIN only. Supply the new unique name "
-        "(1–100 characters). Movie associations are preserved."
+        "(1–100 English letters). Movie associations are preserved."
     ),
 )
 async def update_genre(
