@@ -2,6 +2,8 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
+from src.repositories.stars import StarRepository
+from src.services.stars import StarService
 from src.repositories.genres import GenreRepository
 from src.services.genres import GenreService
 from src.notifications.emails import EmailSender, get_email_sender
@@ -34,6 +36,10 @@ def get_profile_service(
 
 def get_genre_service(db: AsyncSession = Depends(get_db)) -> GenreService:
     return GenreService(GenreRepository(db))
+
+
+def get_star_service(db: AsyncSession = Depends(get_db)) -> StarService:
+    return StarService(StarRepository(db))
 
 
 def get_movie_service(
