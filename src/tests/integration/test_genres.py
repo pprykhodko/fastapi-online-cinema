@@ -45,11 +45,11 @@ async def test_genre_crud(genres_api):
         {"id": 2, "name": "Comedy", "movie_count": 0},
     ]
     created = await client.post(
-        URL, headers=headers, json={"name": " Sci-Fi "},
+        URL, headers=headers, json={"name": " Fantasy "},
     )
     assert created.status_code == 201
     genre = created.json()
-    assert genre["name"] == "Sci-Fi"
+    assert genre["name"] == "Fantasy"
     path = f"{URL}{genre['id']}/"
     assert (await client.get(path)).json() == genre
     updated = await client.patch(path, headers=headers, json={"name": "SF"})
@@ -124,6 +124,9 @@ async def test_write_permissions(genres_api, method, role):
 @pytest.mark.parametrize("body", [
     {}, {"name": ""}, {"name": "   "}, {"name": "x" * 101},
     {"name": None}, {"name": 123}, {"name": "New", "extra": "bad"},
+    {"name": "123"}, {"name": "Drama2"}, {"name": "!"},
+    {"name": "Sci-Fi"}, {"name": "Science Fiction"},
+    {"name": "Драма"}, {"name": "Comédie"}, {"name": "Dra\nma"},
 ])
 async def test_invalid_names(genres_api, method, body):
     client, _, _, headers = genres_api
@@ -132,6 +135,8 @@ async def test_invalid_names(genres_api, method, body):
         headers=headers, json=body,
     )
     assert response.status_code == 422
+    assert (await client.get(URL + "1/")).json()["name"] == "Drama"
+    assert len((await client.get(URL)).json()) == 2
 
 
 @pytest.mark.asyncio

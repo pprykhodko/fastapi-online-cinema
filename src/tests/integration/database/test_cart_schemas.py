@@ -38,7 +38,7 @@ def test_cart_schema_loads_multiple_movies_and_their_genres(
 ) -> None:
     user_id = catalog_users[0].id
     first_movie, second_movie = catalog_movies
-    first_movie.genres = [GenreModel(name="Action"), GenreModel(name="Sci-Fi")]
+    first_movie.genres = [GenreModel(name="Action"), GenreModel(name="Fantasy")]
     cart = CartModel(user_id=user_id)
     cart.items = [
         CartItemModel(movie=first_movie),
@@ -66,7 +66,7 @@ def test_cart_schema_loads_multiple_movies_and_their_genres(
     assert first_item.movie.price == Decimal("9.99")
     assert first_item.movie.year == 2020
     assert {genre.name for genre in first_item.movie.genres} == {
-        "Action", "Sci-Fi",
+        "Action", "Fantasy",
     }
     assert items["Second movie"].movie.genres == []
     assert set(response.model_dump()) == {"id", "user_id", "items"}
