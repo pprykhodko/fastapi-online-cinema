@@ -19,6 +19,19 @@ def validate_genre_name(name: str) -> str:
     return name
 
 
+def validate_director_name(name: str) -> str:
+    name = validate_name(name)
+    letters = name.replace(" ", "").replace("-", "")
+
+    if not letters.isascii() or not letters.isalpha():
+        raise ValueError(
+            "Director name must contain English letters and may include "
+            "spaces and hyphens."
+        )
+
+    return name
+
+
 def validate_duration(duration: int) -> int:
     if duration <= 0:
         raise ValueError("Movie duration must be greater than zero.")

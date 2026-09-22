@@ -52,6 +52,8 @@ async def list_directors(
     summary="Create a director",
     description=(
         "MODERATOR or ADMIN only. Supply name (1–100 characters). "
+        "Only English letters, spaces and hyphens are allowed; "
+        "at least one letter is required. "
         "Surrounding whitespace is removed; the name must be unique."
     ),
 )
@@ -68,7 +70,8 @@ async def create_director(
     responses={**write_responses, **not_found}, summary="Rename a director",
     description=(
         "MODERATOR or ADMIN only. Supply the new unique name "
-        "(1–100 characters). Movie associations are preserved."
+        "(1–100 characters, English letters, spaces and hyphens; "
+        "at least one letter required). Movie associations are preserved."
     ),
 )
 async def update_director(

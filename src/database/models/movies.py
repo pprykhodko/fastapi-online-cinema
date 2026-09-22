@@ -154,7 +154,7 @@ class DirectorModel(Base):
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str:
-        return validators.validate_name(value)
+        return validators.validate_director_name(value)
 
     def __repr__(self) -> str:
         return f"<DirectorModel(id={self.id}, name={self.name!r})>"

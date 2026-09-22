@@ -50,10 +50,13 @@ class StarUpdateRequestSchema(BaseNameRequestSchema):
 
 
 class DirectorCreateRequestSchema(BaseNameRequestSchema):
-    pass
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        return movies_validators.validate_director_name(value)
 
 
-class DirectorUpdateRequestSchema(BaseNameRequestSchema):
+class DirectorUpdateRequestSchema(DirectorCreateRequestSchema):
     pass
 
 
