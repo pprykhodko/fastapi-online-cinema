@@ -124,6 +124,10 @@ async def test_write_permissions(directors_api, method, role):
 @pytest.mark.parametrize("body", [
     {}, {"name": ""}, {"name": "   "}, {"name": "x" * 101},
     {"name": None}, {"name": 123}, {"name": "New", "extra": "bad"},
+    {"name": "123"}, {"name": "Nolan2"}, {"name": "---"},
+    {"name": " - - "}, {"name": "Nolan!"}, {"name": "Penélope Cruz"},
+    {"name": "Кристофер"}, {"name": "O'Connor"},
+    {"name": "John\tSmith"}, {"name": "John\nSmith"},
 ])
 async def test_invalid_names(directors_api, method, body):
     client, _, _, headers = directors_api
@@ -215,8 +219,8 @@ async def test_inactive_moderator_cannot_write(directors_api, method):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("name", ["Lupita Nyong'o", "Penélope Cruz"])
-async def test_director_names_allow_apostrophes_and_unicode(
+@pytest.mark.parametrize("name", ["Jean-Luc Godard", "Wes Anderson"])
+async def test_director_names_allow_spaces_and_hyphens(
     directors_api, name,
 ):
     client, _, _, headers = directors_api
