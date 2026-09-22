@@ -2,6 +2,8 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
+from src.repositories.directors import DirectorRepository
+from src.services.directors import DirectorService
 from src.repositories.stars import StarRepository
 from src.services.stars import StarService
 from src.repositories.genres import GenreRepository
@@ -40,6 +42,10 @@ def get_genre_service(db: AsyncSession = Depends(get_db)) -> GenreService:
 
 def get_star_service(db: AsyncSession = Depends(get_db)) -> StarService:
     return StarService(StarRepository(db))
+
+
+def get_director_service(db: AsyncSession = Depends(get_db)) -> DirectorService:
+    return DirectorService(DirectorRepository(db))
 
 
 def get_movie_service(

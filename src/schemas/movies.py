@@ -49,6 +49,14 @@ class StarUpdateRequestSchema(BaseNameRequestSchema):
     pass
 
 
+class DirectorCreateRequestSchema(BaseNameRequestSchema):
+    pass
+
+
+class DirectorUpdateRequestSchema(BaseNameRequestSchema):
+    pass
+
+
 class NamedEntityResponseSchema(BaseModel):
     id: int = Field(gt=0)
     name: str
