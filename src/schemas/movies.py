@@ -60,6 +60,14 @@ class DirectorUpdateRequestSchema(DirectorCreateRequestSchema):
     pass
 
 
+class CertificationCreateRequestSchema(BaseNameRequestSchema):
+    pass
+
+
+class CertificationUpdateRequestSchema(BaseNameRequestSchema):
+    pass
+
+
 class NamedEntityResponseSchema(BaseModel):
     id: int = Field(gt=0)
     name: str

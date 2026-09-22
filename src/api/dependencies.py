@@ -2,6 +2,8 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
+from src.repositories.certifications import CertificationRepository
+from src.services.certifications import CertificationService
 from src.repositories.directors import DirectorRepository
 from src.services.directors import DirectorService
 from src.repositories.stars import StarRepository
@@ -46,6 +48,12 @@ def get_star_service(db: AsyncSession = Depends(get_db)) -> StarService:
 
 def get_director_service(db: AsyncSession = Depends(get_db)) -> DirectorService:
     return DirectorService(DirectorRepository(db))
+
+
+def get_certification_service(
+    db: AsyncSession = Depends(get_db),
+) -> CertificationService:
+    return CertificationService(CertificationRepository(db))
 
 
 def get_movie_service(
