@@ -6,6 +6,7 @@ from src.database.models import (
     CartItemModel, CertificationModel, DirectorModel, GenreModel, MovieModel,
     OrderItemModel, OrderModel, OrderStatusEnum, PaymentModel,
     PaymentStatusEnum, StarModel, MovieFavoriteModel, MovieReactionModel,
+    MovieRatingModel,
 )
 from src.schemas.movies import MovieListQuerySchema
 
@@ -15,15 +16,15 @@ class MovieRepository:
         self.db = db
 
     async def list_movies(
-        self, query: MovieListQuerySchema,
-        favorite_user_id: int | None = None,
+            self, query: MovieListQuerySchema,
+            favorite_user_id: int | None = None,
     ) -> tuple[list[MovieModel], int]:
         stmt = select(MovieModel).where(MovieModel.is_deleted.is_(False))
 
         if favorite_user_id is not None:
             stmt = stmt.where(MovieModel.favorites.any(
                 MovieFavoriteModel.user_id == favorite_user_id
-                )
+            )
             )
 
         if query.year is not None:
@@ -35,7 +36,7 @@ class MovieRepository:
         if query.genre_id is not None:
             stmt = stmt.where(MovieModel.genres.any(
                 GenreModel.id == query.genre_id
-                )
+            )
             )
 
         if query.search is not None:
@@ -77,11 +78,24 @@ class MovieRepository:
 
         return list(movies.all()), total or 0
 
+    async def average_ratings(self, movie_ids: list[int]) -> dict[int, float]:
+        if not movie_ids:
+            return {}
+
+        rows = await self.db.execute(
+            select(MovieRatingModel.movie_id, func.avg(MovieRatingModel.score))
+            .where(MovieRatingModel.movie_id.in_(movie_ids))
+            .group_by(MovieRatingModel.movie_id)
+        )
+
+        return {movie_id: float(average) for movie_id, average in rows}
+
     async def reaction_counts(
-        self, movie_ids: list[int],
+            self, movie_ids: list[int],
     ) -> dict[int, dict[str, int]]:
         if not movie_ids:
             return {}
+
         rows = await self.db.execute(
             select(
                 MovieReactionModel.movie_id, MovieReactionModel.reaction,
@@ -90,12 +104,14 @@ class MovieRepository:
             .group_by(MovieReactionModel.movie_id, MovieReactionModel.reaction)
         )
         counts: dict[int, dict[str, int]] = {}
+
         for movie_id, reaction, count in rows:
             counts.setdefault(
                 movie_id, {"likes_count": 0, "dislikes_count": 0},
             )
             key = "likes_count" if reaction == "like" else "dislikes_count"
             counts[movie_id][key] = count
+
         return counts
 
     async def get_movie(

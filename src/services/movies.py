@@ -116,6 +116,9 @@ class MovieService:
             counts = await self.repository.reaction_counts(
                 [movie.id for movie in movies],
             )
+            averages = await self.repository.average_ratings(
+                [movie.id for movie in movies],
+            )
 
         except SQLAlchemyError as error:
             await self.repository.rollback()
@@ -130,6 +133,7 @@ class MovieService:
             movie_counts = counts.get(movie.id, {})
             item.likes_count = movie_counts.get("likes_count", 0)
             item.dislikes_count = movie_counts.get("dislikes_count", 0)
+            item.average_rating = averages.get(movie.id)
             items.append(item)
 
         return MovieListResponseSchema(

@@ -2,6 +2,8 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
+from src.repositories.ratings import RatingRepository
+from src.services.ratings import RatingService
 from src.repositories.reactions import ReactionRepository
 from src.services.reactions import ReactionService
 from src.repositories.favorites import FavoriteRepository
@@ -76,3 +78,9 @@ def get_reaction_service(
     db: AsyncSession = Depends(get_db),
 ) -> ReactionService:
     return ReactionService(ReactionRepository(db))
+
+
+def get_rating_service(
+    db: AsyncSession = Depends(get_db),
+) -> RatingService:
+    return RatingService(RatingRepository(db))

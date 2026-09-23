@@ -7,10 +7,11 @@ from src.api.v1.routers.directors import router as directors_router
 from src.api.v1.routers.certifications import router as certifications_router
 from src.api.v1.routers.favorites import router as favorites_router
 from src.api.v1.routers.reactions import router as reactions_router
+from src.api.v1.routers.ratings import router as ratings_router
 
 
 __all__ = [
     "accounts_router", "profiles_router", "movies_router", "genres_router",
     "stars_router", "directors_router", "certifications_router",
-    "favorites_router", "reactions_router",
+    "favorites_router", "reactions_router", "ratings_router",
 ]
