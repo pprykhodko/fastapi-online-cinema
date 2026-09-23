@@ -2,6 +2,8 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
+from src.repositories.comments import CommentRepository
+from src.services.comments import CommentService
 from src.repositories.ratings import RatingRepository
 from src.services.ratings import RatingService
 from src.repositories.reactions import ReactionRepository
@@ -28,8 +30,8 @@ from src.core.config import Settings, get_settings
 
 
 def get_account_service(
-    db: AsyncSession = Depends(get_db),
-    email_sender: EmailSender = Depends(get_email_sender),
+        db: AsyncSession = Depends(get_db),
+        email_sender: EmailSender = Depends(get_email_sender)
 ) -> AccountService:
     repository = AccountRepository(db)
 
@@ -37,9 +39,9 @@ def get_account_service(
 
 
 def get_profile_service(
-    db: AsyncSession = Depends(get_db),
-    storage: S3Storage = Depends(get_s3_storage),
-    settings: Settings = Depends(get_settings),
+        db: AsyncSession = Depends(get_db),
+        storage: S3Storage = Depends(get_s3_storage),
+        settings: Settings = Depends(get_settings)
 ) -> ProfileService:
     return ProfileService(ProfileRepository(db), storage, settings)
 
@@ -57,30 +59,37 @@ def get_director_service(db: AsyncSession = Depends(get_db)) -> DirectorService:
 
 
 def get_certification_service(
-    db: AsyncSession = Depends(get_db),
+        db: AsyncSession = Depends(get_db)
 ) -> CertificationService:
     return CertificationService(CertificationRepository(db))
 
 
 def get_movie_service(
-    db: AsyncSession = Depends(get_db),
+        db: AsyncSession = Depends(get_db)
 ) -> MovieService:
     return MovieService(MovieRepository(db))
 
 
 def get_favorite_service(
-    db: AsyncSession = Depends(get_db),
+        db: AsyncSession = Depends(get_db)
 ) -> FavoriteService:
     return FavoriteService(FavoriteRepository(db))
 
 
 def get_reaction_service(
-    db: AsyncSession = Depends(get_db),
+        db: AsyncSession = Depends(get_db)
 ) -> ReactionService:
     return ReactionService(ReactionRepository(db))
 
 
 def get_rating_service(
-    db: AsyncSession = Depends(get_db),
+        db: AsyncSession = Depends(get_db)
 ) -> RatingService:
     return RatingService(RatingRepository(db))
+
+
+def get_comment_service(
+        db: AsyncSession = Depends(get_db),
+        email_sender: EmailSender = Depends(get_email_sender)
+) -> CommentService:
+    return CommentService(CommentRepository(db), email_sender)

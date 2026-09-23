@@ -23,12 +23,12 @@ class EmailSender:
         self._settings = settings
         self._env = Environment(
             loader=FileSystemLoader(TEMPLATES_DIR),
-            autoescape=select_autoescape(["html"]),
+            autoescape=select_autoescape(["html"])
         )
 
     async def _send_email(
-        self, recipient: str, subject: str,
-        html_content: str, text_content: str,
+            self, recipient: str, subject: str,
+            html_content: str, text_content: str
     ) -> None:
         message = EmailMessage()
         message["From"] = str(self._settings.SMTP_FROM_EMAIL)
@@ -46,14 +46,33 @@ class EmailSender:
                 password=self._settings.SMTP_PASSWORD or None,
                 use_tls=self._settings.SMTP_USE_TLS,
                 start_tls=self._settings.SMTP_START_TLS,
-                timeout=self._settings.SMTP_TIMEOUT,
+                timeout=self._settings.SMTP_TIMEOUT
             )
 
         except (aiosmtplib.SMTPException, OSError, TimeoutError) as error:
-            raise EmailDeliveryError("The email could not be sent.") from error
+            raise EmailDeliveryError("The email could not be sent") from error
+
+    async def send_comment_notification_background(
+            self, email: str, movie_name: str, comment_id: int, event: str
+    ) -> None:
+        action = "received a reply" if event == "reply" else "received a like"
+        template = self._env.get_template("comment_notification.html")
+        html_content = template.render(
+            movie_name=movie_name, comment_id=comment_id, action=action
+        )
+
+        try:
+            await self._send_email(
+                email, "New activity on your Online Cinema comment",
+                html_content,
+                f'Your comment #{comment_id} on "{movie_name}" {action}',
+            )
+
+        except EmailDeliveryError:
+            logger.error("Background comment notification delivery failed")
 
     async def send_activation_email(
-        self, email: str, token: str, expires_at: datetime,
+            self, email: str, token: str, expires_at: datetime
     ) -> None:
         url_parts = urlsplit(str(self._settings.ACCOUNT_ACTIVATION_URL))
         query = dict(parse_qsl(url_parts.query))
@@ -96,7 +115,7 @@ class EmailSender:
         )
 
     async def send_password_reset_email_background(
-        self, email: str, token: str, expires_at: datetime,
+            self, email: str, token: str, expires_at: datetime,
     ) -> None:
         try:
             await self.send_password_reset_email(email, token, expires_at)
@@ -105,7 +124,7 @@ class EmailSender:
             logger.error("Background password reset email delivery failed.")
 
     async def send_password_reset_email(
-        self, email: str, token: str, expires_at: datetime,
+            self, email: str, token: str, expires_at: datetime,
     ) -> None:
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)

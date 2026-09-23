@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from src.api.v1.routers import (
     accounts_router, profiles_router, movies_router, genres_router,
     stars_router, directors_router, certifications_router,
-    favorites_router, reactions_router, ratings_router,
+    favorites_router, reactions_router, ratings_router, comments_router,
 )
 from src.database import engine
 
@@ -32,6 +32,10 @@ app = FastAPI(
 )
 
 api_version_prefix = "/api/v1"
+
+app.include_router(
+    comments_router, prefix=api_version_prefix, tags=["comments"],
+)
 
 
 @app.exception_handler(RequestValidationError)

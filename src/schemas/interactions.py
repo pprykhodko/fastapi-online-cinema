@@ -15,7 +15,9 @@ from src.schemas.movies import (
 
 class MovieCommentCreateRequestSchema(BaseModel):
     content: str = Field(min_length=1)
-    parent_id: int | None = Field(default=None, gt=0, strict=True)
+    parent_id: int | None = Field(
+        default=None, gt=0, le=2**31 - 1, strict=True
+    )
 
     model_config = {
         "extra": "forbid"
@@ -42,7 +44,7 @@ class MovieCommentResponseSchema(BaseModel):
 
 
 class MovieCommentListQuerySchema(PaginationQuerySchema):
-    pass
+    page: int = Field(default=1, ge=1, le=2**31 - 1)
 
 
 class MovieCommentListResponseSchema(PaginationResponseSchema):
