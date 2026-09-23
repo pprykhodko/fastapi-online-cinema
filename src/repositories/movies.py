@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from src.database.models import (
     CartItemModel, CertificationModel, DirectorModel, GenreModel, MovieModel,
     OrderItemModel, OrderModel, OrderStatusEnum, PaymentModel,
-    PaymentStatusEnum, StarModel,
+    PaymentStatusEnum, StarModel, MovieFavoriteModel,
 )
 from src.schemas.movies import MovieListQuerySchema
 
@@ -15,9 +15,15 @@ class MovieRepository:
         self.db = db
 
     async def list_movies(
-        self, query: MovieListQuerySchema,
+            self, query: MovieListQuerySchema, favorite_user_id: int | None = None,
     ) -> tuple[list[MovieModel], int]:
         stmt = select(MovieModel).where(MovieModel.is_deleted.is_(False))
+
+        if favorite_user_id is not None:
+            stmt = stmt.where(MovieModel.favorites.any(
+                MovieFavoriteModel.user_id == favorite_user_id
+                )
+            )
 
         if query.year is not None:
             stmt = stmt.where(MovieModel.year == query.year)
@@ -27,24 +33,26 @@ class MovieRepository:
 
         if query.genre_id is not None:
             stmt = stmt.where(MovieModel.genres.any(
-                GenreModel.id == query.genre_id,
-            ))
+                GenreModel.id == query.genre_id
+                )
+            )
 
         if query.search is not None:
             stmt = stmt.where(or_(
                 MovieModel.name.icontains(query.search, autoescape=True),
                 MovieModel.description.icontains(
-                    query.search, autoescape=True,
+                    query.search, autoescape=True
                 ),
                 MovieModel.stars.any(
-                    StarModel.name.icontains(query.search, autoescape=True),
+                    StarModel.name.icontains(query.search, autoescape=True)
                 ),
                 MovieModel.directors.any(
                     DirectorModel.name.icontains(
-                        query.search, autoescape=True,
-                    ),
-                ),
-            ))
+                        query.search, autoescape=True
+                    )
+                )
+            )
+            )
 
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = await self.db.scalar(count_stmt)
@@ -65,20 +73,23 @@ class MovieRepository:
         )
 
         movies = await self.db.scalars(stmt)
+
         return list(movies.all()), total or 0
 
     async def get_movie(
-        self, movie_id: int, for_update: bool = False,
+            self, movie_id: int, for_update: bool = False,
     ) -> MovieModel | None:
         stmt = select(MovieModel).where(
             MovieModel.id == movie_id, MovieModel.is_deleted.is_(False),
-        ).options(
+            ).options(
             selectinload(MovieModel.genres), selectinload(MovieModel.stars),
             selectinload(MovieModel.directors),
             selectinload(MovieModel.certification),
         )
+
         if for_update:
             stmt = stmt.with_for_update()
+
         return await self.db.scalar(stmt)
 
     async def get_relations(self, data):
@@ -95,6 +106,7 @@ class MovieRepository:
             select(DirectorModel)
             .where(DirectorModel.id.in_(data.director_ids))
         )).all())
+
         return certification, genres, stars, directors
 
     async def has_purchases(self, movie_id: int) -> bool:
@@ -105,8 +117,9 @@ class MovieRepository:
                 OrderModel.payments.any(PaymentModel.status.in_([
                     PaymentStatusEnum.SUCCESSFUL, PaymentStatusEnum.REFUNDED,
                 ])),
-            ),
-        ).limit(1)
+                ),
+            ).limit(1)
+
         return await self.db.scalar(stmt) is not None
 
     async def cart_count(self, movie_id: int) -> int:

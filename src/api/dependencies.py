@@ -2,6 +2,8 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
+from src.repositories.favorites import FavoriteRepository
+from src.services.favorites import FavoriteService
 from src.repositories.certifications import CertificationRepository
 from src.services.certifications import CertificationService
 from src.repositories.directors import DirectorRepository
@@ -60,3 +62,9 @@ def get_movie_service(
     db: AsyncSession = Depends(get_db),
 ) -> MovieService:
     return MovieService(MovieRepository(db))
+
+
+def get_favorite_service(
+    db: AsyncSession = Depends(get_db),
+) -> FavoriteService:
+    return FavoriteService(FavoriteRepository(db))

@@ -108,7 +108,7 @@ class MovieRatingResponseSchema(BaseModel):
 
 
 class MovieFavoriteCreateRequestSchema(BaseMovieIdRequestSchema):
-    pass
+    movie_id: int = Field(gt=0, le=2**31 - 1, strict=True)
 
 
 class MovieFavoriteResponseSchema(BaseMovieItemResponseSchema):
