@@ -4,8 +4,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from src.repositories.movies import MovieRepository
 from src.database.models import MovieModel
 from src.schemas.movies import (
-    MovieListItemResponseSchema, MovieListQuerySchema, MovieListResponseSchema,
+    MovieListQuerySchema, MovieListResponseSchema,
     MovieCreateRequestSchema, MovieDetailResponseSchema,
+    MovieCatalogItemResponseSchema,
 )
 
 
@@ -112,6 +113,9 @@ class MovieService:
     ) -> MovieListResponseSchema:
         try:
             movies, total = await self.repository.list_movies(query)
+            counts = await self.repository.reaction_counts(
+                [movie.id for movie in movies],
+            )
 
         except SQLAlchemyError as error:
             await self.repository.rollback()
@@ -120,8 +124,15 @@ class MovieService:
                 detail="The movie catalog is temporarily unavailable.",
             ) from error
 
+        items = []
+        for movie in movies:
+            item = MovieCatalogItemResponseSchema.model_validate(movie)
+            movie_counts = counts.get(movie.id, {})
+            item.likes_count = movie_counts.get("likes_count", 0)
+            item.dislikes_count = movie_counts.get("dislikes_count", 0)
+            items.append(item)
+
         return MovieListResponseSchema(
-            items=[MovieListItemResponseSchema.model_validate(movie)
-                   for movie in movies],
+            items=items,
             total=total, page=query.page, per_page=query.per_page,
         )

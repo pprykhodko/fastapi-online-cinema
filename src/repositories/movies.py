@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from src.database.models import (
     CartItemModel, CertificationModel, DirectorModel, GenreModel, MovieModel,
     OrderItemModel, OrderModel, OrderStatusEnum, PaymentModel,
-    PaymentStatusEnum, StarModel, MovieFavoriteModel,
+    PaymentStatusEnum, StarModel, MovieFavoriteModel, MovieReactionModel,
 )
 from src.schemas.movies import MovieListQuerySchema
 
@@ -15,7 +15,8 @@ class MovieRepository:
         self.db = db
 
     async def list_movies(
-            self, query: MovieListQuerySchema, favorite_user_id: int | None = None,
+        self, query: MovieListQuerySchema,
+        favorite_user_id: int | None = None,
     ) -> tuple[list[MovieModel], int]:
         stmt = select(MovieModel).where(MovieModel.is_deleted.is_(False))
 
@@ -75,6 +76,27 @@ class MovieRepository:
         movies = await self.db.scalars(stmt)
 
         return list(movies.all()), total or 0
+
+    async def reaction_counts(
+        self, movie_ids: list[int],
+    ) -> dict[int, dict[str, int]]:
+        if not movie_ids:
+            return {}
+        rows = await self.db.execute(
+            select(
+                MovieReactionModel.movie_id, MovieReactionModel.reaction,
+                func.count(),
+            ).where(MovieReactionModel.movie_id.in_(movie_ids))
+            .group_by(MovieReactionModel.movie_id, MovieReactionModel.reaction)
+        )
+        counts: dict[int, dict[str, int]] = {}
+        for movie_id, reaction, count in rows:
+            counts.setdefault(
+                movie_id, {"likes_count": 0, "dislikes_count": 0},
+            )
+            key = "likes_count" if reaction == "like" else "dislikes_count"
+            counts[movie_id][key] = count
+        return counts
 
     async def get_movie(
             self, movie_id: int, for_update: bool = False,

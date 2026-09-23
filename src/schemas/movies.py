@@ -213,5 +213,10 @@ class MovieListQuerySchema(PaginationQuerySchema):
         return movies_validators.validate_name(value)
 
 
+class MovieCatalogItemResponseSchema(MovieListItemResponseSchema):
+    likes_count: int = Field(default=0, ge=0)
+    dislikes_count: int = Field(default=0, ge=0)
+
+
 class MovieListResponseSchema(PaginationResponseSchema):
-    items: list[MovieListItemResponseSchema]
+    items: list[MovieCatalogItemResponseSchema]

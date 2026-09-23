@@ -30,7 +30,8 @@ router = APIRouter()
         "then id ascending to break ties. Missing prices sort last in both "
         "directions; these movies cannot be purchased. Total counts all "
         "matching movies before pagination. An empty or out-of-range page "
-        "returns 200 with an empty items list."
+        "returns 200 with an empty items list. Each movie includes "
+        "likes_count and dislikes_count across all users (0 if none)."
     ),
     responses={503: {
         "model": ErrorResponseSchema, "description": "Database unavailable.",
