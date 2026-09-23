@@ -29,7 +29,7 @@ from src.schemas.interactions import (
 from src.schemas.movies import (
     MovieCreateRequestSchema,
     MovieDetailResponseSchema,
-    MovieListItemResponseSchema,
+    MovieCatalogItemResponseSchema,
     MovieListResponseSchema,
 )
 
@@ -79,7 +79,7 @@ def test_movie_schemas_support_creation_and_nested_orm_responses(
     assert data["genres"][0]["name"] == "Action"
     assert data["stars"][0]["name"] == "Keanu Reeves"
     assert data["directors"][0]["name"] == "Lana Wachowski"
-    item = MovieListItemResponseSchema.model_validate(stored_movie)
+    item = MovieCatalogItemResponseSchema.model_validate(stored_movie)
     page = MovieListResponseSchema(items=[item], total=1, page=1, per_page=10)
     assert page.items[0].id == movie_id
     assert "description" not in page.items[0].model_dump()

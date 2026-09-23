@@ -12,6 +12,7 @@ from src.api.dependencies import get_movie_service
 from src.database import get_db
 from src.database.models import (
     Base, CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel,
+    MovieReactionModel, UserGroupModel, UserGroupEnum, UserModel,
 )
 from src.database.session_sqlite import create_sqlite_engine
 from src.main import app
@@ -197,3 +198,59 @@ def test_catalog_openapi():
         "sort_by", "sort_order",
     }
     assert {"200", "422", "503"} <= operation["responses"].keys()
+
+
+@pytest.mark.asyncio
+async def test_catalog_reaction_counts(catalog_api):
+    client, sessions = catalog_api
+    async with sessions() as db:
+        group = UserGroupModel(name=UserGroupEnum.USER)
+        users = [UserModel(
+            email=f"user{i}@example.com", group=group,
+            _hashed_password="unused", is_active=True,
+        ) for i in range(3)]
+        db.add_all(users)
+        await db.flush()
+        reactions = [MovieReactionModel(
+            user_id=user.id, movie_id=2,
+            reaction="dislike" if index == 2 else "like",
+        ) for index, user in enumerate(users)]
+        db.add_all(reactions)
+        db.add(MovieReactionModel(
+            user_id=users[0].id, movie_id=1, reaction="dislike",
+        ))
+        await db.commit()
+        reaction_id = reactions[0].id
+
+    response = await client.get(URL_PATH)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 4
+    counts = {item["id"]: (item["likes_count"], item["dislikes_count"])
+              for item in data["items"]}
+    assert counts == {1: (0, 1), 2: (2, 1), 3: (0, 0), 4: (0, 0)}
+    for params in (
+        {"page": 1, "per_page": 1}, {"search": "Second"},
+        {"genre_id": 1, "year": 2022},
+    ):
+        page = (await client.get(URL_PATH, params=params)).json()
+        assert len(page["items"]) == 1
+        assert page["items"][0]["likes_count"] == 2
+        assert page["items"][0]["dislikes_count"] == 1
+
+    detail = (await client.get(URL_PATH + "2/")).json()
+    assert "likes_count" not in detail
+    assert "dislikes_count" not in detail
+    async with sessions() as db:
+        reaction = await db.get(MovieReactionModel, reaction_id)
+        reaction.reaction = "dislike"
+        await db.commit()
+    changed = (await client.get(URL_PATH)).json()["items"][0]
+    assert (changed["likes_count"], changed["dislikes_count"]) == (1, 2)
+    async with sessions() as db:
+        await db.execute(delete(MovieReactionModel).where(
+            MovieReactionModel.id == reaction_id,
+        ))
+        await db.commit()
+    changed = (await client.get(URL_PATH)).json()["items"][0]
+    assert (changed["likes_count"], changed["dislikes_count"]) == (1, 1)
