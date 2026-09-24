@@ -18,11 +18,8 @@ class S3Storage:
         self.settings = settings
 
     def _client(self, *, public: bool = False):
-        if not (
-            self.settings.S3_ACCESS_KEY
-            and self.settings.S3_SECRET_KEY.get_secret_value()
-        ):
-            raise StorageError("S3 credentials are not configured.")
+        if not self.settings.S3_ACCESS_KEY and self.settings.S3_SECRET_KEY.get_secret_value():
+            raise StorageError("S3 credentials are not configured")
 
         endpoint = self.settings.S3_ENDPOINT_URL
 
@@ -31,33 +28,29 @@ class S3Storage:
 
         return boto3.client(
             "s3",
-            endpoint_url=(
-                str(endpoint) if endpoint else None
-            ),
+            endpoint_url=str(endpoint) if endpoint else None,
             aws_access_key_id=self.settings.S3_ACCESS_KEY,
-            aws_secret_access_key=(
-                self.settings.S3_SECRET_KEY.get_secret_value()
-            ),
+            aws_secret_access_key=self.settings.S3_SECRET_KEY.get_secret_value(),
             region_name=self.settings.S3_REGION,
             config=Config(
                 signature_version="s3v4", connect_timeout=5, read_timeout=10,
                 retries={"max_attempts": 2},
                 s3={"addressing_style": "path"},
-            ),
+            )
         )
 
-    def upload_file(
-        self, data: bytes, object_key: str, content_type: str,
-    ) -> None:
+    def upload_file(self, data: bytes, object_key: str, content_type: str) -> None:
         try:
             with closing(self._client()) as client:
                 client.put_object(
-                    Bucket=self.settings.S3_BUCKET_NAME, Key=object_key,
-                    Body=data, ContentType=content_type,
+                    Bucket=self.settings.S3_BUCKET_NAME,
+                    Key=object_key,
+                    Body=data,
+                    ContentType=content_type
                 )
 
         except (BotoCoreError, ClientError) as error:
-            raise StorageError("Avatar upload failed.") from error
+            raise StorageError("Avatar upload failed") from error
 
     def get_file_url(self, object_key: str) -> str:
         try:
@@ -66,13 +59,13 @@ class S3Storage:
                     "get_object",
                     Params={
                         "Bucket": self.settings.S3_BUCKET_NAME,
-                        "Key": object_key,
+                        "Key": object_key
                     },
-                    ExpiresIn=self.settings.S3_URL_EXPIRE_SECONDS,
+                    ExpiresIn=self.settings.S3_URL_EXPIRE_SECONDS
                 )
 
         except (BotoCoreError, ClientError) as error:
-            raise StorageError("Avatar URL could not be generated.") from error
+            raise StorageError("Avatar URL could not be generated") from error
 
     def delete_file(self, object_key: str) -> None:
         try:

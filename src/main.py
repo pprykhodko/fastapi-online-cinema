@@ -24,10 +24,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="Online Cinema API",
-    description=(
-        "An API for browsing movies, managing user accounts, "
-        "shopping carts, orders, and payments."
-    ),
+    description="An API for browsing movies, managing user accounts, shopping carts, orders, and payments",
     lifespan=lifespan
 )
 
@@ -35,12 +32,13 @@ api_version_prefix = "/api/v1"
 
 
 @app.exception_handler(RequestValidationError)
-async def request_validation_error_handler(
-        _request: Request, error: RequestValidationError
-) -> JSONResponse:
+async def request_validation_error_handler(_request: Request, error: RequestValidationError) -> JSONResponse:
     details = [
-        {"type": item["type"], "loc": item["loc"], "msg": item["msg"]}
-        for item in error.errors()
+        {
+            "type": item["type"],
+            "loc": item["loc"],
+            "msg": item["msg"]
+        } for item in error.errors()
     ]
 
     return JSONResponse(
