@@ -205,15 +205,17 @@ async def test_favorites_require_active_account(favorites_api, method, auth):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method, failure", [
-    ("GET", "list_favorites"), ("POST", "get_movie"), ("DELETE", "delete"),
+    ("GET", "list_movies"), ("POST", "get_movie"), ("DELETE", "delete"),
 ])
 async def test_favorite_database_failure(favorites_api, monkeypatch,
                                          method, failure):
     client, _, _, _, headers = favorites_api
     repository = AsyncMock()
-    getattr(repository, failure).side_effect = SQLAlchemyError("secret")
+    movie_repository = AsyncMock()
+    failed_repo = repository if failure == "delete" else movie_repository
+    getattr(failed_repo, failure).side_effect = SQLAlchemyError("secret")
     monkeypatch.setitem(app.dependency_overrides, get_favorite_service,
-                        lambda: FavoriteService(repository))
+                        lambda: FavoriteService(repository, movie_repository))
     response = await client.request(
         method, URL + "1/" if method == "DELETE" else URL, headers=headers,
         **({"json": {"movie_id": 5}} if method == "POST" else {}),

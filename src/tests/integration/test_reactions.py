@@ -163,16 +163,17 @@ async def test_deleted_movie_reaction_can_only_be_removed(reactions_api):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method, failure", [
-    ("GET", "movie_exists"), ("GET", "get_reaction"),
-    ("PUT", "movie_exists"), ("DELETE", "delete"),
+    ("GET", "get_movie"), ("GET", "get_reaction"),
+    ("PUT", "get_movie"), ("DELETE", "delete"),
 ])
 async def test_database_failure(reactions_api, monkeypatch, method, failure):
     client, _, _, _, headers = reactions_api
     repository = AsyncMock()
-    repository.movie_exists.return_value = True
-    getattr(repository, failure).side_effect = SQLAlchemyError("secret")
+    movie_repository = AsyncMock()
+    failed_repo = movie_repository if failure == "get_movie" else repository
+    getattr(failed_repo, failure).side_effect = SQLAlchemyError("secret")
     monkeypatch.setitem(app.dependency_overrides, get_reaction_service,
-                        lambda: ReactionService(repository))
+                        lambda: ReactionService(repository, movie_repository))
     response = await client.request(
         method, PATH, headers=headers,
         **({"json": {"reaction": "like"}} if method == "PUT" else {}),
