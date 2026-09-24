@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import BackgroundTasks, HTTPException, status
+from fastapi import HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
@@ -11,7 +11,7 @@ from src.database.models import (
     RefreshTokenModel,
     UserModel
 )
-from src.notifications.emails import EmailDeliveryError, EmailSender
+from src.notifications.queue import EmailQueueError, EmailQueue
 from src.repositories.accounts import AccountRepository
 from src.repositories.cart import CartRepository
 from src.repositories.profiles import ProfileRepository
@@ -41,13 +41,13 @@ class AccountService:
     def __init__(
         self,
         repository: AccountRepository,
-        email_sender: EmailSender,
+        email_queue: EmailQueue,
         token_repository: TokenRepository,
         profile_repository: ProfileRepository,
         cart_repository: CartRepository,
     ):
         self.repository = repository
-        self.email_sender = email_sender
+        self.email_queue = email_queue
         self.token_repository = token_repository
         self.profile_repository = profile_repository
         self.cart_repository = cart_repository
@@ -115,16 +115,16 @@ class AccountService:
             )
 
         try:
-            await self.email_sender.send_activation_email(
+            await self.email_queue.send_activation_email(
                 new_user.email,
                 activation_token.token,
                 activation_token.expires_at
             )
 
-        except EmailDeliveryError:
+        except EmailQueueError:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Account created, but the activation email could not be sent. Please request the activation email again."
+                detail="Account created, but the activation email could not be queued. Please request the activation email again."
             )
 
         return UserResponseSchema.model_validate(new_user)
@@ -167,11 +167,11 @@ class AccountService:
 
     async def _send_activation_confirmation(self, email: str) -> AccountMessageResponseSchema:
         try:
-            await self.email_sender.send_activation_complete_email(email)
+            await self.email_queue.send_activation_complete_email(email)
 
-        except EmailDeliveryError:
+        except EmailQueueError:
             return AccountMessageResponseSchema(
-                message="Account activated successfully, but the confirmation email could not be sent"
+                message="Account activated successfully, but the confirmation email could not be queued"
             )
 
         return AccountMessageResponseSchema(message="Account activated successfully")
@@ -228,7 +228,7 @@ class AccountService:
 
     async def resend_activation_link(self, email_data: ActivationResendRequestSchema) -> AccountMessageResponseSchema:
         response = AccountMessageResponseSchema(
-            message="If an inactive account exists for this email, an activation email has been sent"
+            message="If an inactive account exists for this email, an activation email will be queued"
         )
 
         async with database_errors(self.repository, detail="Activation email resend is temporarily unavailable"):
@@ -256,16 +256,16 @@ class AccountService:
             await self.repository.commit()
 
         try:
-            await self.email_sender.send_activation_email(
+            await self.email_queue.send_activation_email(
                 user.email,
                 activation_token.token,
                 activation_token.expires_at
             )
 
-        except EmailDeliveryError:
+        except EmailQueueError:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="The activation email could not be sent. Please try again."
+                detail="The activation email could not be queued. Please try again."
             )
 
         return response
@@ -395,11 +395,7 @@ class AccountService:
 
         return AccountMessageResponseSchema(message="Password changed successfully. Please log in again.")
 
-    async def request_password_reset(
-            self,
-            email_data: PasswordResetRequestSchema,
-            background_tasks: BackgroundTasks
-    ) -> AccountMessageResponseSchema:
+    async def request_password_reset(self, email_data: PasswordResetRequestSchema) -> AccountMessageResponseSchema:
         response = AccountMessageResponseSchema(
             message="If an active account exists for this email, you will receive password reset instructions"
         )
@@ -425,8 +421,7 @@ class AccountService:
 
             await self.repository.commit()
 
-        background_tasks.add_task(
-            self.email_sender.send_password_reset_email_background,
+        await self.email_queue.send_password_reset_email(
             user.email,
             token,
             expires_at

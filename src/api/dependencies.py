@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import Settings, get_settings
 from src.database import get_db
-from src.notifications.emails import EmailSender, get_email_sender
+from src.notifications.queue import EmailQueue, get_email_queue
 from src.repositories.accounts import AccountRepository
 from src.repositories.cart import CartRepository
 from src.repositories.certifications import CertificationRepository
@@ -33,14 +33,14 @@ from src.storages.s3 import S3Storage, get_s3_storage
 
 def get_account_service(
         db: AsyncSession = Depends(get_db),
-        email_sender: EmailSender = Depends(get_email_sender)
+        email_queue: EmailQueue = Depends(get_email_queue)
 ) -> AccountService:
     return AccountService(
         repository=AccountRepository(db),
-        email_sender=email_sender,
+        email_queue=email_queue,
         token_repository=TokenRepository(db),
         profile_repository=ProfileRepository(db),
-        cart_repository=CartRepository(db),
+        cart_repository=CartRepository(db)
     )
 
 
@@ -86,6 +86,6 @@ def get_rating_service(db: AsyncSession = Depends(get_db)) -> RatingService:
 
 def get_comment_service(
         db: AsyncSession = Depends(get_db),
-        email_sender: EmailSender = Depends(get_email_sender)
+        email_queue: EmailQueue = Depends(get_email_queue)
 ) -> CommentService:
-    return CommentService(CommentRepository(db), email_sender, MovieRepository(db), AccountRepository(db))
+    return CommentService(CommentRepository(db), email_queue, MovieRepository(db), AccountRepository(db))

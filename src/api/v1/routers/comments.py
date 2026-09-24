@@ -1,14 +1,16 @@
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Path, Query, Response
+from fastapi import APIRouter, Depends, Path, Query, Response
 
 from src.api.dependencies import get_comment_service
 from src.database.models import UserModel
 from src.schemas.common import ErrorResponseSchema
 from src.schemas.interactions import (
-    CommentLikeResponseSchema, MovieCommentCreateRequestSchema,
-    MovieCommentListQuerySchema, MovieCommentListResponseSchema,
-    MovieCommentResponseSchema,
+    CommentLikeResponseSchema,
+    MovieCommentCreateRequestSchema,
+    MovieCommentListQuerySchema,
+    MovieCommentListResponseSchema,
+    MovieCommentResponseSchema
 )
 from src.security.dependencies import get_current_user
 from src.services.comments import CommentService
@@ -70,14 +72,11 @@ async def list_comments(
 )
 async def create_comment(
         data: MovieCommentCreateRequestSchema,
-        background_tasks: BackgroundTasks,
         movie_id: int = Path(gt=0, le=2**31 - 1),
         current_user: UserModel = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
-    return await service.create_comment(
-        current_user.id, movie_id, data, background_tasks
-    )
+    return await service.create_comment(current_user.id, movie_id, data)
 
 
 @router.put(
@@ -96,14 +95,11 @@ async def create_comment(
 )
 async def like_comment(
         response: Response,
-        background_tasks: BackgroundTasks,
         comment_id: int = Path(gt=0, le=2**31 - 1),
         current_user: UserModel = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
-    like, created = await service.like_comment(
-        current_user.id, comment_id, background_tasks,
-    )
+    like, created = await service.like_comment(current_user.id, comment_id)
     response.status_code = 201 if created else 200
 
     return like

@@ -1,16 +1,18 @@
-from fastapi import BackgroundTasks, HTTPException, status
+from fastapi import HTTPException, status
 
 from src.services.database_errors import database_errors
 from src.database.models import CommentLikeModel, MovieCommentModel
-from src.notifications.emails import EmailSender
+from src.notifications.queue import EmailQueue
 from src.repositories.comments import CommentRepository
 from src.repositories.accounts import AccountRepository
 from src.repositories.movies import MovieRepository
 from src.services.movie_checks import get_movie_or_404
 from src.schemas.interactions import (
-    CommentLikeResponseSchema, MovieCommentCreateRequestSchema,
-    MovieCommentListQuerySchema, MovieCommentListResponseSchema,
-    MovieCommentResponseSchema,
+    CommentLikeResponseSchema,
+    MovieCommentCreateRequestSchema,
+    MovieCommentListQuerySchema,
+    MovieCommentListResponseSchema,
+    MovieCommentResponseSchema
 )
 
 
@@ -18,12 +20,12 @@ class CommentService:
     def __init__(
             self,
             repository: CommentRepository,
-            email_sender: EmailSender,
+            email_queue: EmailQueue,
             movie_repository: MovieRepository,
             account_repository: AccountRepository
     ):
         self.repository = repository
-        self.email_sender = email_sender
+        self.email_queue = email_queue
         self.movie_repository = movie_repository
         self.account_repository = account_repository
 
@@ -44,8 +46,7 @@ class CommentService:
             self,
             user_id: int,
             movie_id: int,
-            data: MovieCommentCreateRequestSchema,
-            tasks: BackgroundTasks
+            data: MovieCommentCreateRequestSchema
     ) -> MovieCommentResponseSchema:
         async with database_errors(
                 self.repository,
@@ -80,8 +81,7 @@ class CommentService:
             await self.repository.commit()
 
         if email and data.parent_id is not None:
-            tasks.add_task(
-                self.email_sender.send_comment_notification_background,
+            await self.email_queue.send_comment_notification(
                 email,
                 movie_name,
                 data.parent_id,
@@ -93,8 +93,7 @@ class CommentService:
     async def like_comment(
             self,
             user_id: int,
-            comment_id: int,
-            tasks: BackgroundTasks
+            comment_id: int
     ) -> tuple[CommentLikeResponseSchema, bool]:
         async with database_errors(
                 self.repository,
@@ -127,8 +126,7 @@ class CommentService:
             await self.repository.commit()
 
         if email:
-            tasks.add_task(
-                self.email_sender.send_comment_notification_background,
+            await self.email_queue.send_comment_notification(
                 email,
                 movie_name,
                 comment_id,
