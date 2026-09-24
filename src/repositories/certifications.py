@@ -1,39 +1,19 @@
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
+from src.repositories.base import NamedEntityRepository
 from src.database.models import CertificationModel
 
 
-class CertificationRepository:
-    def __init__(self, db: AsyncSession):
-        self.db = db
+class CertificationRepository(NamedEntityRepository[CertificationModel]):
+    model = CertificationModel
 
     async def list_certifications(self) -> list[CertificationModel]:
         certifications = await self.db.scalars(
-            select(CertificationModel).order_by(CertificationModel.id)
+            select(CertificationModel)
+            .order_by(CertificationModel.id)
         )
 
         return list(certifications.all())
 
-    async def get_certification(
-        self, certification_id: int,
-    ) -> CertificationModel | None:
-        return await self.db.get(CertificationModel, certification_id)
-
-    async def save(self, certification: CertificationModel) -> None:
-        self.db.add(certification)
-        await self.db.flush()
-
-    async def delete(self, certification_id: int) -> bool:
-        deleted_id = await self.db.scalar(
-            delete(CertificationModel)
-            .where(CertificationModel.id == certification_id)
-            .returning(CertificationModel.id)
-        )
-        return deleted_id is not None
-
-    async def commit(self) -> None:
-        await self.db.commit()
-
-    async def rollback(self) -> None:
-        await self.db.rollback()
+    async def get_certification(self, certification_id: int) -> CertificationModel | None:
+        return await self.get_by_id(certification_id)

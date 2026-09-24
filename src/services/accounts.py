@@ -6,20 +6,31 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.services.database_errors import database_errors
 from src.database.models import (
-    ActivationTokenModel, PasswordResetTokenModel,
-    RefreshTokenModel, UserModel,
+    ActivationTokenModel,
+    PasswordResetTokenModel,
+    RefreshTokenModel,
+    UserModel
 )
 from src.notifications.emails import EmailDeliveryError, EmailSender
 from src.repositories.accounts import AccountRepository
+from src.repositories.cart import CartRepository
+from src.repositories.profiles import ProfileRepository
+from src.repositories.tokens import TokenRepository
 from src.schemas.accounts import (
     AccessTokenResponseSchema,
-    AccountActivationRequestSchema, AccountMessageResponseSchema,
-    ActivationResendRequestSchema, LogoutRequestSchema,
-    PasswordChangeRequestSchema, PasswordResetConfirmRequestSchema,
+    AccountActivationRequestSchema,
+    AccountMessageResponseSchema,
+    ActivationResendRequestSchema,
+    LogoutRequestSchema,
+    PasswordChangeRequestSchema,
+    PasswordResetConfirmRequestSchema,
     PasswordResetRequestSchema,
-    TokenPairResponseSchema, TokenRefreshRequestSchema,
+    TokenPairResponseSchema,
+    TokenRefreshRequestSchema,
     UserGroupUpdateRequestSchema,
-    UserLoginRequestSchema, UserRegistrationRequestSchema, UserResponseSchema,
+    UserLoginRequestSchema,
+    UserRegistrationRequestSchema,
+    UserResponseSchema
 )
 from src.security.tokens import InvalidTokenError, JWTAuthManager
 from src.security.passwords import hash_password
@@ -27,9 +38,19 @@ from src.security.utils import generate_secure_token, hash_reset_token
 
 
 class AccountService:
-    def __init__(self, repository: AccountRepository, email_sender: EmailSender):
+    def __init__(
+        self,
+        repository: AccountRepository,
+        email_sender: EmailSender,
+        token_repository: TokenRepository,
+        profile_repository: ProfileRepository,
+        cart_repository: CartRepository,
+    ):
         self.repository = repository
         self.email_sender = email_sender
+        self.token_repository = token_repository
+        self.profile_repository = profile_repository
+        self.cart_repository = cart_repository
 
     @staticmethod
     def is_token_expired(expires_at: datetime, now: datetime) -> bool:
@@ -65,10 +86,10 @@ class AccountService:
             new_user.is_active = False
             new_user.group = user_group
             await self.repository.add_user(new_user)
-            self.repository.add_profile(new_user.id)
-            self.repository.add_cart(new_user.id)
+            self.profile_repository.add_profile(new_user.id)
+            self.cart_repository.add_cart(new_user.id)
             activation_token = ActivationTokenModel(user_id=new_user.id)
-            self.repository.add_activation_token(activation_token)
+            self.token_repository.add_activation_token(activation_token)
             await self.repository.commit()
 
         except IntegrityError:
@@ -110,7 +131,7 @@ class AccountService:
 
     async def activate_account(self, activation_data: AccountActivationRequestSchema) -> AccountMessageResponseSchema:
         async with database_errors(self.repository, detail="Account activation is temporarily unavailable"):
-            activation_token = await self.repository.get_activation_token(activation_data.token)
+            activation_token = await self.token_repository.get_activation_token(activation_data.token)
 
             if not activation_token:
                 raise HTTPException(
@@ -139,7 +160,7 @@ class AccountService:
                 )
 
             user.is_active = True
-            await self.repository.delete_activation_token(activation_token)
+            await self.token_repository.delete_activation_token(activation_token)
             await self.repository.commit()
 
         return await self._send_activation_confirmation(user.email)
@@ -181,7 +202,7 @@ class AccountService:
 
     async def activate_user_manually(self, user_id: int) -> AccountMessageResponseSchema:
         async with database_errors(self.repository, detail="Account activation is temporarily unavailable"):
-            activation_token = await self.repository.get_user_activation_token(user_id)
+            activation_token = await self.token_repository.get_user_activation_token(user_id)
             user = await self.repository.get_user_by_id(user_id)
 
             if user is None:
@@ -199,7 +220,7 @@ class AccountService:
             user.is_active = True
 
             if activation_token is not None:
-                await self.repository.delete_activation_token(activation_token)
+                await self.token_repository.delete_activation_token(activation_token)
 
             await self.repository.commit()
 
@@ -216,7 +237,7 @@ class AccountService:
             if not user or user.is_active:
                 return response
 
-            activation_token = await self.repository.get_user_activation_token(user.id)
+            activation_token = await self.token_repository.get_user_activation_token(user.id)
             await self.repository.refresh_user(user)
 
             if user.is_active:
@@ -226,7 +247,7 @@ class AccountService:
 
             if activation_token is None:
                 activation_token = ActivationTokenModel(user_id=user.id)
-                self.repository.add_activation_token(activation_token)
+                self.token_repository.add_activation_token(activation_token)
 
             elif self.is_token_expired(activation_token.expires_at, now):
                 activation_token.token = generate_secure_token()
@@ -276,7 +297,7 @@ class AccountService:
                 token=jwt_refresh_token,
                 expires_at=expires_at
             )
-            self.repository.add_refresh_token(refresh_token)
+            self.token_repository.add_refresh_token(refresh_token)
             await self.repository.commit()
 
         return TokenPairResponseSchema(
@@ -297,7 +318,7 @@ class AccountService:
         except InvalidTokenError:
             raise token_error
 
-        token = await self.repository.get_refresh_token(raw_token)
+        token = await self.token_repository.get_refresh_token(raw_token)
 
         if token is None:
             raise token_error
@@ -344,7 +365,7 @@ class AccountService:
     ) -> AccountMessageResponseSchema:
         async with database_errors(self.repository, detail="Logout is temporarily unavailable"):
             token = await self._get_valid_refresh_token(logout_data.refresh_token, jwt_manager)
-            await self.repository.delete_refresh_token(token)
+            await self.token_repository.delete_refresh_token(token)
             await self.repository.commit()
 
         return AccountMessageResponseSchema(message="Logged out successfully")
@@ -368,8 +389,8 @@ class AccountService:
 
         async with database_errors(self.repository, detail="Password change is temporarily unavailable"):
             current_user._hashed_password = await run_in_threadpool(hash_password, password_data.new_password)
-            await self.repository.delete_user_refresh_tokens(current_user.id)
-            await self.repository.delete_user_password_reset_tokens(current_user.id)
+            await self.token_repository.delete_user_refresh_tokens(current_user.id)
+            await self.token_repository.delete_user_password_reset_tokens(current_user.id)
             await self.repository.commit()
 
         return AccountMessageResponseSchema(message="Password changed successfully. Please log in again.")
@@ -389,14 +410,14 @@ class AccountService:
             if user is None or not user.is_active:
                 return response
 
-            reset_token = await self.repository.get_user_password_reset_token(user.id)
+            reset_token = await self.token_repository.get_user_password_reset_token(user.id)
             expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
             token = generate_secure_token()
             token_hash = hash_reset_token(token)
 
             if reset_token is None:
                 reset_token = PasswordResetTokenModel(user_id=user.id, token=token_hash, expires_at=expires_at)
-                self.repository.add_password_reset_token(reset_token)
+                self.token_repository.add_password_reset_token(reset_token)
 
             else:
                 reset_token.token = token_hash
@@ -420,7 +441,7 @@ class AccountService:
         )
 
         async with database_errors(self.repository, detail="Password reset is temporarily unavailable"):
-            reset_token = await self.repository.get_password_reset_token(hash_reset_token(reset_data.token))
+            reset_token = await self.token_repository.get_password_reset_token(hash_reset_token(reset_data.token))
 
             if reset_token is None or self.is_token_expired(reset_token.expires_at, datetime.now(timezone.utc)):
                 raise token_error
@@ -437,8 +458,8 @@ class AccountService:
                 )
 
             user._hashed_password = await run_in_threadpool(hash_password, reset_data.new_password)
-            await self.repository.delete_user_password_reset_tokens(user.id)
-            await self.repository.delete_user_refresh_tokens(user.id)
+            await self.token_repository.delete_user_password_reset_tokens(user.id)
+            await self.token_repository.delete_user_refresh_tokens(user.id)
             await self.repository.commit()
 
         return AccountMessageResponseSchema(message="Password reset successfully. Please log in again")

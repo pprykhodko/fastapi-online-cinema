@@ -11,18 +11,16 @@ from src.database.models import ActivationTokenModel
 
 
 async def cleanup_expired_activation_tokens() -> None:
-    engine = create_async_engine(
-        get_settings().DATABASE_URL, poolclass=NullPool,
-    )
+    engine = create_async_engine(get_settings().DATABASE_URL, poolclass=NullPool)
     sessions = async_sessionmaker(engine)
+
     try:
         async with sessions.begin() as db:
             await db.execute(
-                delete(ActivationTokenModel).where(
-                    ActivationTokenModel.expires_at
-                    <= datetime.now(timezone.utc)
-                )
+                delete(ActivationTokenModel)
+                .where(ActivationTokenModel.expires_at <= datetime.now(timezone.utc))
             )
+
     finally:
         await engine.dispose()
 
