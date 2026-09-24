@@ -17,6 +17,9 @@ from src.database.session_sqlite import create_sqlite_engine
 from src.main import app
 from src.notifications.emails import EmailDeliveryError, EmailSender
 from src.repositories.accounts import AccountRepository
+from src.repositories.profiles import ProfileRepository
+from src.repositories.cart import CartRepository
+from src.repositories.tokens import TokenRepository
 
 
 PREFIX = "/api/v1/accounts"
@@ -157,8 +160,10 @@ async def test_duplicate_registration_does_not_add_profile(activation_api):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("failure", ["profile_insert", "after_flush"])
-async def test_registration_profile_failure_rolls_back(
+@pytest.mark.parametrize("failure", [
+    "profile_insert", "cart_insert", "token_insert", "after_flush",
+])
+async def test_registration_related_records_failure_rolls_back(
     activation_api, monkeypatch, failure,
 ):
     client, sessions, send_email = activation_api
@@ -170,9 +175,19 @@ async def test_registration_profile_failure_rolls_back(
             ])
 
         monkeypatch.setattr(
-            AccountRepository, "add_profile", add_duplicate_profile,
+            ProfileRepository, "add_profile", add_duplicate_profile,
         )
         expected_status = 500
+    elif failure in {"cart_insert", "token_insert"}:
+        def fail_insert(self, value):
+            raise OperationalError("insert failed", {}, Exception())
+
+        repository, method = (
+            (CartRepository, "add_cart") if failure == "cart_insert"
+            else (TokenRepository, "add_activation_token")
+        )
+        monkeypatch.setattr(repository, method, fail_insert)
+        expected_status = 503
     else:
         async def fail_commit(self):
             await self.db.flush()

@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.api.dependencies import (
     get_comment_service, get_favorite_service, get_rating_service,
-    get_reaction_service,
+    get_reaction_service, get_account_service,
 )
 from src.services.database_errors import database_errors
 from src.services.movie_checks import get_movie_or_404
@@ -108,6 +108,12 @@ def test_injected_repositories_share_session():
         assert service.repository.db is db
         assert service.movie_repository.db is db
     sender = AsyncMock()
+    accounts = get_account_service(db=db, email_sender=sender)
+    assert accounts.repository.db is db
+    assert accounts.token_repository.db is db
+    assert accounts.profile_repository.db is db
+    assert accounts.cart_repository.db is db
+    assert accounts.email_sender is sender
     comments = get_comment_service(db=db, email_sender=sender)
     assert comments.repository.db is db
     assert comments.movie_repository.db is db

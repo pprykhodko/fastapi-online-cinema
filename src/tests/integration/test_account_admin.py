@@ -13,6 +13,7 @@ from src.database.models import (
 from src.main import app
 from src.notifications.emails import EmailDeliveryError, EmailSender
 from src.repositories.accounts import AccountRepository
+from src.repositories.tokens import TokenRepository
 
 
 PREFIX = "/api/v1/accounts"
@@ -291,7 +292,8 @@ async def test_admin_database_failure_does_not_leave_partial_changes(
                 else "get_user_activation_token"
             )
             patch.setattr(
-                AccountRepository, method, AsyncMock(side_effect=error),
+                AccountRepository if action == "group" else TokenRepository,
+                method, AsyncMock(side_effect=error),
             )
         response = await send_admin_request(
             client, action, target_id, admin_headers,
