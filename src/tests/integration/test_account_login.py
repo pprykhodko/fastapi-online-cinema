@@ -84,11 +84,11 @@ async def test_login_rejects_invalid_credentials_or_inactive_account(
     })
     assert response.status_code == expected_status
     if expected_status == 401:
-        assert response.json() == {"detail": "Incorrect email or password."}
+        assert response.json() == {"detail": "Incorrect email or password"}
         assert response.headers["www-authenticate"] == "Bearer"
     else:
         assert response.json() == {
-            "detail": "Activate your account before logging in.",
+            "detail": "Activate your account before logging in",
         }
     async with sessions() as db:
         assert await db.scalar(select(RefreshTokenModel)) is None

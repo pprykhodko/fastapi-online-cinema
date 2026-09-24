@@ -69,7 +69,7 @@ async def test_login_refresh_logout_lifecycle(login_api):
 
     logout = await client.post(LOGOUT_URL, json=token_data)
     assert logout.status_code == 200
-    assert logout.json() == {"message": "Logged out successfully."}
+    assert logout.json() == {"message": "Logged out successfully"}
     async with sessions() as db:
         assert await db.scalar(select(RefreshTokenModel)) is None
     assert (await client.post(REFRESH_URL, json=token_data)).status_code == 401
@@ -141,7 +141,7 @@ async def test_rejects_invalid_refresh_jwt(
 
     response = await client.post(path, json={"refresh_token": candidate})
     assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid or expired refresh token."}
+    assert response.json() == {"detail": "Invalid or expired refresh token"}
     assert response.headers["www-authenticate"] == "Bearer"
     async with sessions() as db:
         record = await db.scalar(select(RefreshTokenModel))
@@ -176,7 +176,7 @@ async def test_rejects_invalid_refresh_record(
 
     response = await client.post(path, json={"refresh_token": token})
     assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid or expired refresh token."}
+    assert response.json() == {"detail": "Invalid or expired refresh token"}
     async with sessions() as db:
         records = (await db.scalars(select(RefreshTokenModel))).all()
         assert len(records) == (0 if record_case == "deleted" else 1)
@@ -192,7 +192,7 @@ async def test_inactive_user_cannot_refresh_but_can_logout(refresh_session):
 
     response = await client.post(REFRESH_URL, json={"refresh_token": token})
     assert response.status_code == 403
-    assert response.json() == {"detail": "Your account is not active."}
+    assert response.json() == {"detail": "Your account is not active"}
     response = await client.post(LOGOUT_URL, json={"refresh_token": token})
     assert response.status_code == 200
 
@@ -249,7 +249,7 @@ async def test_database_errors_preserve_session(
     assert response.status_code == 503
     message = "Token refresh" if path == REFRESH_URL else "Logout"
     assert response.json() == {
-        "detail": f"{message} is temporarily unavailable.",
+        "detail": f"{message} is temporarily unavailable",
     }
     async with sessions() as db:
         assert (await db.scalar(select(RefreshTokenModel))).token == token

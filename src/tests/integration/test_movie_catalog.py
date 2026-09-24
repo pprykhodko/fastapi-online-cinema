@@ -184,7 +184,7 @@ async def test_catalog_database_failure(catalog_api, monkeypatch):
     response = await client.get(URL_PATH)
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "The movie catalog is temporarily unavailable.",
+        "detail": "The movie catalog is temporarily unavailable",
     }
     db.rollback.assert_awaited_once()
 
