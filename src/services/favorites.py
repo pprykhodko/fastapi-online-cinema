@@ -1,8 +1,10 @@
-from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from fastapi import HTTPException, status
 
+from src.services.database_errors import database_errors
 from src.database.models import MovieFavoriteModel
 from src.repositories.favorites import FavoriteRepository
+from src.repositories.movies import MovieRepository
+from src.services.movie_checks import get_movie_or_404
 from src.schemas.interactions import (
     MovieFavoriteListQuerySchema, MovieFavoriteListResponseSchema,
     MovieFavoriteResponseSchema,
@@ -10,37 +12,33 @@ from src.schemas.interactions import (
 
 
 class FavoriteService:
-    def __init__(self, repository: FavoriteRepository):
+    def __init__(
+            self,
+            repository: FavoriteRepository,
+            movie_repository: MovieRepository
+    ):
         self.repository = repository
+        self.movie_repository = movie_repository
 
-    async def list_favorites(
-            self, user_id: int, query: MovieFavoriteListQuerySchema
-    ) -> MovieFavoriteListResponseSchema:
-        try:
-            favorites, total = await self.repository.list_favorites(
-                user_id, query
-            )
-
-        except SQLAlchemyError as error:
-            await self.repository.rollback()
-            raise HTTPException(
-                503, "Favorites are temporarily unavailable."
-            ) from error
+    async def list_favorites(self, user_id: int, query: MovieFavoriteListQuerySchema) -> MovieFavoriteListResponseSchema:
+        async with database_errors(self.repository, detail="Favorites are temporarily unavailable"):
+            movies, total = await self.movie_repository.list_movies(query, favorite_user_id=user_id)
+            favorites = await self.repository.get_for_movies(user_id, [movie.id for movie in movies])
 
         return MovieFavoriteListResponseSchema(
-            items=[MovieFavoriteResponseSchema.model_validate(favorite)
-                   for favorite in favorites],
-            total=total, page=query.page, per_page=query.per_page
+            items=[MovieFavoriteResponseSchema.model_validate(favorite) for favorite in favorites],
+            total=total,
+            page=query.page,
+            per_page=query.per_page
         )
 
-    async def add_favorite(
-            self, user_id: int, movie_id: int,
-    ) -> MovieFavoriteResponseSchema:
-        try:
-            movie = await self.repository.get_movie(movie_id)
-
-            if movie is None:
-                raise HTTPException(404, "Movie not found.")
+    async def add_favorite(self, user_id: int, movie_id: int) -> MovieFavoriteResponseSchema:
+        async with database_errors(
+                self.repository,
+                detail="Favorite could not be saved.",
+                conflict_detail="The movie is already in favorites or its data changed"
+        ):
+            movie = await get_movie_or_404(self.movie_repository, movie_id, lock=True, with_relations=True)
 
             favorite = MovieFavoriteModel(user_id=user_id, movie=movie)
             await self.repository.add(favorite)
@@ -50,29 +48,14 @@ class FavoriteService:
 
             return response
 
-        except HTTPException:
-            await self.repository.rollback()
-            raise
-
-        except IntegrityError as error:
-            await self.repository.rollback()
-            raise HTTPException(
-                409, "The movie is already in favorites or its data changed.",
-            ) from error
-
-        except SQLAlchemyError as error:
-            await self.repository.rollback()
-            raise HTTPException(503, "Favorite could not be saved.") from error
-
     async def delete_favorite(self, user_id: int, movie_id: int) -> None:
-        try:
+        async with database_errors(self.repository, detail="Favorite could not be removed"):
             deleted = await self.repository.delete(user_id, movie_id)
 
-        except SQLAlchemyError as error:
-            await self.repository.rollback()
-            raise HTTPException(
-                503, "Favorite could not be removed.",
-            ) from error
+            if not deleted:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Movie is not in your favorites"
+                )
 
-        if not deleted:
-            raise HTTPException(404, "Movie is not in your favorites.")
+            await self.repository.commit()

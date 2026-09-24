@@ -19,6 +19,11 @@ class AccountRepository:
 
         return result.scalars().first()
 
+    async def get_active_email(self, user_id: int) -> str | None:
+        return await self.db.scalar(select(UserModel.email).where(
+            UserModel.id == user_id, UserModel.is_active.is_(True),
+        ))
+
     async def get_user_by_id(self, user_id: int) -> UserModel | None:
         stmt = (
             select(UserModel)

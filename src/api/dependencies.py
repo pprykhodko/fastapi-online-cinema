@@ -58,38 +58,28 @@ def get_director_service(db: AsyncSession = Depends(get_db)) -> DirectorService:
     return DirectorService(DirectorRepository(db))
 
 
-def get_certification_service(
-        db: AsyncSession = Depends(get_db)
-) -> CertificationService:
+def get_certification_service(db: AsyncSession = Depends(get_db)) -> CertificationService:
     return CertificationService(CertificationRepository(db))
 
 
-def get_movie_service(
-        db: AsyncSession = Depends(get_db)
-) -> MovieService:
+def get_movie_service(db: AsyncSession = Depends(get_db)) -> MovieService:
     return MovieService(MovieRepository(db))
 
 
-def get_favorite_service(
-        db: AsyncSession = Depends(get_db)
-) -> FavoriteService:
-    return FavoriteService(FavoriteRepository(db))
+def get_favorite_service(db: AsyncSession = Depends(get_db)) -> FavoriteService:
+    return FavoriteService(FavoriteRepository(db), MovieRepository(db))
 
 
-def get_reaction_service(
-        db: AsyncSession = Depends(get_db)
-) -> ReactionService:
-    return ReactionService(ReactionRepository(db))
+def get_reaction_service(db: AsyncSession = Depends(get_db)) -> ReactionService:
+    return ReactionService(ReactionRepository(db), MovieRepository(db))
 
 
-def get_rating_service(
-        db: AsyncSession = Depends(get_db)
-) -> RatingService:
-    return RatingService(RatingRepository(db))
+def get_rating_service(db: AsyncSession = Depends(get_db)) -> RatingService:
+    return RatingService(RatingRepository(db), MovieRepository(db))
 
 
 def get_comment_service(
         db: AsyncSession = Depends(get_db),
         email_sender: EmailSender = Depends(get_email_sender)
 ) -> CommentService:
-    return CommentService(CommentRepository(db), email_sender)
+    return CommentService(CommentRepository(db), email_sender, MovieRepository(db), AccountRepository(db))

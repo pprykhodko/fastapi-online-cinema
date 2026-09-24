@@ -2,25 +2,13 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models import (
-    CommentLikeModel, MovieCommentModel, MovieModel, UserModel,
+    CommentLikeModel, MovieCommentModel,
 )
 
 
 class CommentRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
-
-    async def get_movie(
-            self, movie_id: int, lock: bool = False
-    ) -> MovieModel | None:
-        stmt = select(MovieModel).where(
-            MovieModel.id == movie_id, MovieModel.is_deleted.is_(False)
-            )
-
-        if lock:
-            stmt = stmt.with_for_update()
-
-        return await self.db.scalar(stmt)
 
     async def get_comment(self, comment_id: int) -> MovieCommentModel | None:
         return await self.db.get(MovieCommentModel, comment_id)
@@ -41,14 +29,6 @@ class CommentRepository:
         )
 
         return list(result), total or 0
-
-    async def get_email(self, user_id: int) -> str | None:
-        return await self.db.scalar(
-            select(UserModel.email)
-            .where(
-                UserModel.id == user_id, UserModel.is_active.is_(True)
-            )
-        )
 
     async def get_like(
             self, user_id: int, comment_id: int

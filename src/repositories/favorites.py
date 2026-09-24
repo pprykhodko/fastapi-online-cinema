@@ -2,42 +2,29 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from src.database.models import MovieFavoriteModel, MovieModel
-from src.repositories.movies import MovieRepository
-from src.schemas.interactions import MovieFavoriteListQuerySchema
+from src.database.models import MovieFavoriteModel
 
 
 class FavoriteRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def list_favorites(
-        self, user_id: int, query: MovieFavoriteListQuerySchema,
-    ) -> tuple[list[MovieFavoriteModel], int]:
-        movies, total = await MovieRepository(self.db).list_movies(
-            query, favorite_user_id=user_id,
-        )
-
-        if not movies:
-            return [], total
+    async def get_for_movies(
+        self, user_id: int, movie_ids: list[int],
+    ) -> list[MovieFavoriteModel]:
+        if not movie_ids:
+            return []
 
         favorites = await self.db.scalars(
             select(MovieFavoriteModel).where(
                 MovieFavoriteModel.user_id == user_id,
-                MovieFavoriteModel.movie_id.in_(
-                    [movie.id for movie in movies],
-                ),
+                MovieFavoriteModel.movie_id.in_(movie_ids),
             ).options(joinedload(MovieFavoriteModel.movie))
         )
         by_movie = {favorite.movie_id: favorite for favorite in favorites}
 
-        return [by_movie[movie.id] for movie in movies
-                if movie.id in by_movie], total
-
-    async def get_movie(self, movie_id: int) -> MovieModel | None:
-        return await MovieRepository(self.db).get_movie(
-            movie_id, for_update=True
-        )
+        return [by_movie[movie_id] for movie_id in movie_ids
+                if movie_id in by_movie]
 
     async def add(self, favorite: MovieFavoriteModel) -> None:
         self.db.add(favorite)
@@ -50,8 +37,6 @@ class FavoriteRepository:
                 MovieFavoriteModel.movie_id == movie_id,
             ).returning(MovieFavoriteModel.id)
         )
-        await self.db.commit()
-
         return deleted_id is not None
 
     async def commit(self) -> None:

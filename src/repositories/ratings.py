@@ -1,22 +1,12 @@
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models import MovieModel, MovieRatingModel
+from src.database.models import MovieRatingModel
 
 
 class RatingRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
-
-    async def movie_exists(self, movie_id: int, lock: bool = False) -> bool:
-        stmt = select(MovieModel.id).where(
-            MovieModel.id == movie_id, MovieModel.is_deleted.is_(False),
-            )
-
-        if lock:
-            stmt = stmt.with_for_update()
-
-        return await self.db.scalar(stmt) is not None
 
     async def get_rating(
             self, user_id: int, movie_id: int,

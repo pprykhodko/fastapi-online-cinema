@@ -116,14 +116,17 @@ class MovieRepository:
 
     async def get_movie(
             self, movie_id: int, for_update: bool = False,
+            with_relations: bool = True,
     ) -> MovieModel | None:
         stmt = select(MovieModel).where(
             MovieModel.id == movie_id, MovieModel.is_deleted.is_(False),
-            ).options(
-            selectinload(MovieModel.genres), selectinload(MovieModel.stars),
-            selectinload(MovieModel.directors),
-            selectinload(MovieModel.certification),
-        )
+            )
+        if with_relations:
+            stmt = stmt.options(
+                selectinload(MovieModel.genres), selectinload(MovieModel.stars),
+                selectinload(MovieModel.directors),
+                selectinload(MovieModel.certification),
+            )
 
         if for_update:
             stmt = stmt.with_for_update()
