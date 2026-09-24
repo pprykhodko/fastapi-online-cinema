@@ -10,7 +10,7 @@ from src.database.models import (
     PasswordResetTokenModel, RefreshTokenModel, UserModel,
 )
 from src.main import app
-from src.notifications.emails import EmailDeliveryError, EmailSender
+from src.notifications.queue import EmailQueueError, EmailQueue
 from src.security.utils import hash_reset_token
 
 
@@ -22,10 +22,10 @@ OLD_PASSWORD = "StrongPassword1!"
 NEW_PASSWORD = "AnotherPassword2!"
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def reset_email(monkeypatch):
     send = AsyncMock()
-    monkeypatch.setattr(EmailSender, "send_password_reset_email", send)
+    monkeypatch.setattr(EmailQueue, "send_password_reset_email", send)
     return send
 
 
@@ -180,7 +180,7 @@ async def test_reset_rejects_current_password_without_consuming_tokens(
     })
     assert response.status_code == 400
     assert response.json() == {
-        "detail": "New password must differ from the current password.",
+        "detail": "New password must differ from the current password",
     }
     async with sessions() as db:
         user = await db.get(UserModel, user_id)
@@ -262,30 +262,31 @@ async def test_reset_rejects_invalid_token_or_account(login_api, case):
     })
     assert response.status_code == 400
     assert response.json() == {
-        "detail": "Invalid or expired password reset token.",
+        "detail": "Invalid or expired password reset token",
     }
 
 
 @pytest.mark.asyncio
 async def test_reset_email_failure_can_be_retried(
-    login_api, reset_email, caplog,
+    login_api, monkeypatch, caplog,
 ):
     client, sessions, _, user_id = login_api
-    reset_email.side_effect = EmailDeliveryError("private SMTP error")
+    enqueue = AsyncMock(side_effect=EmailQueueError("private broker error"))
+    monkeypatch.setattr(EmailQueue, "_enqueue", enqueue)
     response = await client.post(FORGOT, json={"email": "user@example.com"})
     assert response.status_code == 202
     assert "private" not in response.text
-    assert "Background password reset email delivery failed." in caplog.text
-    assert "private SMTP error" not in caplog.text
+    assert "Password reset email could not be queued" in caplog.text
+    assert "private broker error" not in caplog.text
     assert "user@example.com" not in caplog.text
-    assert reset_email.call_args.args[1] not in caplog.text
+    assert enqueue.call_args.args[2]["token"] not in caplog.text
     async with sessions() as db:
         old_token = (await db.scalar(select(PasswordResetTokenModel))).token
         assert (await db.get(UserModel, user_id)).verify_password(OLD_PASSWORD)
-    reset_email.side_effect = None
+    enqueue.side_effect = None
     response = await client.post(FORGOT, json={"email": "user@example.com"})
     assert response.status_code == 202
-    assert hash_reset_token(reset_email.call_args.args[1]) != old_token
+    assert hash_reset_token(enqueue.call_args.args[2]["token"]) != old_token
 
 
 @pytest.mark.asyncio
@@ -395,20 +396,20 @@ async def test_stored_reset_hash_cannot_be_used_as_token(
 
 
 @pytest.mark.asyncio
-async def test_email_runs_after_response_and_token_commit(
+async def test_email_is_queued_after_token_commit_before_response(
     login_api, monkeypatch,
 ):
     client, sessions, _, _ = login_api
     response_sent = False
 
     async def check_email(email, token, expires_at):
-        assert response_sent
+        assert not response_sent
         async with sessions() as db:
             record = await db.scalar(select(PasswordResetTokenModel))
             assert record.token == hash_reset_token(token)
 
     send_email = AsyncMock(side_effect=check_email)
-    monkeypatch.setattr(EmailSender, "send_password_reset_email", send_email)
+    monkeypatch.setattr(EmailQueue, "send_password_reset_email", send_email)
     original_app = client._transport.app
 
     async def observe_response(scope, receive, send):

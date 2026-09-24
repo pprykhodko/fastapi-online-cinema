@@ -108,14 +108,14 @@ def test_injected_repositories_share_session():
         assert service.repository.db is db
         assert service.movie_repository.db is db
     sender = AsyncMock()
-    accounts = get_account_service(db=db, email_sender=sender)
+    accounts = get_account_service(db=db, email_queue=sender)
     assert accounts.repository.db is db
     assert accounts.token_repository.db is db
     assert accounts.profile_repository.db is db
     assert accounts.cart_repository.db is db
-    assert accounts.email_sender is sender
-    comments = get_comment_service(db=db, email_sender=sender)
+    assert accounts.email_queue is sender
+    comments = get_comment_service(db=db, email_queue=sender)
     assert comments.repository.db is db
     assert comments.movie_repository.db is db
     assert comments.account_repository.db is db
-    assert comments.email_sender is sender
+    assert comments.email_queue is sender

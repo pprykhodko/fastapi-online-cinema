@@ -15,7 +15,7 @@ from src.database.models import (
 )
 from src.database.session_sqlite import create_sqlite_engine
 from src.main import app
-from src.notifications.emails import EmailDeliveryError, EmailSender
+from src.notifications.queue import EmailQueueError, EmailQueue
 from src.repositories.accounts import AccountRepository
 from src.repositories.profiles import ProfileRepository
 from src.repositories.cart import CartRepository
@@ -28,7 +28,7 @@ PREFIX = "/api/v1/accounts"
 @pytest.fixture
 def completion_email(monkeypatch):
     send = AsyncMock()
-    monkeypatch.setattr(EmailSender, "send_activation_complete_email", send)
+    monkeypatch.setattr(EmailQueue, "send_activation_complete_email", send)
     return send
 
 
@@ -53,7 +53,7 @@ async def activation_api(monkeypatch, completion_email):
                 raise
 
     send_email = AsyncMock()
-    monkeypatch.setattr(EmailSender, "send_activation_email", send_email)
+    monkeypatch.setattr(EmailQueue, "send_activation_email", send_email)
     monkeypatch.setitem(app.dependency_overrides, get_db, override_db)
     try:
         async with AsyncClient(
@@ -125,7 +125,7 @@ async def test_registration_email_activation_and_replay(
 @pytest.mark.asyncio
 async def test_registration_mail_failure_can_be_retried(activation_api):
     client, sessions, send_email = activation_api
-    send_email.side_effect = EmailDeliveryError("private SMTP failure")
+    send_email.side_effect = EmailQueueError("private SMTP failure")
     response = await client.post(f"{PREFIX}/register/", json={
         "email": "user@example.com", "password": "StrongPassword1!",
     })
@@ -144,6 +144,27 @@ async def test_registration_mail_failure_can_be_retried(activation_api):
     )
     assert response.status_code == 200
     assert send_email.call_args.args[1] == token
+
+
+@pytest.mark.asyncio
+async def test_registration_queues_email_after_all_records_are_committed(activation_api):
+    client, sessions, send_email = activation_api
+
+    async def check_saved_records(email, token, expires_at):
+        async with sessions() as db:
+            user = await db.scalar(select(UserModel).where(UserModel.email == email))
+            assert user is not None
+            for model in (UserProfileModel, CartModel, ActivationTokenModel):
+                record = await db.scalar(select(model).where(model.user_id == user.id))
+                assert record is not None
+            assert record.token == token
+
+    send_email.side_effect = check_saved_records
+    response = await client.post(f"{PREFIX}/register/", json={
+        "email": "user@example.com", "password": "StrongPassword1!",
+    })
+    assert response.status_code == 201
+    send_email.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -269,7 +290,7 @@ async def test_resend_mail_failure_preserves_new_token(activation_api):
     await create_account(
         sessions, expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
     )
-    send_email.side_effect = EmailDeliveryError("private failure")
+    send_email.side_effect = EmailQueueError("private failure")
     response = await client.post(
         f"{PREFIX}/activation/resend/", json={"email": "user@example.com"},
     )
@@ -340,7 +361,7 @@ async def test_activation_page_get_activates_without_form(activation_api):
     assert "<form" not in response.text
     assert "<button" not in response.text
     assert "<script" not in response.text
-    assert "Account activated successfully." in response.text
+    assert "Account activated successfully" in response.text
     assert "You can close this page." in response.text
     assert "form-action 'none'" in response.headers["content-security-policy"]
     async with sessions() as db:
@@ -426,12 +447,12 @@ async def test_confirmation_mail_failure_does_not_undo_activation(
     user_id = await create_account(
         sessions, expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
     )
-    completion_email.side_effect = EmailDeliveryError("private failure")
+    completion_email.side_effect = EmailQueueError("private failure")
     response = await client.post(
         f"{PREFIX}/activate/", json={"token": "original-token"},
     )
     assert response.status_code == 200
-    assert "confirmation email could not be sent" in response.json()["message"]
+    assert "confirmation email could not be queued" in response.json()["message"]
     assert "private" not in response.text
     async with sessions() as db:
         assert (await db.get(UserModel, user_id)).is_active
@@ -503,7 +524,7 @@ async def test_link_activation_returns_html_and_prevents_replay(
     )
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "Account activated successfully." in response.text
+    assert "Account activated successfully" in response.text
     assert "You can close this page." in response.text
     assert "<script" not in response.text
     assert "<form" not in response.text
@@ -542,7 +563,7 @@ async def test_link_activation_returns_html_errors(
     assert response.status_code == expected_status
     assert "text/html" in response.headers["content-type"]
     assert 'role="alert"' in response.text
-    assert "Account activated successfully." not in response.text
+    assert "Account activated successfully" not in response.text
     completion_email.assert_not_awaited()
     async with sessions() as db:
         assert (await db.get(UserModel, user_id)).is_active == active
@@ -556,12 +577,12 @@ async def test_link_activation_reports_confirmation_email_failure(
     user_id = await create_account(
         sessions, expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
     )
-    completion_email.side_effect = EmailDeliveryError("private failure")
+    completion_email.side_effect = EmailQueueError("private failure")
     response = await client.get(
         f"{PREFIX}/activate/", params={"token": "original-token"},
     )
     assert response.status_code == 200
-    assert "confirmation email could not be sent" in response.text
+    assert "confirmation email could not be queued" in response.text
     assert "You can close this page." in response.text
     assert "private failure" not in response.text
     async with sessions() as db:

@@ -11,7 +11,7 @@ from src.database.models import (
     ActivationTokenModel, UserGroupEnum, UserGroupModel, UserModel,
 )
 from src.main import app
-from src.notifications.emails import EmailDeliveryError, EmailSender
+from src.notifications.queue import EmailQueueError, EmailQueue
 from src.repositories.accounts import AccountRepository
 from src.repositories.tokens import TokenRepository
 
@@ -22,7 +22,7 @@ PREFIX = "/api/v1/accounts"
 @pytest.fixture(autouse=True)
 def confirmation_email(monkeypatch):
     send = AsyncMock()
-    monkeypatch.setattr(EmailSender, "send_activation_complete_email", send)
+    monkeypatch.setattr(EmailQueue, "send_activation_complete_email", send)
     return send
 
 
@@ -187,7 +187,7 @@ async def test_admin_target_not_found(
     client, _, _, _, _, _ = admin_api
     response = await send_admin_request(client, action, 9999, admin_headers)
     assert response.status_code == 404
-    assert response.json() == {"detail": "User not found."}
+    assert response.json() == {"detail": "User not found"}
     confirmation_email.assert_not_awaited()
 
 
@@ -210,7 +210,7 @@ async def test_admin_activation_does_not_require_valid_token(
         client, "activate", target_id, admin_headers,
     )
     assert response.status_code == 200
-    assert response.json() == {"message": "Account activated successfully."}
+    assert response.json() == {"message": "Account activated successfully"}
     confirmation_email.assert_awaited_once_with("target@example.com")
     async with sessions() as db:
         assert (await db.get(UserModel, target_id)).is_active
@@ -235,14 +235,14 @@ async def test_admin_activation_survives_email_failure(
     admin_api, admin_headers, confirmation_email,
 ):
     client, sessions, _, _, target_id, _ = admin_api
-    confirmation_email.side_effect = EmailDeliveryError("private SMTP details")
+    confirmation_email.side_effect = EmailQueueError("private SMTP details")
     response = await send_admin_request(
         client, "activate", target_id, admin_headers,
     )
     assert response.status_code == 200
     assert response.json() == {"message": (
         "Account activated successfully, but the confirmation "
-        "email could not be sent."
+        "email could not be queued"
     )}
     async with sessions() as db:
         assert (await db.get(UserModel, target_id)).is_active

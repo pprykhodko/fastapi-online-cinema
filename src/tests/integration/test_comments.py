@@ -11,7 +11,7 @@ from src.database.models import (
     UserModel,
 )
 from src.main import app
-from src.notifications.emails import EmailSender, get_email_sender
+from src.notifications.queue import EmailQueue, EmailQueueError, get_email_queue
 from src.repositories.comments import CommentRepository
 
 
@@ -19,12 +19,34 @@ PATH = "/api/v1/movies/1/comments/"
 LIKE = "/api/v1/comments/1/like/"
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("event", ["reply", "like"])
+async def test_queue_failure_preserves_saved_comment_activity(comments_api, monkeypatch, event):
+    client, sessions, headers, _, user_id = comments_api
+    monkeypatch.setitem(app.dependency_overrides, get_email_queue, lambda: EmailQueue())
+
+    async def check_saved_activity(kind, email, data):
+        async with sessions() as db:
+            model = MovieCommentModel if event == "reply" else CommentLikeModel
+            assert await db.scalar(select(model).where(model.user_id == user_id)) is not None
+        raise EmailQueueError("Broker unavailable")
+
+    enqueue = AsyncMock(side_effect=check_saved_activity)
+    monkeypatch.setattr(EmailQueue, "_enqueue", enqueue)
+    if event == "reply":
+        response = await client.post(PATH, headers=headers, json={"content": "Reply", "parent_id": 1})
+    else:
+        response = await client.put(LIKE, headers=headers)
+    assert response.status_code == 201
+    enqueue.assert_awaited_once()
+
+
 @pytest_asyncio.fixture
 async def comments_api(login_api, monkeypatch):
     client, sessions, manager, user_id = login_api
-    sender = AsyncMock(spec=EmailSender)
+    sender = AsyncMock(spec=EmailQueue)
     monkeypatch.setitem(
-        app.dependency_overrides, get_email_sender, lambda: sender,
+        app.dependency_overrides, get_email_queue, lambda: sender,
     )
     async with sessions() as db:
         user = await db.get(UserModel, user_id)
@@ -59,20 +81,20 @@ async def test_comments_replies_and_pagination(comments_api):
     assert result.json()["content"] == "Hi"
     assert result.json()["user_id"] == user_id
     assert result.json()["parent_id"] is None
-    sender.send_comment_notification_background.assert_not_awaited()
+    sender.send_comment_notification.assert_not_awaited()
     reply = await client.post(PATH, headers=headers, json={
         "content": "Reply", "parent_id": 1,
     })
     assert reply.status_code == 201
     assert reply.json()["parent_id"] == 1
-    sender.send_comment_notification_background.assert_awaited_once_with(
+    sender.send_comment_notification.assert_awaited_once_with(
         "author@example.com", "Movie 1", 1, "reply",
     )
     own_reply = await client.post(PATH, headers=headers, json={
         "content": "Own reply", "parent_id": reply.json()["id"],
     })
     assert own_reply.status_code == 201
-    assert sender.send_comment_notification_background.await_count == 1
+    assert sender.send_comment_notification.await_count == 1
     listing = (await client.get(PATH)).json()
     assert listing["total"] == 4
     assert [item["id"] for item in listing["items"]] == [1, 2, 3, 4]
@@ -98,7 +120,7 @@ async def test_like_lifecycle_and_isolation(comments_api):
     repeated = await client.put(LIKE, headers=headers)
     assert repeated.status_code == 200
     assert repeated.json() == created.json()
-    sender.send_comment_notification_background.assert_awaited_once_with(
+    sender.send_comment_notification.assert_awaited_once_with(
         "author@example.com", "Movie 1", 1, "like",
     )
     async with sessions() as db:
@@ -132,7 +154,7 @@ async def test_skip_self_or_inactive_author_email(
     assert (await client.post(PATH, headers=headers, json={
         "content": "Reply", "parent_id": 1,
     })).status_code == 201
-    sender.send_comment_notification_background.assert_not_awaited()
+    sender.send_comment_notification.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -144,7 +166,7 @@ async def test_invalid_parent(comments_api, parent_id):
         json={"content": "Reply", "parent_id": parent_id},
     )
     assert result.status_code == 404
-    sender.send_comment_notification_background.assert_not_awaited()
+    sender.send_comment_notification.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -203,7 +225,7 @@ async def test_unavailable_movie(comments_api, deleted):
                               json={"content": "Hi"})).status_code == 404
     like_path = LIKE if deleted else "/api/v1/comments/999/like/"
     assert (await client.put(like_path, headers=headers)).status_code == 404
-    sender.send_comment_notification_background.assert_not_awaited()
+    sender.send_comment_notification.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -223,7 +245,7 @@ async def test_database_failure_rolls_back(
                                   json={"content": "Hi", "parent_id": 1})
     assert result.status_code == 503
     assert "private" not in result.text
-    sender.send_comment_notification_background.assert_not_awaited()
+    sender.send_comment_notification.assert_not_awaited()
     async with sessions() as db:
         assert await db.scalar(select(func.count()).select_from(
             MovieCommentModel,
@@ -243,4 +265,4 @@ async def test_integrity_conflict(comments_api, monkeypatch, method, path):
     result = await client.request(method, path, headers=headers,
                                   json={"content": "Hi", "parent_id": 1})
     assert result.status_code == 409
-    sender.send_comment_notification_background.assert_not_awaited()
+    sender.send_comment_notification.assert_not_awaited()

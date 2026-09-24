@@ -9,7 +9,7 @@ from src.database.models import (
     ActivationTokenModel, RefreshTokenModel,
     UserGroupEnum, UserGroupModel, UserModel,
 )
-from src.notifications.emails import EmailSender
+from src.notifications.queue import EmailQueue
 from src.repositories.accounts import AccountRepository
 from src.repositories.cart import CartRepository
 from src.repositories.profiles import ProfileRepository
@@ -28,8 +28,8 @@ def repository():
 
 
 @pytest.fixture
-def email_sender():
-    return create_autospec(EmailSender, instance=True)
+def email_queue():
+    return create_autospec(EmailQueue, instance=True)
 
 
 @pytest.fixture
@@ -38,10 +38,10 @@ def token_repository():
 
 
 @pytest.fixture
-def service(repository, email_sender, token_repository):
+def service(repository, email_queue, token_repository):
     return AccountService(
         repository=repository,
-        email_sender=email_sender,
+        email_queue=email_queue,
         token_repository=token_repository,
         profile_repository=create_autospec(ProfileRepository, instance=True),
         cart_repository=create_autospec(CartRepository, instance=True),
@@ -52,7 +52,7 @@ def service(repository, email_sender, token_repository):
 @pytest.mark.parametrize("failure", [
     "duplicate", "missing_group", "database", "conflict", "integrity",
 ])
-async def test_registration_errors(repository, email_sender, service, failure):
+async def test_registration_errors(repository, email_queue, service, failure):
     repository.get_user_by_email.return_value = None
     repository.get_default_group.return_value = UserGroupModel(
         id=1, name=UserGroupEnum.USER,
@@ -87,14 +87,14 @@ async def test_registration_errors(repository, email_sender, service, failure):
     assert error.value.status_code == expected_status
     assert "private details" not in error.value.detail
     repository.commit.assert_not_awaited()
-    email_sender.send_activation_email.assert_not_awaited()
+    email_queue.send_activation_email.assert_not_awaited()
     if failure in {"database", "conflict", "integrity"}:
         repository.rollback.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_activation_rejects_token_without_user(
-    repository, email_sender, token_repository, service,
+    repository, email_queue, token_repository, service,
 ):
     token_repository.get_activation_token.return_value = ActivationTokenModel(
         user_id=1, token="activation-token",
@@ -108,11 +108,11 @@ async def test_activation_rejects_token_without_user(
     assert error.value.status_code == 400
     token_repository.delete_activation_token.assert_not_awaited()
     repository.commit.assert_not_awaited()
-    email_sender.send_activation_complete_email.assert_not_awaited()
+    email_queue.send_activation_complete_email.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_resend_rechecks_activation_after_lock(repository, email_sender, service):
+async def test_resend_rechecks_activation_after_lock(repository, email_queue, service):
     user = UserModel(id=1, email="user@example.com", is_active=False)
     repository.get_user_by_email.return_value = user
 
@@ -125,7 +125,7 @@ async def test_resend_rechecks_activation_after_lock(repository, email_sender, s
     )
     assert response.message.startswith("If an inactive account exists")
     repository.commit.assert_not_awaited()
-    email_sender.send_activation_email.assert_not_awaited()
+    email_queue.send_activation_email.assert_not_awaited()
 
 
 @pytest.mark.parametrize("seconds, expected", [
