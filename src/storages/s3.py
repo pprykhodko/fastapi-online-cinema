@@ -18,7 +18,7 @@ class S3Storage:
         self.settings = settings
 
     def _client(self, *, public: bool = False):
-        if not self.settings.S3_ACCESS_KEY and self.settings.S3_SECRET_KEY.get_secret_value():
+        if not self.settings.S3_ACCESS_KEY or not self.settings.S3_SECRET_KEY.get_secret_value():
             raise StorageError("S3 credentials are not configured")
 
         endpoint = self.settings.S3_ENDPOINT_URL
