@@ -12,18 +12,21 @@ from src.repositories.directors import DirectorRepository
 from src.repositories.favorites import FavoriteRepository
 from src.repositories.genres import GenreRepository
 from src.repositories.movies import MovieRepository
+from src.repositories.orders import OrderRepository
 from src.repositories.profiles import ProfileRepository
 from src.repositories.ratings import RatingRepository
 from src.repositories.reactions import ReactionRepository
 from src.repositories.stars import StarRepository
 from src.repositories.tokens import TokenRepository
 from src.services.accounts import AccountService
+from src.services.cart import CartService
 from src.services.certifications import CertificationService
 from src.services.comments import CommentService
 from src.services.directors import DirectorService
 from src.services.favorites import FavoriteService
 from src.services.genres import GenreService
 from src.services.movies import MovieService
+from src.services.orders import OrderService
 from src.services.profiles import ProfileService
 from src.services.ratings import RatingService
 from src.services.reactions import ReactionService
@@ -70,6 +73,14 @@ def get_certification_service(db: AsyncSession = Depends(get_db)) -> Certificati
 
 def get_movie_service(db: AsyncSession = Depends(get_db)) -> MovieService:
     return MovieService(MovieRepository(db))
+
+
+def get_cart_service(db: AsyncSession = Depends(get_db)) -> CartService:
+    return CartService(CartRepository(db), MovieRepository(db), OrderRepository(db))
+
+
+def get_order_service(db: AsyncSession = Depends(get_db)) -> OrderService:
+    return OrderService(OrderRepository(db), CartRepository(db), MovieRepository(db))
 
 
 def get_favorite_service(db: AsyncSession = Depends(get_db)) -> FavoriteService:

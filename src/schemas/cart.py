@@ -1,12 +1,13 @@
 from pydantic import BaseModel, Field
 
 from src.schemas.movies import (
-    BaseMovieIdRequestSchema, BaseMovieItemResponseSchema,
+    BaseMovieIdRequestSchema,
+    BaseMovieItemResponseSchema
 )
 
 
 class CartItemCreateRequestSchema(BaseMovieIdRequestSchema):
-    pass
+    movie_id: int = Field(gt=0, le=2**31 - 1, strict=True)
 
 
 class CartItemResponseSchema(BaseMovieItemResponseSchema):

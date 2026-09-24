@@ -143,11 +143,23 @@ class MovieRepository(BaseRepository):
 
         return await self.db.scalar(stmt) is not None
 
+    async def get_checkout_movies(self, movie_ids: list[int]) -> list[MovieModel]:
+        stmt = (
+            select(MovieModel)
+            .where(MovieModel.id.in_(movie_ids))
+            .order_by(MovieModel.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+
+        return list((await self.db.scalars(stmt)).all())
+
     async def cart_count(self, movie_id: int) -> int:
         return await self.db.scalar(
             select(func.count())
             .select_from(CartItemModel)
-            .where(CartItemModel.movie_id == movie_id)) or 0
+            .where(CartItemModel.movie_id == movie_id)
+        ) or 0
 
     async def remove_from_carts(self, movie_id: int) -> None:
         await self.db.execute(delete(CartItemModel).where(CartItemModel.movie_id == movie_id))

@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from src.api.v1.routers import (
     accounts_router, profiles_router, movies_router, genres_router,
     stars_router, directors_router, certifications_router,
-    favorites_router, reactions_router, ratings_router, comments_router,
+    favorites_router, reactions_router, ratings_router, comments_router, cart_router,
 )
 from src.database import engine
 
@@ -111,4 +111,10 @@ app.include_router(
     comments_router,
     prefix=api_version_prefix,
     tags=["comments"]
+)
+
+app.include_router(
+    cart_router,
+    prefix=f"{api_version_prefix}/cart",
+    tags=["cart"]
 )
