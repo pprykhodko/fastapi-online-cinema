@@ -7,7 +7,7 @@ from src.notifications.emails import EmailDeliveryError, get_email_sender
 
 @celery_app.task(
     name="emails.send",
-    autoretry_for=EmailDeliveryError,
+    autoretry_for=(EmailDeliveryError,),
     retry_backoff=10,
     retry_backoff_max=120,
     retry_jitter=True,
