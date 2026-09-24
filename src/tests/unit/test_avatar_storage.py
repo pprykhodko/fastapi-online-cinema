@@ -107,10 +107,13 @@ def test_real_boto3_client_is_closed_without_network(monkeypatch, method):
     close.assert_called_once()
 
 
-def test_unconfigured_storage_does_not_use_metadata_credentials(monkeypatch):
+@pytest.mark.parametrize("access_key,secret_key", [("", ""), ("key", ""), ("", "secret")])
+def test_unconfigured_storage_does_not_use_metadata_credentials(monkeypatch, access_key, secret_key):
     factory = Mock()
     monkeypatch.setattr("src.storages.s3.boto3.client", factory)
-    storage = S3Storage(Settings(_env_file=None))
+    storage = S3Storage(Settings(
+        _env_file=None, S3_ACCESS_KEY=access_key, S3_SECRET_KEY=secret_key,
+    ))
     with pytest.raises(StorageError, match="not configured"):
         storage.get_file_url("key")
     factory.assert_not_called()
