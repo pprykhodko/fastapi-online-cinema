@@ -32,16 +32,17 @@ class GenreRepository:
 
     async def save(self, genre: GenreModel) -> None:
         self.db.add(genre)
-        await self.db.commit()
+        await self.db.flush()
 
     async def delete(self, genre_id: int) -> bool:
         deleted_id = await self.db.scalar(
             delete(GenreModel).where(GenreModel.id == genre_id)
             .returning(GenreModel.id)
         )
-        await self.db.commit()
-
         return deleted_id is not None
+
+    async def commit(self) -> None:
+        await self.db.commit()
 
     async def rollback(self) -> None:
         await self.db.rollback()

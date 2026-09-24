@@ -5,6 +5,7 @@ from fastapi import HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.exc import SQLAlchemyError
 
+from src.services.database_errors import database_errors
 from src.core.config import Settings
 from src.database.models import UserProfileModel
 from src.database.validators.avatars import validate_avatar
@@ -19,29 +20,23 @@ logger = logging.getLogger(__name__)
 
 
 class ProfileService:
-    def __init__(
-        self, repository: ProfileRepository, storage: S3Storage,
-        settings: Settings,
-    ):
+    def __init__(self, repository: ProfileRepository, storage: S3Storage, settings: Settings):
         self.repository = repository
         self.storage = storage
         self.settings = settings
 
-    async def serialize_profile(
-        self, profile: UserProfileModel,
-    ) -> UserProfileResponseSchema:
+    async def serialize_profile(self, profile: UserProfileModel) -> UserProfileResponseSchema:
         response = UserProfileResponseSchema.model_validate(profile)
 
         if profile.avatar:
             try:
-                response.avatar = await run_in_threadpool(
-                    self.storage.get_file_url, profile.avatar,
-                )
+                response.avatar = await run_in_threadpool(self.storage.get_file_url, profile.avatar)
 
-            except StorageError as error:
+            except StorageError:
                 raise HTTPException(
-                    503, "Avatar storage is unavailable.",
-                ) from error
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Avatar storage is unavailable"
+                )
 
         return response
 
@@ -50,52 +45,57 @@ class ProfileService:
             await run_in_threadpool(self.storage.delete_file, key)
 
         except StorageError:
-            logger.warning("An unused avatar could not be removed from S3.")
+            logger.warning("An unused avatar could not be removed from S3")
 
     async def prepare_avatar(self, avatar: UploadFile) -> tuple[bytes, str]:
         if avatar.content_type not in ("image/jpeg", "image/png"):
-            raise HTTPException(422, "Only JPEG and PNG images are allowed.")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Only JPEG and PNG images are allowed"
+            )
 
         data = await avatar.read(self.settings.AVATAR_MAX_BYTES + 1)
 
         if len(data) > self.settings.AVATAR_MAX_BYTES:
-            raise HTTPException(413, "Avatar file is too large.")
-
-        try:
-            data, extension = await run_in_threadpool(
-                validate_avatar, data, avatar.content_type,
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="Avatar file is too large"
             )
 
+        try:
+            data, extension = await run_in_threadpool(validate_avatar, data, avatar.content_type)
+
         except ValueError as error:
-            raise HTTPException(422, str(error)) from error
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(error)
+            )
 
         if len(data) > self.settings.AVATAR_MAX_BYTES:
-            raise HTTPException(413, "Processed avatar is too large.")
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="Processed avatar is too large"
+            )
 
         return data, extension
 
     async def get_profile(self, user_id: int) -> UserProfileModel:
-        try:
+        async with database_errors(self.repository, detail="Profiles are temporarily unavailable"):
             profile = await self.repository.get_profile(user_id)
-
-        except SQLAlchemyError as error:
-            await self.repository.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Profiles are temporarily unavailable.",
-            ) from error
 
         if profile is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Profile not found.",
+                detail="Profile not found"
             )
 
         return profile
 
     async def update_profile(
-        self, user_id: int, data: UserProfileUpdateRequestSchema,
-        avatar: UploadFile | None = None,
+            self,
+            user_id: int,
+            data: UserProfileUpdateRequestSchema,
+            avatar: UploadFile | None = None
     ) -> UserProfileResponseSchema:
         profile = await self.get_profile(user_id)
         old_key = profile.avatar
@@ -111,9 +111,12 @@ class ProfileService:
                     "image/jpeg" if extension == "jpg" else "image/png",
                 )
 
-            except StorageError as error:
+            except StorageError:
                 await self.delete_avatar(new_key)
-                raise HTTPException(503, "Avatar upload failed.") from error
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Avatar upload failed"
+                )
 
             profile.avatar = new_key
 
@@ -132,10 +135,11 @@ class ProfileService:
 
             if isinstance(error, HTTPException):
                 raise
+
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="The profile could not be saved. Please try again.",
-            ) from error
+                detail="The profile could not be saved. Please try again."
+            )
 
         if new_key and old_key and old_key.startswith(f"avatars/{user_id}/"):
             await self.delete_avatar(old_key)

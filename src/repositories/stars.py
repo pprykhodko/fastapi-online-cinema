@@ -18,16 +18,17 @@ class StarRepository:
 
     async def save(self, star: StarModel) -> None:
         self.db.add(star)
-        await self.db.commit()
+        await self.db.flush()
 
     async def delete(self, star_id: int) -> bool:
         deleted_id = await self.db.scalar(
             delete(StarModel).where(StarModel.id == star_id)
             .returning(StarModel.id)
         )
-        await self.db.commit()
-
         return deleted_id is not None
+
+    async def commit(self) -> None:
+        await self.db.commit()
 
     async def rollback(self) -> None:
         await self.db.rollback()

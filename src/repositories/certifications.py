@@ -22,7 +22,7 @@ class CertificationRepository:
 
     async def save(self, certification: CertificationModel) -> None:
         self.db.add(certification)
-        await self.db.commit()
+        await self.db.flush()
 
     async def delete(self, certification_id: int) -> bool:
         deleted_id = await self.db.scalar(
@@ -30,9 +30,10 @@ class CertificationRepository:
             .where(CertificationModel.id == certification_id)
             .returning(CertificationModel.id)
         )
-        await self.db.commit()
-
         return deleted_id is not None
+
+    async def commit(self) -> None:
+        await self.db.commit()
 
     async def rollback(self) -> None:
         await self.db.rollback()

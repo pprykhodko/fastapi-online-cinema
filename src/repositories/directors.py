@@ -20,16 +20,17 @@ class DirectorRepository:
 
     async def save(self, director: DirectorModel) -> None:
         self.db.add(director)
-        await self.db.commit()
+        await self.db.flush()
 
     async def delete(self, director_id: int) -> bool:
         deleted_id = await self.db.scalar(
             delete(DirectorModel).where(DirectorModel.id == director_id)
             .returning(DirectorModel.id)
         )
-        await self.db.commit()
-
         return deleted_id is not None
+
+    async def commit(self) -> None:
+        await self.db.commit()
 
     async def rollback(self) -> None:
         await self.db.rollback()
