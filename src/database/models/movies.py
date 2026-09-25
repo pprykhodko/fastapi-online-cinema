@@ -17,7 +17,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
-    false,
+    false
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
@@ -45,7 +45,7 @@ MoviesGenresModel = Table(
         "genre_id",
         ForeignKey("genres.id", ondelete="CASCADE"),
         primary_key=True,
-    ),
+    )
 )
 
 MoviesDirectorsModel = Table(
@@ -60,7 +60,7 @@ MoviesDirectorsModel = Table(
         "director_id",
         ForeignKey("directors.id", ondelete="CASCADE"),
         primary_key=True,
-    ),
+    )
 )
 
 MoviesStarsModel = Table(
@@ -70,12 +70,12 @@ MoviesStarsModel = Table(
         "movie_id",
         ForeignKey("movies.id", ondelete="CASCADE"),
         primary_key=True,
-    ),
+    )
     Column(
         "star_id",
         ForeignKey("stars.id", ondelete="CASCADE"),
         primary_key=True,
-    ),
+    )
 )
 
 
@@ -85,17 +85,17 @@ class GenreModel(Base):
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
-        autoincrement=True,
+        autoincrement=True
     )
     name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-        unique=True,
+        unique=True
     )
 
     movies: Mapped[List[MovieModel]] = relationship(
         secondary=MoviesGenresModel,
-        back_populates="genres",
+        back_populates="genres"
     )
 
     @validates("name")
@@ -112,22 +112,22 @@ class StarModel(Base):
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
-        autoincrement=True,
+        autoincrement=True
     )
     name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-        unique=True,
+        unique=True
     )
 
     movies: Mapped[List[MovieModel]] = relationship(
         secondary=MoviesStarsModel,
-        back_populates="stars",
+        back_populates="stars"
     )
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str:
-        return validators.validate_name(value)
+        return validators.validate_star_name(value)
 
     def __repr__(self) -> str:
         return f"<StarModel(id={self.id}, name={self.name!r})>"
@@ -139,17 +139,17 @@ class DirectorModel(Base):
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
-        autoincrement=True,
+        autoincrement=True
     )
     name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-        unique=True,
+        unique=True
     )
 
     movies: Mapped[List[MovieModel]] = relationship(
         secondary=MoviesDirectorsModel,
-        back_populates="directors",
+        back_populates="directors"
     )
 
     @validates("name")
@@ -166,12 +166,12 @@ class CertificationModel(Base):
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
-        autoincrement=True,
+        autoincrement=True
     )
     name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-        unique=True,
+        unique=True
     )
 
     movies: Mapped[List[MovieModel]] = relationship(
@@ -211,19 +211,19 @@ class MovieModel(Base):
             name="non_negative_gross",
         ),
         CheckConstraint("price >= 0", name="non_negative_price"),
-        CheckConstraint("price <= 99999999.99", name="valid_price_limit"),
+        CheckConstraint("price <= 99999999.99", name="valid_price_limit")
     )
 
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
-        autoincrement=True,
+        autoincrement=True
     )
     uuid: Mapped[UUID] = mapped_column(
         Uuid,
         nullable=False,
         unique=True,
-        default=uuid4,
+        default=uuid4
     )
     name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
     year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
@@ -235,17 +235,17 @@ class MovieModel(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     price: Mapped[Optional[Decimal]] = mapped_column(
         DECIMAL(10, 2),
-        nullable=True,
+        nullable=True
     )
     is_deleted: Mapped[bool] = mapped_column(
         Boolean(create_constraint=True, name="movie_is_deleted_boolean"),
         nullable=False,
         default=False,
-        server_default=false(),
+        server_default=false()
     )
     certification_id: Mapped[int] = mapped_column(
         ForeignKey("certifications.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=False
     )
 
     certification: Mapped[CertificationModel] = relationship(
@@ -253,41 +253,41 @@ class MovieModel(Base):
     )
     genres: Mapped[List[GenreModel]] = relationship(
         secondary=MoviesGenresModel,
-        back_populates="movies",
+        back_populates="movies"
     )
     directors: Mapped[List[DirectorModel]] = relationship(
         secondary=MoviesDirectorsModel,
-        back_populates="movies",
+        back_populates="movies"
     )
     stars: Mapped[List[StarModel]] = relationship(
         secondary=MoviesStarsModel,
-        back_populates="movies",
+        back_populates="movies"
     )
     cart_items: Mapped[List[CartItemModel]] = relationship(
         back_populates="movie",
-        passive_deletes=True,
+        passive_deletes=True
     )
     order_items: Mapped[List[OrderItemModel]] = relationship(
         back_populates="movie",
-        passive_deletes=True,
+        passive_deletes=True
     )
     favorites: Mapped[List[MovieFavoriteModel]] = relationship(
         back_populates="movie",
         cascade="all, delete-orphan",
-        passive_deletes=True,
+        passive_deletes=True
     )
     ratings: Mapped[List[MovieRatingModel]] = relationship(
         back_populates="movie",
         cascade="all, delete-orphan",
-        passive_deletes=True,
+        passive_deletes=True
     )
     reactions: Mapped[List[MovieReactionModel]] = relationship(
         back_populates="movie",
         cascade="all, delete-orphan",
-        passive_deletes=True,
+        passive_deletes=True
     )
     comments: Mapped[List[MovieCommentModel]] = relationship(
-        back_populates="movie", passive_deletes="all",
+        back_populates="movie", passive_deletes="all"
     )
 
     @validates("name")
@@ -332,6 +332,7 @@ class MovieModel(Base):
     def validate_is_deleted(self, _key: str, value: bool) -> bool:
         if not isinstance(value, bool):
             raise ValueError("is_deleted must be a boolean.")
+
         return value
 
     @property

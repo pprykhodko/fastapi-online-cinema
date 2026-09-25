@@ -42,10 +42,13 @@ class GenreUpdateRequestSchema(GenreCreateRequestSchema):
 
 
 class StarCreateRequestSchema(BaseNameRequestSchema):
-    pass
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        return movies_validators.validate_star_name(value)
 
 
-class StarUpdateRequestSchema(BaseNameRequestSchema):
+class StarUpdateRequestSchema(StarCreateRequestSchema):
     pass
 
 
@@ -214,6 +217,7 @@ class MovieListQuerySchema(PaginationQuerySchema):
 
 
 class MovieCatalogItemResponseSchema(MovieListItemResponseSchema):
+    votes: int = Field(ge=0)
     likes_count: int = Field(default=0, ge=0)
     dislikes_count: int = Field(default=0, ge=0)
     average_rating: float | None = Field(default=None, ge=1, le=10)
