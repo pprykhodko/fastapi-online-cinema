@@ -18,7 +18,8 @@ from src.api.v1.routers import (
     ratings_router,
     comments_router,
     cart_router,
-    orders_router
+    orders_router,
+    payments_router
 )
 from src.database import engine
 
@@ -133,4 +134,10 @@ app.include_router(
     orders_router,
     prefix=f"{api_version_prefix}/orders",
     tags=["orders"]
+)
+
+app.include_router(
+    payments_router,
+    prefix=f"{api_version_prefix}/payments",
+    tags=["payments"]
 )

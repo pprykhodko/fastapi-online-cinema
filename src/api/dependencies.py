@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import Settings, get_settings
 from src.database import get_db
 from src.notifications.queue import EmailQueue, get_email_queue
+from src.payments.stripe import StripeGateway, get_stripe_gateway
 from src.repositories.accounts import AccountRepository
 from src.repositories.cart import CartRepository
 from src.repositories.certifications import CertificationRepository
@@ -13,6 +14,7 @@ from src.repositories.favorites import FavoriteRepository
 from src.repositories.genres import GenreRepository
 from src.repositories.movies import MovieRepository
 from src.repositories.orders import OrderRepository
+from src.repositories.payments import PaymentRepository
 from src.repositories.profiles import ProfileRepository
 from src.repositories.ratings import RatingRepository
 from src.repositories.reactions import ReactionRepository
@@ -27,6 +29,7 @@ from src.services.favorites import FavoriteService
 from src.services.genres import GenreService
 from src.services.movies import MovieService
 from src.services.orders import OrderService
+from src.services.payments import PaymentService
 from src.services.profiles import ProfileService
 from src.services.ratings import RatingService
 from src.services.reactions import ReactionService
@@ -81,6 +84,15 @@ def get_cart_service(db: AsyncSession = Depends(get_db)) -> CartService:
 
 def get_order_service(db: AsyncSession = Depends(get_db)) -> OrderService:
     return OrderService(OrderRepository(db), CartRepository(db), MovieRepository(db))
+
+
+def get_payment_service(
+        db: AsyncSession = Depends(get_db),
+        orders: OrderService = Depends(get_order_service),
+        gateway: StripeGateway = Depends(get_stripe_gateway),
+        email_queue: EmailQueue = Depends(get_email_queue)
+) -> PaymentService:
+    return PaymentService(PaymentRepository(db), orders, gateway, email_queue)
 
 
 def get_favorite_service(db: AsyncSession = Depends(get_db)) -> FavoriteService:

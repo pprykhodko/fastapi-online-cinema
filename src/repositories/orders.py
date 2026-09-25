@@ -1,5 +1,3 @@
-from datetime import datetime, time, timezone
-
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
@@ -8,13 +6,29 @@ from src.database.models import (
     OrderModel,
     OrderStatusEnum,
     PaymentModel,
+    PaymentCheckoutModel,
     PaymentStatusEnum
 )
 from src.repositories.base import BaseRepository
+from src.repositories.transaction_filters import transaction_filters
 from src.schemas.orders import AdminOrderListQuerySchema, OrderListQuerySchema
 
 
 class OrderRepository(BaseRepository):
+    async def get_by_id(self, order_id: int, lock: bool = False) -> OrderModel | None:
+        stmt = select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items))
+
+        if lock:
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
+
+        return await self.db.scalar(stmt)
+
+    async def has_checkout(self, order_id: int) -> bool:
+        return await self.db.scalar(
+            select(PaymentCheckoutModel.id)
+            .where(PaymentCheckoutModel.order_id == order_id)
+        ) is not None
+
     async def purchased_movie_ids(self, user_id: int, movie_ids: list[int]) -> set[int]:
         if not movie_ids:
             return set()
@@ -74,23 +88,7 @@ class OrderRepository(BaseRepository):
             query: OrderListQuerySchema | AdminOrderListQuerySchema,
             user_id: int | None = None
     ) -> tuple[list[OrderModel], int]:
-        filters = []
-
-        if user_id is not None:
-            filters.append(OrderModel.user_id == user_id)
-
-        if isinstance(query, AdminOrderListQuerySchema):
-            if query.user_id is not None:
-                filters.append(OrderModel.user_id == query.user_id)
-
-            if query.status is not None:
-                filters.append(OrderModel.status == query.status)
-
-            if query.date_from is not None:
-                filters.append(OrderModel.created_at >= datetime.combine(query.date_from, time.min, timezone.utc))
-
-            if query.date_to is not None:
-                filters.append(OrderModel.created_at <= datetime.combine(query.date_to, time.max, timezone.utc))
+        filters = transaction_filters(OrderModel, query, user_id)
 
         total = await self.db.scalar(select(func.count()).select_from(OrderModel).where(*filters)) or 0
         stmt = (

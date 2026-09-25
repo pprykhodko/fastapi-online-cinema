@@ -43,7 +43,7 @@ class OrderService:
                 per_page=query.per_page
             )
 
-    async def _get_owned_order(self, user_id: int, order_id: int, lock: bool = False) -> OrderModel:
+    async def get_owned_order(self, user_id: int, order_id: int, lock: bool = False) -> OrderModel:
         order = await self.repository.get_order(order_id, user_id, lock=lock)
 
         if order is None:
@@ -56,13 +56,19 @@ class OrderService:
 
     async def get_order(self, user_id: int, order_id: int) -> OrderResponseSchema:
         async with database_errors(self.repository, detail="Order is temporarily unavailable"):
-            order = await self._get_owned_order(user_id, order_id)
+            order = await self.get_owned_order(user_id, order_id)
 
             return OrderResponseSchema.model_validate(order)
 
     async def cancel_order(self, user_id: int, order_id: int) -> OrderResponseSchema:
         async with database_errors(self.repository, detail="Order could not be canceled"):
-            order = await self._get_owned_order(user_id, order_id, lock=True)
+            order = await self.get_owned_order(user_id, order_id, lock=True)
+
+            if await self.repository.has_checkout(order.id):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="This order has a Stripe checkout. Cancel it through Payments, or request a refund if paid."
+                )
 
             if order.status == OrderStatusEnum.PAID or await self.repository.has_completed_payment(order.id):
                 raise HTTPException(
@@ -89,7 +95,7 @@ class OrderService:
         No payment is created here. The caller must use this same DB session.
         """
         async with database_errors(self.repository, detail="Order validation is temporarily unavailable"):
-            order = await self._get_owned_order(user_id, order_id, lock=True)
+            order = await self.get_owned_order(user_id, order_id, lock=True)
 
             if order.status != OrderStatusEnum.PENDING or await self.repository.has_completed_payment(order.id):
                 raise HTTPException(

@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
@@ -9,12 +10,13 @@ from src.schemas.common import (
     AdminTransactionListQuerySchema,
     MessageResponseSchema,
     PaginationQuerySchema,
-    PaginationResponseSchema,
+    PaginationResponseSchema
 )
+from src.schemas.movies import MovieListItemResponseSchema
 
 
 class PaymentCreateRequestSchema(BaseModel):
-    order_id: int = Field(gt=0, strict=True)
+    order_id: int = Field(gt=0, le=2**31 - 1, strict=True)
 
     model_config = {
         "extra": "forbid"
@@ -27,7 +29,7 @@ class PaymentCheckoutResponseSchema(BaseModel):
 
 
 class PaymentRefundRequestSchema(BaseModel):
-    payment_id: int = Field(gt=0, strict=True)
+    payment_id: int = Field(gt=0, le=2**31 - 1, strict=True)
 
     model_config = {
         "extra": "forbid"
@@ -60,6 +62,7 @@ class PaymentResponseSchema(BaseModel):
     created_at: datetime
     status: PaymentStatusEnum
     amount: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    currency: Literal["usd", "eur"] = "usd"
     external_payment_id: str | None = Field(max_length=255)
     items: list[PaymentItemResponseSchema]
 
@@ -74,12 +77,18 @@ class PaymentResponseSchema(BaseModel):
 
 
 class PaymentListQuerySchema(PaginationQuerySchema):
-    pass
+    page: int = Field(default=1, ge=1, le=1_000_000)
 
 
 class AdminPaymentListQuerySchema(AdminTransactionListQuerySchema):
+    page: int = Field(default=1, ge=1, le=1_000_000)
+    user_id: int | None = Field(default=None, gt=0, le=2**31 - 1)
     status: PaymentStatusEnum | None = None
 
 
 class PaymentListResponseSchema(PaginationResponseSchema):
     items: list[PaymentResponseSchema]
+
+
+class PurchasedMovieListResponseSchema(PaginationResponseSchema):
+    items: list[MovieListItemResponseSchema]
