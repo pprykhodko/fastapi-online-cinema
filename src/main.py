@@ -6,9 +6,19 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from src.api.v1.routers import (
-    accounts_router, profiles_router, movies_router, genres_router,
-    stars_router, directors_router, certifications_router,
-    favorites_router, reactions_router, ratings_router, comments_router, cart_router,
+    accounts_router,
+    profiles_router,
+    movies_router,
+    genres_router,
+    stars_router,
+    directors_router,
+    certifications_router,
+    favorites_router,
+    reactions_router,
+    ratings_router,
+    comments_router,
+    cart_router,
+    orders_router
 )
 from src.database import engine
 
@@ -117,4 +127,10 @@ app.include_router(
     cart_router,
     prefix=f"{api_version_prefix}/cart",
     tags=["cart"]
+)
+
+app.include_router(
+    orders_router,
+    prefix=f"{api_version_prefix}/orders",
+    tags=["orders"]
 )

@@ -43,9 +43,7 @@ class OrderResponseSchema(BaseModel):
     user_id: int = Field(gt=0)
     created_at: datetime
     status: OrderStatusEnum
-    total_amount: Decimal | None = Field(
-        ge=0, max_digits=10, decimal_places=2,
-    )
+    total_amount: Decimal | None = Field(ge=0, max_digits=10, decimal_places=2)
     items: list[OrderItemResponseSchema]
 
     model_config = {
@@ -73,6 +71,7 @@ class OrderListQuerySchema(PaginationQuerySchema):
 
 
 class AdminOrderListQuerySchema(AdminTransactionListQuerySchema):
+    user_id: int | None = Field(default=None, gt=0, le=2**31 - 1)
     status: OrderStatusEnum | None = None
 
 
