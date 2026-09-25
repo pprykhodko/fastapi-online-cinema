@@ -72,10 +72,11 @@ def test_payment_response_preserves_amounts_after_catalog_and_order_changes(
     data = page.model_dump(mode="json")["items"][0]
     assert data["status"] == status.value
     assert data["amount"] == "9.99"
+    assert data["currency"] == "usd"
     assert data["external_payment_id"] is None
     assert set(data) == {
         "id", "user_id", "order_id", "created_at", "status", "amount",
-        "external_payment_id", "items",
+        "external_payment_id", "items", "currency",
     }
     assert "email" not in page.model_dump_json()
     assert "hashed_password" not in page.model_dump_json()
