@@ -7,7 +7,7 @@ from src.database.models.accounts import (
     UserGroupEnum,
     UserGroupModel,
     UserModel,
-    UserProfileModel,
+    UserProfileModel
 )
 from src.database.models.base import Base
 from src.database.models.cart import CartItemModel, CartModel
@@ -21,17 +21,18 @@ from src.database.models.movies import (
     MoviesDirectorsModel,
     MoviesGenresModel,
     MoviesStarsModel,
-    StarModel,
+    StarModel
 )
 from src.database.models.orders import (
     OrderItemModel,
     OrderModel,
-    OrderStatusEnum,
+    OrderStatusEnum
 )
 from src.database.models.payments import (
+    PaymentCheckoutModel,
     PaymentItemModel,
     PaymentModel,
-    PaymentStatusEnum,
+    PaymentStatusEnum
 )
 from src.database.models.ratings import MovieRatingModel
 from src.database.models.reactions import MovieReactionEnum, MovieReactionModel
@@ -60,6 +61,7 @@ __all__ = [
     "OrderModel",
     "OrderStatusEnum",
     "PaymentItemModel",
+    "PaymentCheckoutModel",
     "PaymentModel",
     "PaymentStatusEnum",
     "PasswordResetTokenModel",
