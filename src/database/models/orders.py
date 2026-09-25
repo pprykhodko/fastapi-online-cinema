@@ -6,7 +6,14 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
-    CheckConstraint, DateTime, DECIMAL, Enum, ForeignKey, Integer, func,
+    CheckConstraint,
+    DateTime,
+    DECIMAL,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    func
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
@@ -100,10 +107,11 @@ class OrderModel(Base):
 class OrderItemModel(Base):
     __tablename__ = "order_items"
     __table_args__ = (
+        Index("uq_order_items_order_movie", "order_id", "movie_id", unique=True),
         CheckConstraint(
             "price_at_order >= 0 AND price_at_order <= 99999999.99",
-            name="valid_price_at_order",
-        ),
+            name="valid_price_at_order"
+        )
     )
 
     id: Mapped[int] = mapped_column(
