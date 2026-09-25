@@ -38,6 +38,9 @@ async def deliver_email(kind: str, recipient: str, data: dict) -> None:
     elif kind == "activation_complete":
         await sender.send_activation_complete_email(recipient)
 
+    elif kind == "payment":
+        await sender.send_payment_confirmation(recipient, data["order_id"], data["amount"], data["currency"])
+
     elif kind == "comment":
         await sender.send_comment_notification(
             recipient, data["movie_name"], data["comment_id"], data["event"],

@@ -47,17 +47,31 @@ class EmailSender:
         except (aiosmtplib.SMTPException, OSError, TimeoutError) as error:
             raise EmailDeliveryError("The email could not be sent") from error
 
+    async def send_payment_confirmation(self, email: str, order_id: int, amount: str, currency: str) -> None:
+        html = self._env.get_template("payment_confirmation.html").render(
+            order_id=order_id,
+            amount=amount,
+            currency=currency.upper()
+        )
+        await self._send_email(
+            email, "Your Online Cinema payment is confirmed", html,
+            f"Payment for order #{order_id} confirmed: {amount} {currency.upper()}. "
+            f"Your movies are now in Purchased."
+        )
+
     async def send_comment_notification(self, email: str, movie_name: str, comment_id: int, event: str) -> None:
         action = "received a reply" if event == "reply" else "received a like"
         template = self._env.get_template("comment_notification.html")
         html_content = template.render(
-            movie_name=movie_name, comment_id=comment_id, action=action
+            movie_name=movie_name,
+            comment_id=comment_id,
+            action=action
         )
 
         await self._send_email(
             email, "New activity on your Online Cinema comment",
             html_content,
-            f'Your comment #{comment_id} on "{movie_name}" {action}',
+            f'Your comment #{comment_id} on "{movie_name}" {action}'
         )
 
     async def send_activation_email(self, email: str, token: str, expires_at: datetime) -> None:
@@ -83,7 +97,7 @@ class EmailSender:
             html_content,
             f"Welcome to Online Cinema!\n\n{activation_link}\n\n"
             f"This link expires at {expiration}.\n"
-            "If you did not request this email, you can ignore it.",
+            "If you did not request this email, you can ignore it."
         )
 
     async def send_activation_complete_email(self, email: str) -> None:
@@ -94,7 +108,7 @@ class EmailSender:
             "Your Online Cinema account is activated",
             html_content,
             f"Your Online Cinema account ({email}) is now active.\n"
-            "Thank you for joining Online Cinema!",
+            "Thank you for joining Online Cinema!"
         )
 
     async def send_password_reset_email(self, email: str, token: str, expires_at: datetime) -> None:
@@ -112,7 +126,7 @@ class EmailSender:
             "Send token and new_password as JSON to "
             "POST /api/v1/accounts/password/reset/ using Swagger or Postman.\n"
             f"This token expires at {expiration} and can be used only once.\n"
-            "If you did not request a reset, you can ignore this email.",
+            "If you did not request a reset, you can ignore this email."
         )
 
 

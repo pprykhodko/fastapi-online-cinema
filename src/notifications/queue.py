@@ -3,7 +3,7 @@ from datetime import datetime
 from functools import partial
 
 from fastapi.concurrency import run_in_threadpool
-from kombu.exceptions import OperationalError  # type: ignore[import-untyped]
+from kombu.exceptions import OperationalError
 from redis.exceptions import RedisError
 
 from src.tasks.emails import send_email
@@ -17,6 +17,9 @@ class EmailQueueError(Exception):
 
 
 class EmailQueue:
+    async def send_payment_confirmation(self, email: str, order_id: int, amount: str, currency: str) -> None:
+        await self._enqueue("payment", email, {"order_id": order_id, "amount": amount, "currency": currency})
+
     async def _enqueue(self, kind: str, email: str, data: dict) -> None:
         try:
             publish = partial(
