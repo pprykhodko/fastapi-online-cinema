@@ -125,7 +125,7 @@ async def test_write_permissions(genres_api, method, role):
     {}, {"name": ""}, {"name": "   "}, {"name": "x" * 101},
     {"name": None}, {"name": 123}, {"name": "New", "extra": "bad"},
     {"name": "123"}, {"name": "Drama2"}, {"name": "!"},
-    {"name": "Sci-Fi"}, {"name": "Science Fiction"},
+    {"name": "Sci-Fi"},
     {"name": "Драма"}, {"name": "Comédie"}, {"name": "Dra\nma"},
 ])
 async def test_invalid_names(genres_api, method, body):
@@ -194,3 +194,17 @@ def test_genres_openapi():
     assert set(paths[URL + "{genre_id}/"]) == {"get", "patch", "delete"}
     assert not paths[URL]["get"].get("security")
     assert paths[URL]["post"]["security"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method", ["POST", "PATCH"])
+async def test_multiword_genre_names(genres_api, method):
+    client, _, _, headers = genres_api
+    response = await client.request(
+        method, URL if method == "POST" else URL + "1/",
+        headers=headers, json={"name": " Science Fiction "},
+    )
+    assert response.status_code == (201 if method == "POST" else 200)
+    assert response.json()["name"] == "Science Fiction"
+    stored = await client.get(f"{URL}{response.json()['id']}/")
+    assert stored.json()["name"] == "Science Fiction"

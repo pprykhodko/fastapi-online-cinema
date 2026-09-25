@@ -11,7 +11,7 @@ from src.schemas.movies import (
     GenreModel, GenreCreateRequestSchema, GenreUpdateRequestSchema,
 ])
 @pytest.mark.parametrize("name", [
-    "123", "Drama2", "!", "Sci-Fi", "Science Fiction", "Драма", "Comédie",
+    "123", "Drama2", "!", "Sci-Fi", "Драма", "Comédie", "   ",
     "Dra\nma", "Dra\tma", "🎬", "",
 ])
 def test_genre_requires_english_letters(factory, name):
@@ -22,7 +22,9 @@ def test_genre_requires_english_letters(factory, name):
 @pytest.mark.parametrize("factory", [
     GenreModel, GenreCreateRequestSchema, GenreUpdateRequestSchema,
 ])
-@pytest.mark.parametrize("name", ["Drama", "action", "SF", "  Fantasy  "])
+@pytest.mark.parametrize("name", [
+    "Drama", "action", "SF", "  Fantasy  ", "Science Fiction", " Romantic Comedy ",
+])
 def test_genre_accepts_english_letters(factory, name):
     assert factory(name=name).name == name.strip()
 

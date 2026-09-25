@@ -122,6 +122,10 @@ async def test_write_permissions(stars_api, method, role):
 @pytest.mark.parametrize("body", [
     {}, {"name": ""}, {"name": "   "}, {"name": "x" * 101},
     {"name": None}, {"name": 123}, {"name": "New", "extra": "bad"},
+    {"name": "Actor123"}, {"name": "Актёр"}, {"name": "Actor!"},
+    {"name": "Actor?"}, {"name": "—-"}, {"name": "---"},
+    {"name": "Lupita Nyong'o"}, {"name": "Penélope Cruz"},
+    {"name": "Tom\tHanks"}, {"name": "Tom\nHanks"},
 ])
 async def test_invalid_names(stars_api, method, body):
     client, _, _, headers = stars_api
@@ -211,11 +215,15 @@ async def test_inactive_moderator_cannot_write(stars_api, method):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("name", ["Lupita Nyong'o", "Penélope Cruz"])
-async def test_actor_names_allow_apostrophes_and_unicode(stars_api, name):
+@pytest.mark.parametrize("method", ["POST", "PATCH"])
+@pytest.mark.parametrize("name", ["Jean-Claude Van Damme", "Mary Smith-Jones"])
+async def test_actor_names_allow_spaces_and_hyphens(stars_api, method, name):
     client, _, _, headers = stars_api
-    response = await client.post(URL, headers=headers, json={"name": name})
-    assert response.status_code == 201
+    response = await client.request(
+        method, URL if method == "POST" else URL + "1/",
+        headers=headers, json={"name": name},
+    )
+    assert response.status_code == (201 if method == "POST" else 200)
     assert response.json()["name"] == name
 
 

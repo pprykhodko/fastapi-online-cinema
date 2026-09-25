@@ -28,5 +28,5 @@ def test_valid_director_names(factory, name):
     assert factory(name=name).name == name.strip()
 
 
-def test_director_validation_does_not_change_actor_names():
-    assert StarModel(name="Penélope Cruz").name == "Penélope Cruz"
+def test_actor_and_director_accept_hyphenated_names():
+    assert StarModel(name="Jean-Claude Van Damme").name == "Jean-Claude Van Damme"

@@ -77,6 +77,7 @@ async def test_catalog_is_public_and_excludes_deleted(catalog_api):
     data = response.json()
     assert (data["total"], data["page"], data["per_page"]) == (4, 1, 10)
     assert [item["id"] for item in data["items"]] == [2, 3, 1, 4]
+    assert [item["votes"] for item in data["items"]] == [300, 200, 100, 100]
     assert data["items"][0]["is_available_for_purchase"] is True
     assert {g["name"] for g in data["items"][0]["genres"]} == {
         "Drama", "Comedy",
@@ -129,6 +130,9 @@ async def test_catalog_sorting(catalog_api, sort_by, sort_order, expected):
     })
     assert response.status_code == 200
     assert [item["id"] for item in response.json()["items"]] == expected
+    if sort_by == "popularity":
+        votes = [item["votes"] for item in response.json()["items"]]
+        assert votes == sorted(votes, reverse=sort_order == "desc")
 
 
 @pytest.mark.asyncio
