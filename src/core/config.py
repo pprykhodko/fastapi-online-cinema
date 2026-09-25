@@ -3,7 +3,12 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal
 
 from pydantic import (
-    EmailStr, Field, HttpUrl, SecretStr, field_validator, model_validator,
+    EmailStr,
+    Field,
+    HttpUrl,
+    SecretStr,
+    field_validator,
+    model_validator
 )
 from pydantic_settings import BaseSettings
 from sqlalchemy import URL
@@ -20,7 +25,7 @@ class BaseAppSettings(BaseSettings):
         "env_file": BASE_DIR / ".env",
         "env_file_encoding": "utf-8",
         "extra": "ignore",
-        "hide_input_in_errors": True,
+        "hide_input_in_errors": True
     }
 
     @property
@@ -35,6 +40,12 @@ class BaseAppSettings(BaseSettings):
 
 
 class Settings(BaseAppSettings):
+
+    STRIPE_SECRET_KEY: SecretStr = SecretStr("")
+    STRIPE_WEBHOOK_SECRET: SecretStr = SecretStr("")
+    STRIPE_CURRENCY: Literal["usd", "eur"] = "usd"
+    STRIPE_LIVE_MODE: bool = False
+    PAYMENT_RETURN_URL: HttpUrl = HttpUrl("http://localhost:8000/api/v1/payments/return/")
 
     POSTGRES_HOST: str = Field(default="localhost", min_length=1)
     POSTGRES_DB_PORT: int = Field(default=5432, ge=1, le=65535)
@@ -54,7 +65,7 @@ class Settings(BaseAppSettings):
         "http://localhost:8000/api/v1/accounts/activate"
     )
     CELERY_BROKER_URL: str = Field(
-        default="redis://localhost:6379/0", min_length=1, repr=False,
+        default="redis://localhost:6379/0", min_length=1, repr=False
     )
 
     S3_ENDPOINT_URL: HttpUrl | None = None
@@ -67,10 +78,10 @@ class Settings(BaseAppSettings):
     AVATAR_MAX_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)
 
     JWT_ACCESS_SECRET_KEY: SecretStr | None = Field(
-        default=None, min_length=32, repr=False,
+        default=None, min_length=32, repr=False
     )
     JWT_REFRESH_SECRET_KEY: SecretStr | None = Field(
-        default=None, min_length=32, repr=False,
+        default=None, min_length=32, repr=False
     )
     JWT_ALGORITHM: Literal["HS256"] = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, gt=0, le=1440)
@@ -80,7 +91,7 @@ class Settings(BaseAppSettings):
     @classmethod
     def validate_jwt_secret(cls, value: SecretStr | None) -> SecretStr | None:
         if value is not None and not value.get_secret_value().strip():
-            raise ValueError("JWT secret keys must not be blank.")
+            raise ValueError("JWT secret keys must not be blank")
 
         return value
 
@@ -91,16 +102,14 @@ class Settings(BaseAppSettings):
             and self.JWT_REFRESH_SECRET_KEY is not None
             and self.JWT_ACCESS_SECRET_KEY == self.JWT_REFRESH_SECRET_KEY
         ):
-            raise ValueError("JWT access and refresh keys must be different.")
+            raise ValueError("JWT access and refresh keys must be different")
 
         return self
 
     @model_validator(mode="after")
     def validate_smtp_tls(self) -> "Settings":
         if self.SMTP_USE_TLS and self.SMTP_START_TLS:
-            raise ValueError(
-                "Choose SMTP_USE_TLS or SMTP_START_TLS, not both."
-            )
+            raise ValueError("Choose SMTP_USE_TLS or SMTP_START_TLS, not both")
 
         return self
 
@@ -119,7 +128,7 @@ class Settings(BaseAppSettings):
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_HOST,
             port=self.POSTGRES_DB_PORT,
-            database=self.POSTGRES_DB,
+            database=self.POSTGRES_DB
         )
 
 
