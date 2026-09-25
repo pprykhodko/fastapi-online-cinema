@@ -70,7 +70,7 @@ MoviesStarsModel = Table(
         "movie_id",
         ForeignKey("movies.id", ondelete="CASCADE"),
         primary_key=True,
-    )
+    ),
     Column(
         "star_id",
         ForeignKey("stars.id", ondelete="CASCADE"),
