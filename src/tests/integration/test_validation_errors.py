@@ -102,5 +102,5 @@ async def test_http_errors_are_not_changed(login_api):
         "old_password": PASSWORD, "new_password": "AnotherPassword2!"
     })
     assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid or missing access token."}
+    assert response.json() == {"detail": "Invalid or missing access token"}
     assert response.headers["www-authenticate"] == "Bearer"

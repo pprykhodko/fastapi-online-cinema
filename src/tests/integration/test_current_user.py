@@ -169,7 +169,7 @@ async def test_authentication_rejects_invalid_tokens(
     })
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == "Bearer"
-    assert response.json() == {"detail": "Invalid or missing access token."}
+    assert response.json() == {"detail": "Invalid or missing access token"}
 
 
 @pytest.mark.asyncio
@@ -209,7 +209,7 @@ async def test_authentication_database_failure(current_user_api, monkeypatch):
     })
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Authentication is temporarily unavailable."
+        "detail": "Authentication is temporarily unavailable"
     }
 
 

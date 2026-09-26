@@ -108,7 +108,7 @@ async def test_non_admin_cannot_manage_accounts(
         client, action, target_id, admin_headers
     )
     assert response.status_code == 403
-    assert response.json() == {"detail": "Administrator access is required."}
+    assert response.json() == {"detail": "Administrator access is required"}
     async with sessions() as db:
         target = await db.get(UserModel, target_id)
         assert target.group_id == groups["user"]
