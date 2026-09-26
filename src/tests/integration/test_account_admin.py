@@ -8,7 +8,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models import (
-    ActivationTokenModel, UserGroupEnum, UserGroupModel, UserModel,
+    ActivationTokenModel, UserGroupEnum, UserGroupModel, UserModel
 )
 from src.main import app
 from src.notifications.queue import EmailQueueError, EmailQueue
@@ -39,14 +39,14 @@ async def admin_api(login_api, password_hash):
         admin.group_id = admin_group.id
         target = UserModel(
             email="target@example.com", group_id=user_group.id,
-            _hashed_password=password_hash, is_active=False,
+            _hashed_password=password_hash, is_active=False
         )
         db.add(target)
         await db.commit()
         groups = {
             "user": user_group.id,
             "moderator": moderator_group.id,
-            "admin": admin_group.id,
+            "admin": admin_group.id
         }
         return client, sessions, manager, admin_id, target.id, groups
 
@@ -58,12 +58,12 @@ def admin_headers(admin_api):
 
 
 async def send_admin_request(
-    client, action, user_id, headers, group="moderator",
+        client, action, user_id, headers, group="moderator"
 ):
     if action == "group":
         return await client.patch(
             f"{PREFIX}/{user_id}/group/",
-            headers=headers, json={"group": group},
+            headers=headers, json={"group": group}
         )
     return await client.post(f"{PREFIX}/{user_id}/activate/", headers=headers)
 
@@ -73,7 +73,7 @@ async def send_admin_request(
 async def test_admin_changes_group(admin_api, admin_headers, group):
     client, sessions, _, _, target_id, groups = admin_api
     response = await send_admin_request(
-        client, "group", target_id, admin_headers, group,
+        client, "group", target_id, admin_headers, group
     )
     assert response.status_code == 200
     body = response.json()
@@ -81,14 +81,14 @@ async def test_admin_changes_group(admin_api, admin_headers, group):
     assert body["group"] == {"id": groups[group], "name": group}
     assert body["is_active"] is False
     assert set(body) == {
-        "id", "email", "is_active", "created_at", "updated_at", "group",
+        "id", "email", "is_active", "created_at", "updated_at", "group"
     }
     async with sessions() as db:
         target = await db.get(UserModel, target_id)
         assert target.group_id == groups[group]
         assert not target.is_active
     repeated = await send_admin_request(
-        client, "group", target_id, admin_headers, group,
+        client, "group", target_id, admin_headers, group
     )
     assert repeated.status_code == 200
 
@@ -97,7 +97,7 @@ async def test_admin_changes_group(admin_api, admin_headers, group):
 @pytest.mark.parametrize("action", ["group", "activate"])
 @pytest.mark.parametrize("role", ["user", "moderator"])
 async def test_non_admin_cannot_manage_accounts(
-    admin_api, admin_headers, confirmation_email, action, role,
+        admin_api, admin_headers, confirmation_email, action, role
 ):
     client, sessions, _, admin_id, target_id, groups = admin_api
     async with sessions() as db:
@@ -105,7 +105,7 @@ async def test_non_admin_cannot_manage_accounts(
         actor.group_id = groups[role]
         await db.commit()
     response = await send_admin_request(
-        client, action, target_id, admin_headers,
+        client, action, target_id, admin_headers
     )
     assert response.status_code == 403
     assert response.json() == {"detail": "Administrator access is required."}
@@ -119,10 +119,10 @@ async def test_non_admin_cannot_manage_accounts(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("action", ["group", "activate"])
 @pytest.mark.parametrize("auth_case", [
-    "missing", "invalid", "refresh", "inactive", "deleted",
+    "missing", "invalid", "refresh", "inactive", "deleted"
 ])
 async def test_admin_operations_require_active_authenticated_account(
-    admin_api, admin_headers, confirmation_email, action, auth_case,
+        admin_api, admin_headers, confirmation_email, action, auth_case
 ):
     client, sessions, manager, admin_id, target_id, _ = admin_api
     headers = admin_headers
@@ -134,7 +134,7 @@ async def test_admin_operations_require_active_authenticated_account(
         headers = {
             "Authorization": (
                 f"Bearer {manager.create_refresh_token(admin_id)}"
-            ),
+            )
         }
     else:
         async with sessions() as db:
@@ -151,7 +151,7 @@ async def test_admin_operations_require_active_authenticated_account(
 
 @pytest.mark.asyncio
 async def test_role_changes_apply_to_existing_access_tokens(
-    admin_api, admin_headers,
+        admin_api, admin_headers
 ):
     client, sessions, manager, admin_id, target_id, _ = admin_api
     async with sessions() as db:
@@ -159,22 +159,22 @@ async def test_role_changes_apply_to_existing_access_tokens(
         target.is_active = True
         await db.commit()
     target_headers = {
-        "Authorization": f"Bearer {manager.create_access_token(target_id)}",
+        "Authorization": f"Bearer {manager.create_access_token(target_id)}"
     }
     denied = await send_admin_request(
-        client, "group", admin_id, target_headers, "user",
+        client, "group", admin_id, target_headers, "user"
     )
     assert denied.status_code == 403
     promoted = await send_admin_request(
-        client, "group", target_id, admin_headers, "admin",
+        client, "group", target_id, admin_headers, "admin"
     )
     assert promoted.status_code == 200
     demoted = await send_admin_request(
-        client, "group", admin_id, target_headers, "user",
+        client, "group", admin_id, target_headers, "user"
     )
     assert demoted.status_code == 200
     denied_again = await send_admin_request(
-        client, "group", target_id, admin_headers, "user",
+        client, "group", target_id, admin_headers, "user"
     )
     assert denied_again.status_code == 403
 
@@ -182,7 +182,7 @@ async def test_role_changes_apply_to_existing_access_tokens(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("action", ["group", "activate"])
 async def test_admin_target_not_found(
-    admin_api, admin_headers, confirmation_email, action,
+        admin_api, admin_headers, confirmation_email, action
 ):
     client, _, _, _, _, _ = admin_api
     response = await send_admin_request(client, action, 9999, admin_headers)
@@ -194,7 +194,7 @@ async def test_admin_target_not_found(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("token_state", ["valid", "expired", "missing"])
 async def test_admin_activation_does_not_require_valid_token(
-    admin_api, admin_headers, confirmation_email, token_state,
+        admin_api, admin_headers, confirmation_email, token_state
 ):
     client, sessions, _, _, target_id, _ = admin_api
     if token_state != "missing":
@@ -202,12 +202,12 @@ async def test_admin_activation_does_not_require_valid_token(
             db.add(ActivationTokenModel(
                 user_id=target_id, token="old-activation-token",
                 expires_at=datetime.now(timezone.utc) + timedelta(
-                    hours=-1 if token_state == "expired" else 1,
-                ),
+                    hours=-1 if token_state == "expired" else 1
+                )
             ))
             await db.commit()
     response = await send_admin_request(
-        client, "activate", target_id, admin_headers,
+        client, "activate", target_id, admin_headers
     )
     assert response.status_code == 200
     assert response.json() == {"message": "Account activated successfully"}
@@ -216,28 +216,28 @@ async def test_admin_activation_does_not_require_valid_token(
         assert (await db.get(UserModel, target_id)).is_active
         assert await db.scalar(select(ActivationTokenModel)) is None
     repeated = await send_admin_request(
-        client, "activate", target_id, admin_headers,
+        client, "activate", target_id, admin_headers
     )
     assert repeated.status_code == 409
     confirmation_email.assert_awaited_once()
     old_token_response = await client.post(f"{PREFIX}/activate/", json={
-        "token": "old-activation-token",
+        "token": "old-activation-token"
     })
     assert old_token_response.status_code == 400
     login = await client.post(f"{PREFIX}/login/", json={
-        "email": "target@example.com", "password": "StrongPassword1!",
+        "email": "target@example.com", "password": "StrongPassword1!"
     })
     assert login.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_admin_activation_survives_email_failure(
-    admin_api, admin_headers, confirmation_email,
+        admin_api, admin_headers, confirmation_email
 ):
     client, sessions, _, _, target_id, _ = admin_api
     confirmation_email.side_effect = EmailQueueError("private SMTP details")
     response = await send_admin_request(
-        client, "activate", target_id, admin_headers,
+        client, "activate", target_id, admin_headers
     )
     assert response.status_code == 200
     assert response.json() == {"message": (
@@ -253,11 +253,11 @@ async def test_missing_group_is_configuration_error(admin_api, admin_headers):
     client, sessions, _, _, target_id, groups = admin_api
     async with sessions() as db:
         await db.execute(delete(UserGroupModel).where(
-            UserGroupModel.id == groups["moderator"],
+            UserGroupModel.id == groups["moderator"]
         ))
         await db.commit()
     response = await send_admin_request(
-        client, "group", target_id, admin_headers,
+        client, "group", target_id, admin_headers
     )
     assert response.status_code == 503
     async with sessions() as db:
@@ -268,13 +268,13 @@ async def test_missing_group_is_configuration_error(admin_api, admin_headers):
 @pytest.mark.parametrize("action", ["group", "activate"])
 @pytest.mark.parametrize("failure_point", ["query", "commit"])
 async def test_admin_database_failure_does_not_leave_partial_changes(
-    admin_api, admin_headers, confirmation_email, monkeypatch,
-    action, failure_point,
+        admin_api, admin_headers, confirmation_email, monkeypatch,
+        action, failure_point
 ):
     client, sessions, _, _, target_id, groups = admin_api
     async with sessions() as db:
         db.add(ActivationTokenModel(
-            user_id=target_id, token="activation-token",
+            user_id=target_id, token="activation-token"
         ))
         await db.commit()
     error = OperationalError("private SQL details", {}, Exception())
@@ -293,10 +293,10 @@ async def test_admin_database_failure_does_not_leave_partial_changes(
             )
             patch.setattr(
                 AccountRepository if action == "group" else TokenRepository,
-                method, AsyncMock(side_effect=error),
+                method, AsyncMock(side_effect=error)
             )
         response = await send_admin_request(
-            client, action, target_id, admin_headers,
+            client, action, target_id, admin_headers
         )
     assert response.status_code == 503
     assert "private" not in response.text
@@ -312,7 +312,7 @@ async def test_admin_database_failure_does_not_leave_partial_changes(
 @pytest.mark.parametrize("action", ["group", "activate"])
 @pytest.mark.parametrize("user_id", [0, -1, "invalid", 2**63])
 async def test_admin_user_id_validation(
-    admin_api, admin_headers, action, user_id,
+        admin_api, admin_headers, action, user_id
 ):
     client, _, _, _, _, _ = admin_api
     response = await send_admin_request(client, action, user_id, admin_headers)
@@ -322,12 +322,12 @@ async def test_admin_user_id_validation(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("payload", [
     {}, {"group": "unknown"}, {"group": "ADMIN"}, {"group": None},
-    {"group": "admin", "is_active": True},
+    {"group": "admin", "is_active": True}
 ])
 async def test_admin_group_validation(admin_api, admin_headers, payload):
     client, sessions, _, _, target_id, groups = admin_api
     response = await client.patch(
-        f"{PREFIX}/{target_id}/group/", headers=admin_headers, json=payload,
+        f"{PREFIX}/{target_id}/group/", headers=admin_headers, json=payload
     )
     assert response.status_code == 422
     async with sessions() as db:
@@ -342,7 +342,7 @@ def test_admin_openapi_and_no_account_read_endpoints():
         operation = paths[path][method]
         assert operation["security"] == [{"HTTPBearer": []}]
         assert {"200", "401", "403", "404", "422", "503"} <= set(
-            operation["responses"],
+            operation["responses"]
         )
     assert f"{PREFIX}/" not in paths
     assert f"{PREFIX}/{{user_id}}/" not in paths

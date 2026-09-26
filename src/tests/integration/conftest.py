@@ -35,7 +35,7 @@ async def login_api(monkeypatch, password_hash):
         await db.flush()
         user = UserModel(
             email="user@example.com", group_id=group.id,
-            _hashed_password=password_hash, is_active=True,
+            _hashed_password=password_hash, is_active=True
         )
         db.add(user)
         await db.commit()
@@ -47,7 +47,7 @@ async def login_api(monkeypatch, password_hash):
         JWT_REFRESH_SECRET_KEY="test-refresh-key-for-login-endpoint-only",
         JWT_ALGORITHM="HS256",
         ACCESS_TOKEN_EXPIRE_MINUTES=15,
-        REFRESH_TOKEN_EXPIRE_DAYS=7,
+        REFRESH_TOKEN_EXPIRE_DAYS=7
     ))
 
     async def override_db():
@@ -60,11 +60,11 @@ async def login_api(monkeypatch, password_hash):
 
     monkeypatch.setitem(app.dependency_overrides, get_db, override_db)
     monkeypatch.setitem(
-        app.dependency_overrides, get_jwt_auth_manager, lambda: manager,
+        app.dependency_overrides, get_jwt_auth_manager, lambda: manager
     )
     try:
         async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test",
+                transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             yield client, sessions, manager, user_id
     finally:

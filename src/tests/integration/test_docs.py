@@ -25,7 +25,7 @@ async def test_docs_require_authentication(login_api, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("path", PATHS)
 @pytest.mark.parametrize("auth", [
-    ("missing@example.com", AUTH[1]), (AUTH[0], "WrongPassword"),
+    ("missing@example.com", AUTH[1]), (AUTH[0], "WrongPassword")
 ])
 async def test_docs_reject_invalid_credentials(login_api, path, auth):
     client, _, _, _ = login_api
@@ -76,7 +76,7 @@ async def test_docs_database_error_is_sanitized(login_api, monkeypatch):
     client, _, _, _ = login_api
     monkeypatch.setattr(
         AccountRepository, "get_user_by_email",
-        AsyncMock(side_effect=SQLAlchemyError("private database details")),
+        AsyncMock(side_effect=SQLAlchemyError("private database details"))
     )
     response = await client.get("/docs", auth=AUTH)
     assert response.status_code == 503

@@ -12,7 +12,7 @@ from src.database import (
     MovieRatingModel,
     MovieReactionModel,
     StarModel,
-    UserModel,
+    UserModel
 )
 from src.schemas.interactions import (
     CommentLikeResponseSchema,
@@ -24,18 +24,18 @@ from src.schemas.interactions import (
     MovieRatingRequestSchema,
     MovieRatingResponseSchema,
     MovieReactionRequestSchema,
-    MovieReactionResponseSchema,
+    MovieReactionResponseSchema
 )
 from src.schemas.movies import (
     MovieCreateRequestSchema,
     MovieDetailResponseSchema,
     MovieCatalogItemResponseSchema,
-    MovieListResponseSchema,
+    MovieListResponseSchema
 )
 
 
 def test_movie_schemas_support_creation_and_nested_orm_responses(
-    db_session: Session,
+        db_session: Session
 ) -> None:
     certification = CertificationModel(name="R")
     genre = GenreModel(name="Action")
@@ -48,10 +48,10 @@ def test_movie_schemas_support_creation_and_nested_orm_responses(
         "votes": 2_000_000, "description": "A science-fiction film.",
         "price": "9.99", "meta_score": 73, "gross": 467_200_000.0,
         "certification_id": certification.id, "genre_ids": [genre.id],
-        "star_ids": [star.id], "director_ids": [director.id],
+        "star_ids": [star.id], "director_ids": [director.id]
     })
     movie = MovieModel(**request.model_dump(exclude={
-        "genre_ids", "star_ids", "director_ids",
+        "genre_ids", "star_ids", "director_ids"
     }))
     movie.genres = [genre]
     movie.stars = [star]
@@ -65,7 +65,7 @@ def test_movie_schemas_support_creation_and_nested_orm_responses(
             selectinload(MovieModel.genres),
             selectinload(MovieModel.stars),
             selectinload(MovieModel.directors),
-            selectinload(MovieModel.certification),
+            selectinload(MovieModel.certification)
         )
     ).one()
     db_session.expunge_all()
@@ -86,11 +86,11 @@ def test_movie_schemas_support_creation_and_nested_orm_responses(
 
 
 def test_favorite_schema_loads_movie_details_without_a_session(
-    db_session: Session, catalog_users: tuple[UserModel, UserModel],
-    catalog_movies: tuple[MovieModel, MovieModel],
+        db_session: Session, catalog_users: tuple[UserModel, UserModel],
+        catalog_movies: tuple[MovieModel, MovieModel]
 ) -> None:
     favorite = MovieFavoriteModel(
-        user=catalog_users[0], movie=catalog_movies[0],
+        user=catalog_users[0], movie=catalog_movies[0]
     )
     db_session.add(favorite)
     db_session.commit()
@@ -106,7 +106,7 @@ def test_favorite_schema_loads_movie_details_without_a_session(
 
     item = MovieFavoriteResponseSchema.model_validate(stored_favorite)
     page = MovieFavoriteListResponseSchema(
-        items=[item], total=1, page=1, per_page=10,
+        items=[item], total=1, page=1, per_page=10
     )
     assert page.items[0].movie.name == "First movie"
     assert page.items[0].movie.genres == []
@@ -115,33 +115,33 @@ def test_favorite_schema_loads_movie_details_without_a_session(
 
 
 def test_interaction_schemas_serialize_persisted_records(
-    db_session: Session, catalog_users: tuple[UserModel, UserModel],
-    catalog_movies: tuple[MovieModel, MovieModel],
+        db_session: Session, catalog_users: tuple[UserModel, UserModel],
+        catalog_movies: tuple[MovieModel, MovieModel]
 ) -> None:
     user_id = catalog_users[0].id
     movie_id = catalog_movies[0].id
     rating_request = MovieRatingRequestSchema(score=8)
     reaction_request = MovieReactionRequestSchema.model_validate({
-        "reaction": "like",
+        "reaction": "like"
     })
     comment_request = MovieCommentCreateRequestSchema(content="  Great!  ")
     rating = MovieRatingModel(
-        user_id=user_id, movie_id=movie_id, **rating_request.model_dump(),
+        user_id=user_id, movie_id=movie_id, **rating_request.model_dump()
     )
     reaction = MovieReactionModel(
-        user_id=user_id, movie_id=movie_id, **reaction_request.model_dump(),
+        user_id=user_id, movie_id=movie_id, **reaction_request.model_dump()
     )
     comment = MovieCommentModel(
-        user_id=user_id, movie_id=movie_id, **comment_request.model_dump(),
+        user_id=user_id, movie_id=movie_id, **comment_request.model_dump()
     )
     db_session.add_all([rating, reaction, comment])
     db_session.flush()
     reply_request = MovieCommentCreateRequestSchema(
-        content="I agree.", parent_id=comment.id,
+        content="I agree.", parent_id=comment.id
     )
     reply = MovieCommentModel(
         user_id=catalog_users[1].id, movie_id=movie_id,
-        **reply_request.model_dump(),
+        **reply_request.model_dump()
     )
     like = CommentLikeModel(user_id=user_id, comment_id=comment.id)
     db_session.add_all([reply, like])
@@ -161,7 +161,7 @@ def test_interaction_schemas_serialize_persisted_records(
     assert like_data.comment_id == comment_data.id
     assert like_data.created_at is not None
     page = MovieCommentListResponseSchema(
-        items=[comment_data, reply_data], total=2, page=1, per_page=10,
+        items=[comment_data, reply_data], total=2, page=1, per_page=10
     )
     assert len(page.items) == 2
     assert "email" not in page.model_dump_json()

@@ -10,7 +10,11 @@ async def get_movie_or_404(
         lock: bool = False,
         with_relations: bool = False
 ) -> MovieModel:
-    movie = await repository.get_movie(movie_id, for_update=lock, with_relations=with_relations)
+    movie = await repository.get_movie(
+        movie_id,
+        for_update=lock,
+        with_relations=with_relations
+    )
 
     if movie is None:
         raise HTTPException(

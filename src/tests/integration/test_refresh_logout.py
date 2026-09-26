@@ -24,7 +24,7 @@ async def refresh_session(login_api):
     async with sessions() as db:
         db.add(RefreshTokenModel(
             user_id=user_id, token=token,
-            expires_at=datetime.fromtimestamp(payload["exp"], tz=timezone.utc),
+            expires_at=datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
         ))
         await db.commit()
     return client, sessions, manager, user_id, token
@@ -34,7 +34,7 @@ async def refresh_session(login_api):
 async def test_login_refresh_logout_lifecycle(login_api):
     client, sessions, manager, user_id = login_api
     login = await client.post("/api/v1/accounts/login/", json={
-        "email": "user@example.com", "password": "StrongPassword1!",
+        "email": "user@example.com", "password": "StrongPassword1!"
     })
     assert login.status_code == 200
     pair = login.json()
@@ -86,14 +86,14 @@ async def test_logout_does_not_affect_other_sessions(refresh_session):
     async with sessions() as db:
         db.add(RefreshTokenModel(
             user_id=user_id, token=other_token,
-            expires_at=datetime.fromtimestamp(payload["exp"], tz=timezone.utc),
+            expires_at=datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
         ))
         await db.commit()
 
     response = await client.post(LOGOUT_URL, json={"refresh_token": token})
     assert response.status_code == 200
     response = await client.post(
-        REFRESH_URL, json={"refresh_token": other_token},
+        REFRESH_URL, json={"refresh_token": other_token}
     )
     assert response.status_code == 200
     async with sessions() as db:
@@ -104,10 +104,10 @@ async def test_logout_does_not_affect_other_sessions(refresh_session):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("path", [REFRESH_URL, LOGOUT_URL])
 @pytest.mark.parametrize("token_case", [
-    "malformed", "access", "expired", "wrong_key", "wrong_type", "not_saved",
+    "malformed", "access", "expired", "wrong_key", "wrong_type", "not_saved"
 ])
 async def test_rejects_invalid_refresh_jwt(
-    refresh_session, path, token_case,
+        refresh_session, path, token_case
 ):
     client, sessions, manager, user_id, token = refresh_session
     candidate = token
@@ -152,7 +152,7 @@ async def test_rejects_invalid_refresh_jwt(
 @pytest.mark.parametrize("path", [REFRESH_URL, LOGOUT_URL])
 @pytest.mark.parametrize("record_case", ["expired", "wrong_user", "deleted"])
 async def test_rejects_invalid_refresh_record(
-    refresh_session, path, record_case,
+        refresh_session, path, record_case
 ):
     client, sessions, _, user_id, token = refresh_session
     async with sessions() as db:
@@ -167,7 +167,7 @@ async def test_rejects_invalid_refresh_record(
             user = await db.get(UserModel, user_id)
             other_user = UserModel(
                 email="other@example.com", group_id=user.group_id,
-                _hashed_password="unused-test-hash", is_active=True,
+                _hashed_password="unused-test-hash", is_active=True
             )
             db.add(other_user)
             await db.flush()
@@ -213,7 +213,7 @@ async def test_deleted_user_cannot_refresh(refresh_session):
 @pytest.mark.parametrize("payload", [
     {}, {"refresh_token": ""}, {"refresh_token": "a b"},
     {"refresh_token": "a" * 256}, {"refresh_token": None},
-    {"refresh_token": "token", "user_id": 1},
+    {"refresh_token": "token", "user_id": 1}
 ])
 async def test_request_validation(refresh_session, path, payload):
     client, sessions, _, _, token = refresh_session
@@ -227,7 +227,7 @@ async def test_request_validation(refresh_session, path, payload):
 @pytest.mark.parametrize("path", [REFRESH_URL, LOGOUT_URL])
 @pytest.mark.parametrize("failure_point", ["query", "commit"])
 async def test_database_errors_preserve_session(
-    refresh_session, monkeypatch, path, failure_point,
+        refresh_session, monkeypatch, path, failure_point
 ):
     client, sessions, _, _, token = refresh_session
     error = OperationalError("private database details", {}, Exception())
@@ -240,7 +240,7 @@ async def test_database_errors_preserve_session(
     with monkeypatch.context() as patch:
         if failure_point == "query":
             patch.setattr(
-                AsyncSession, "execute", AsyncMock(side_effect=error),
+                AsyncSession, "execute", AsyncMock(side_effect=error)
             )
         else:
             patch.setattr(AsyncSession, "commit", fail_commit)
@@ -249,7 +249,7 @@ async def test_database_errors_preserve_session(
     assert response.status_code == 503
     message = "Token refresh" if path == REFRESH_URL else "Logout"
     assert response.json() == {
-        "detail": f"{message} is temporarily unavailable",
+        "detail": f"{message} is temporarily unavailable"
     }
     async with sessions() as db:
         assert (await db.scalar(select(RefreshTokenModel))).token == token
@@ -257,7 +257,7 @@ async def test_database_errors_preserve_session(
 
 @pytest.mark.parametrize("path,schema_name", [
     (REFRESH_URL, "TokenRefreshRequestSchema"),
-    (LOGOUT_URL, "LogoutRequestSchema"),
+    (LOGOUT_URL, "LogoutRequestSchema")
 ])
 def test_openapi_contract(path, schema_name):
     operation = app.openapi()["paths"][path]["post"]

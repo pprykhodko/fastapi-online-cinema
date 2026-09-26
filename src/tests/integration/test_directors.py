@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.api.dependencies import get_director_service
 from src.database.models import (
     CertificationModel, DirectorModel, MovieModel, UserGroupEnum,
-    UserGroupModel, UserModel,
+    UserGroupModel, UserModel
 )
 from src.database.models.movies import MoviesDirectorsModel
 from src.main import app
@@ -30,7 +30,7 @@ async def directors_api(login_api):
                     DirectorModel(id=2, name="Steven Spielberg")])
         await db.commit()
     headers = {
-        "Authorization": f"Bearer {manager.create_access_token(user_id)}",
+        "Authorization": f"Bearer {manager.create_access_token(user_id)}"
     }
     return client, sessions, user_id, headers
 
@@ -42,10 +42,10 @@ async def test_director_crud(directors_api):
     assert listing.status_code == 200
     assert listing.json() == [
         {"id": 1, "name": "Christopher Nolan"},
-        {"id": 2, "name": "Steven Spielberg"},
+        {"id": 2, "name": "Steven Spielberg"}
     ]
     created = await client.post(
-        URL, headers=headers, json={"name": " Jean-Luc Godard "},
+        URL, headers=headers, json={"name": " Jean-Luc Godard "}
     )
     assert created.status_code == 201
     director = created.json()
@@ -76,11 +76,11 @@ async def test_rename_and_delete_preserve_movies(directors_api):
                 id=movie_id, name=f"Movie {movie_id}", year=2020, time=90,
                 imdb=8, votes=100, description="Story", price=Decimal("5"),
                 certification=certification, directors=[director],
-                is_deleted=deleted,
+                is_deleted=deleted
             ))
         await db.commit()
     response = await client.patch(
-        URL + "1/", headers=headers, json={"name": "Renamed"},
+        URL + "1/", headers=headers, json={"name": "Renamed"}
     )
     assert response.status_code == 200
     movies = await client.get("/api/v1/movies/", params={"search": "Renamed"})
@@ -108,7 +108,7 @@ async def test_write_permissions(directors_api, method, role):
     path = URL if method == "POST" else URL + "1/"
     response = await client.request(
         method, path, headers=headers,
-        **({"json": {"name": "New"}} if method != "DELETE" else {}),
+        **({"json": {"name": "New"}} if method != "DELETE" else {})
     )
     if role is None:
         assert response.status_code == 401
@@ -127,13 +127,13 @@ async def test_write_permissions(directors_api, method, role):
     {"name": "123"}, {"name": "Nolan2"}, {"name": "---"},
     {"name": " - - "}, {"name": "Nolan!"}, {"name": "Penélope Cruz"},
     {"name": "Кристофер"}, {"name": "O'Connor"},
-    {"name": "John\tSmith"}, {"name": "John\nSmith"},
+    {"name": "John\tSmith"}, {"name": "John\nSmith"}
 ])
 async def test_invalid_names(directors_api, method, body):
     client, _, _, headers = directors_api
     response = await client.request(
         method, URL if method == "POST" else URL + "1/",
-        headers=headers, json=body,
+        headers=headers, json=body
     )
     assert response.status_code == 422
     assert (await client.get(URL)).json()[0]["name"] == "Christopher Nolan"
@@ -146,7 +146,7 @@ async def test_duplicate_name_rolls_back(directors_api, method):
     client, _, _, headers = directors_api
     response = await client.request(
         method, URL if method == "POST" else URL + "2/",
-        headers=headers, json={"name": " Christopher Nolan "},
+        headers=headers, json={"name": " Christopher Nolan "}
     )
     assert response.status_code == 409
     assert (await client.get(URL)).json()[1]["name"] == "Steven Spielberg"
@@ -155,15 +155,15 @@ async def test_duplicate_name_rolls_back(directors_api, method):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method", ["PATCH", "DELETE"])
 @pytest.mark.parametrize("director_id, expected", [
-    (999, 404), (0, 422), (-1, 422), (2**31, 422), ("abc", 422),
+    (999, 404), (0, 422), (-1, 422), (2**31, 422), ("abc", 422)
 ])
 async def test_missing_or_invalid_id(
-    directors_api, method, director_id, expected,
+        directors_api, method, director_id, expected
 ):
     client, _, _, headers = directors_api
     response = await client.request(
         method, f"{URL}{director_id}/", headers=headers,
-        **({"json": {"name": "New"}} if method == "PATCH" else {}),
+        **({"json": {"name": "New"}} if method == "PATCH" else {})
     )
     assert response.status_code == expected
 
@@ -171,7 +171,7 @@ async def test_missing_or_invalid_id(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method, path, failing_method", [
     ("GET", URL, "list_directors"), ("PATCH", URL + "1/", "get_director"),
-    ("POST", URL, "save"), ("DELETE", URL + "1/", "delete"),
+    ("POST", URL, "save"), ("DELETE", URL + "1/", "delete")
 ])
 async def test_database_errors(directors_api, monkeypatch, method, path,
                                failing_method):
@@ -180,11 +180,11 @@ async def test_database_errors(directors_api, monkeypatch, method, path,
     getattr(repository, failing_method).side_effect = SQLAlchemyError("secret")
     monkeypatch.setitem(
         app.dependency_overrides, get_director_service,
-        lambda: DirectorService(repository),
+        lambda: DirectorService(repository)
     )
     response = await client.request(
         method, path, headers=headers,
-        **({"json": {"name": "New"}} if method in ("POST", "PATCH") else {}),
+        **({"json": {"name": "New"}} if method in ("POST", "PATCH") else {})
     )
     assert response.status_code == 503
     assert "secret" not in response.text
@@ -212,7 +212,7 @@ async def test_inactive_moderator_cannot_write(directors_api, method):
         await db.commit()
     response = await client.request(
         method, URL if method == "POST" else URL + "1/", headers=headers,
-        **({"json": {"name": "New Director"}} if method != "DELETE" else {}),
+        **({"json": {"name": "New Director"}} if method != "DELETE" else {})
     )
     assert response.status_code == 403
     assert (await client.get(URL)).json()[0]["name"] == "Christopher Nolan"
@@ -221,7 +221,7 @@ async def test_inactive_moderator_cannot_write(directors_api, method):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("name", ["Jean-Luc Godard", "Wes Anderson"])
 async def test_director_names_allow_spaces_and_hyphens(
-    directors_api, name,
+        directors_api, name
 ):
     client, _, _, headers = directors_api
     response = await client.post(URL, headers=headers, json={"name": name})

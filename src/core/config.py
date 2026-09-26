@@ -45,7 +45,9 @@ class Settings(BaseAppSettings):
     STRIPE_WEBHOOK_SECRET: SecretStr = SecretStr("")
     STRIPE_CURRENCY: Literal["usd", "eur"] = "usd"
     STRIPE_LIVE_MODE: bool = False
-    PAYMENT_RETURN_URL: HttpUrl = HttpUrl("http://localhost:8000/api/v1/payments/return/")
+    PAYMENT_RETURN_URL: HttpUrl = HttpUrl(
+        "http://localhost:8000/api/v1/payments/return/"
+    )
 
     POSTGRES_HOST: str = Field(default="localhost", min_length=1)
     POSTGRES_DB_PORT: int = Field(default=5432, ge=1, le=65535)
@@ -65,7 +67,9 @@ class Settings(BaseAppSettings):
         "http://localhost:8000/api/v1/accounts/activate"
     )
     CELERY_BROKER_URL: str = Field(
-        default="redis://localhost:6379/0", min_length=1, repr=False
+        default="redis://localhost:6379/0",
+        min_length=1,
+        repr=False
     )
 
     S3_ENDPOINT_URL: HttpUrl | None = None
@@ -78,10 +82,14 @@ class Settings(BaseAppSettings):
     AVATAR_MAX_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)
 
     JWT_ACCESS_SECRET_KEY: SecretStr | None = Field(
-        default=None, min_length=32, repr=False
+        default=None,
+        min_length=32,
+        repr=False
     )
     JWT_REFRESH_SECRET_KEY: SecretStr | None = Field(
-        default=None, min_length=32, repr=False
+        default=None,
+        min_length=32,
+        repr=False
     )
     JWT_ALGORITHM: Literal["HS256"] = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, gt=0, le=1440)

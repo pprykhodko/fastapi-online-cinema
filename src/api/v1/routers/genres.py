@@ -18,18 +18,18 @@ router = APIRouter(
     responses={
         503: {
             "model": ErrorResponseSchema,
-            "description": "Database unavailable",
+            "description": "Database unavailable"
         }
     }
 )
 write_responses: dict[int | str, dict[str, Any]] = {
     401: {
         "model": ErrorResponseSchema,
-        "description": "Unauthorized."
+        "description": "Unauthorized"
     },
     403: {
         "model": ErrorResponseSchema,
-        "description": "Moderator required."
+        "description": "Moderator required"
     },
     409: {
         "model": ErrorResponseSchema,
@@ -39,7 +39,7 @@ write_responses: dict[int | str, dict[str, Any]] = {
 not_found: dict[int | str, dict[str, Any]] = {
     404: {
         "model": ErrorResponseSchema,
-        "description": "Genre not found."
+        "description": "Genre not found"
     }
 }
 
@@ -55,7 +55,7 @@ not_found: dict[int | str, dict[str, Any]] = {
     )
 )
 async def list_genres(
-        service: GenreService = Depends(get_genre_service),
+        service: GenreService = Depends(get_genre_service)
 ):
     return await service.list_genres()
 
@@ -69,7 +69,7 @@ async def list_genres(
 )
 async def get_genre(
         genre_id: int = Path(gt=0, le=2**31 - 1),
-        service: GenreService = Depends(get_genre_service),
+        service: GenreService = Depends(get_genre_service)
 ):
     return await service.get_genre(genre_id)
 
@@ -88,7 +88,7 @@ async def get_genre(
 )
 async def create_genre(
         data: GenreCreateRequestSchema,
-        service: GenreService = Depends(get_genre_service),
+        service: GenreService = Depends(get_genre_service)
 ):
     return await service.create_genre(data)
 
@@ -107,7 +107,7 @@ async def create_genre(
 async def update_genre(
         data: GenreUpdateRequestSchema,
         genre_id: int = Path(gt=0, le=2**31 - 1),
-        service: GenreService = Depends(get_genre_service),
+        service: GenreService = Depends(get_genre_service)
 ):
     return await service.update_genre(genre_id, data)
 
@@ -117,7 +117,9 @@ async def update_genre(
     status_code=204,
     dependencies=[Depends(get_current_moderator)],
     responses={
-        **not_found, 401: write_responses[401], 403: write_responses[403],
+        **not_found,
+        401: write_responses[401],
+        403: write_responses[403]
     },
     summary="Delete a genre",
     description=(
@@ -127,7 +129,7 @@ async def update_genre(
 )
 async def delete_genre(
         genre_id: int = Path(gt=0, le=2**31 - 1),
-        service: GenreService = Depends(get_genre_service),
+        service: GenreService = Depends(get_genre_service)
 ):
     await service.delete_genre(genre_id)
 

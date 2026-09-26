@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 from src.database.models import (
     ActivationTokenModel, RefreshTokenModel,
-    UserGroupEnum, UserGroupModel, UserModel,
+    UserGroupEnum, UserGroupModel, UserModel
 )
 from src.notifications.queue import EmailQueue
 from src.repositories.accounts import AccountRepository
@@ -16,7 +16,7 @@ from src.repositories.profiles import ProfileRepository
 from src.repositories.tokens import TokenRepository
 from src.schemas.accounts import (
     AccountActivationRequestSchema, ActivationResendRequestSchema,
-    TokenRefreshRequestSchema, UserRegistrationRequestSchema,
+    TokenRefreshRequestSchema, UserRegistrationRequestSchema
 )
 from src.security.tokens import JWTAuthManager
 from src.services.accounts import AccountService
@@ -44,18 +44,18 @@ def service(repository, email_queue, token_repository):
         email_queue=email_queue,
         token_repository=token_repository,
         profile_repository=create_autospec(ProfileRepository, instance=True),
-        cart_repository=create_autospec(CartRepository, instance=True),
+        cart_repository=create_autospec(CartRepository, instance=True)
     )
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failure", [
-    "duplicate", "missing_group", "database", "conflict", "integrity",
+    "duplicate", "missing_group", "database", "conflict", "integrity"
 ])
 async def test_registration_errors(repository, email_queue, service, failure):
     repository.get_user_by_email.return_value = None
     repository.get_default_group.return_value = UserGroupModel(
-        id=1, name=UserGroupEnum.USER,
+        id=1, name=UserGroupEnum.USER
     )
     user = UserModel(id=1, email="user@example.com", group_id=1)
     expected_status = 503
@@ -66,11 +66,11 @@ async def test_registration_errors(repository, email_queue, service, failure):
         repository.get_default_group.return_value = None
     elif failure == "database":
         repository.get_user_by_email.side_effect = OperationalError(
-            "private details", {}, Exception(),
+            "private details", {}, Exception()
         )
     else:
         repository.add_user.side_effect = IntegrityError(
-            "private details", {}, Exception(),
+            "private details", {}, Exception()
         )
         if failure == "conflict":
             repository.get_user_by_email.side_effect = [None, user]
@@ -79,7 +79,7 @@ async def test_registration_errors(repository, email_queue, service, failure):
             expected_status = 500
 
     data = UserRegistrationRequestSchema(
-        email="user@example.com", password="StrongPassword1!",
+        email="user@example.com", password="StrongPassword1!"
     )
     with pytest.raises(HTTPException) as error:
         await service.register_user(data)
@@ -94,16 +94,16 @@ async def test_registration_errors(repository, email_queue, service, failure):
 
 @pytest.mark.asyncio
 async def test_activation_rejects_token_without_user(
-    repository, email_queue, token_repository, service,
+        repository, email_queue, token_repository, service
 ):
     token_repository.get_activation_token.return_value = ActivationTokenModel(
         user_id=1, token="activation-token",
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
     repository.get_user_by_id.return_value = None
     with pytest.raises(HTTPException) as error:
         await service.activate_account(
-            AccountActivationRequestSchema(token="activation-token"),
+            AccountActivationRequestSchema(token="activation-token")
         )
     assert error.value.status_code == 400
     token_repository.delete_activation_token.assert_not_awaited()
@@ -121,7 +121,7 @@ async def test_resend_rechecks_activation_after_lock(repository, email_queue, se
 
     repository.refresh_user = AsyncMock(side_effect=activate_before_refresh)
     response = await service.resend_activation_link(
-        ActivationResendRequestSchema(email=user.email),
+        ActivationResendRequestSchema(email=user.email)
     )
     assert response.message.startswith("If an inactive account exists")
     repository.commit.assert_not_awaited()
@@ -129,13 +129,13 @@ async def test_resend_rechecks_activation_after_lock(repository, email_queue, se
 
 
 @pytest.mark.parametrize("seconds, expected", [
-    (-1, True), (0, True), (1, False),
+    (-1, True), (0, True), (1, False)
 ])
 @pytest.mark.parametrize("token_timezone", [
-    None, timezone.utc, timezone(timedelta(hours=3)),
+    None, timezone.utc, timezone(timedelta(hours=3))
 ])
 def test_token_expiration_handles_boundary_and_timezone(
-    seconds, expected, token_timezone,
+        seconds, expected, token_timezone
 ):
     now = datetime(2030, 1, 1, tzinfo=timezone.utc)
     expires_at = now + timedelta(seconds=seconds)
@@ -153,13 +153,13 @@ async def test_refresh_rejects_missing_user(repository, token_repository, servic
     manager.decode_refresh_token.return_value = {"sub": "1"}
     token_repository.get_refresh_token.return_value = RefreshTokenModel(
         user_id=1, token="refresh-token",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1)
     )
     repository.get_user_by_id.return_value = None
 
     with pytest.raises(HTTPException) as error:
         await service.refresh_access_token(
-            TokenRefreshRequestSchema(refresh_token="refresh-token"), manager,
+            TokenRefreshRequestSchema(refresh_token="refresh-token"), manager
         )
 
     assert error.value.status_code == 401

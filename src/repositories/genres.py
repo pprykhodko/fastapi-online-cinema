@@ -13,11 +13,17 @@ class GenreRepository(NamedEntityRepository[GenreModel]):
             select(func.count())
             .select_from(MoviesGenresModel)
             .join(MovieModel, MovieModel.id == MoviesGenresModel.c.movie_id)
-            .where(MoviesGenresModel.c.genre_id == GenreModel.id, MovieModel.is_deleted.is_(False))
+            .where(
+                MoviesGenresModel.c.genre_id == GenreModel.id,
+                MovieModel.is_deleted.is_(False)
+            )
             .correlate(GenreModel)
             .scalar_subquery()
         )
-        result = await self.db.execute(select(GenreModel, movie_count).order_by(GenreModel.id))
+        result = await self.db.execute(
+            select(GenreModel, movie_count)
+            .order_by(GenreModel.id)
+        )
 
         return result.all()
 

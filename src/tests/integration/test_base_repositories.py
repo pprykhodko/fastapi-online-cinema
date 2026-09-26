@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models import (
-    CertificationModel, DirectorModel, GenreModel, StarModel,
+    CertificationModel, DirectorModel, GenreModel, StarModel
 )
 from src.repositories.accounts import AccountRepository
 from src.repositories.cart import CartRepository
@@ -27,7 +27,7 @@ from src.repositories.stars import StarRepository
     AccountRepository, CertificationRepository, CommentRepository,
     DirectorRepository, FavoriteRepository, GenreRepository, MovieRepository,
     ProfileRepository, RatingRepository, ReactionRepository, StarRepository,
-    CartRepository, TokenRepository,
+    CartRepository, TokenRepository
 ])
 async def test_repository_inherits_session_management(repository_class):
     db = AsyncMock(spec=AsyncSession)
@@ -47,10 +47,10 @@ async def test_repository_inherits_session_management(repository_class):
     (GenreRepository, GenreModel, "get_genre"),
     (StarRepository, StarModel, "get_star"),
     (DirectorRepository, DirectorModel, "get_director"),
-    (CertificationRepository, CertificationModel, "get_certification"),
+    (CertificationRepository, CertificationModel, "get_certification")
 ])
 async def test_named_entity_crud_preserves_transaction(
-    login_api, repository_class, model, getter,
+        login_api, repository_class, model, getter
 ):
     _, sessions, _, _ = login_api
     async with sessions() as db:

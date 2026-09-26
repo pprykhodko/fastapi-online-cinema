@@ -8,7 +8,10 @@ class RatingRepository(BaseRepository):
     async def get_rating(self, user_id: int, movie_id: int) -> MovieRatingModel | None:
         return await self.db.scalar(
             select(MovieRatingModel)
-            .where(MovieRatingModel.user_id == user_id, MovieRatingModel.movie_id == movie_id)
+            .where(
+                MovieRatingModel.user_id == user_id,
+                MovieRatingModel.movie_id == movie_id
+            )
         )
 
     async def save(self, rating: MovieRatingModel) -> None:

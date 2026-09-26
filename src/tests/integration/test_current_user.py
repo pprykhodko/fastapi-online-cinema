@@ -46,7 +46,7 @@ async def current_user_api(monkeypatch, password_hash):
         await db.flush()
         user = UserModel(
             email="user@example.com", group_id=group.id,
-            _hashed_password=password_hash, is_active=True,
+            _hashed_password=password_hash, is_active=True
         )
         db.add(user)
         await db.commit()
@@ -59,7 +59,7 @@ async def current_user_api(monkeypatch, password_hash):
         JWT_REFRESH_SECRET_KEY="test-refresh-key-for-current-user-only",
         JWT_ALGORITHM="HS256",
         ACCESS_TOKEN_EXPIRE_MINUTES=15,
-        REFRESH_TOKEN_EXPIRE_DAYS=7,
+        REFRESH_TOKEN_EXPIRE_DAYS=7
     ))
 
     async def override_db():
@@ -79,11 +79,11 @@ async def current_user_api(monkeypatch, password_hash):
 
     monkeypatch.setitem(test_app.dependency_overrides, get_db, override_db)
     monkeypatch.setitem(
-        test_app.dependency_overrides, get_jwt_auth_manager, lambda: manager,
+        test_app.dependency_overrides, get_jwt_auth_manager, lambda: manager
     )
     try:
         async with AsyncClient(
-            transport=ASGITransport(app=test_app), base_url="http://test",
+                transport=ASGITransport(app=test_app), base_url="http://test"
         ) as client:
             yield client, sessions, manager, user_id, group_id
     finally:
@@ -94,17 +94,17 @@ async def current_user_api(monkeypatch, password_hash):
 async def test_login_access_token_returns_current_user(current_user_api):
     client, _, _, user_id, group_id = current_user_api
     login = await client.post("/api/v1/accounts/login/", json={
-        "email": "user@example.com", "password": PASSWORD,
+        "email": "user@example.com", "password": PASSWORD
     })
     assert login.status_code == 200
     token = login.json()["access_token"]
     response = await client.get(PROTECTED_URL, headers={
-        "Authorization": f"Bearer {token}",
+        "Authorization": f"Bearer {token}"
     })
     assert response.status_code == 200
     body = response.json()
     assert set(body) == {
-        "id", "email", "is_active", "created_at", "updated_at", "group",
+        "id", "email", "is_active", "created_at", "updated_at", "group"
     }
     assert body["id"] == user_id
     assert body["email"] == "user@example.com"
@@ -118,10 +118,10 @@ async def test_login_access_token_returns_current_user(current_user_api):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("authorization", [
-    None, "", "Bearer", "Bearer ", "Basic abc", "Bearer invalid-token",
+    None, "", "Bearer", "Bearer ", "Basic abc", "Bearer invalid-token"
 ])
 async def test_authentication_rejects_missing_or_malformed_credentials(
-    current_user_api, authorization,
+        current_user_api, authorization
 ):
     client, _, _, _, _ = current_user_api
     headers = {}
@@ -135,10 +135,10 @@ async def test_authentication_rejects_missing_or_malformed_credentials(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("token_case", [
     "expired", "wrong_key", "refresh", "wrong_type", "missing_sub",
-    "unknown_user", "oversized_user_id",
+    "unknown_user", "oversized_user_id"
 ])
 async def test_authentication_rejects_invalid_tokens(
-    current_user_api, token_case,
+        current_user_api, token_case
 ):
     client, _, manager, user_id, _ = current_user_api
     token = manager.create_access_token(user_id)
@@ -165,7 +165,7 @@ async def test_authentication_rejects_invalid_tokens(
         token = jwt.encode(payload, key, algorithm="HS256")
 
     response = await client.get(PROTECTED_URL, headers={
-        "Authorization": f"Bearer {token}",
+        "Authorization": f"Bearer {token}"
     })
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == "Bearer"
@@ -175,7 +175,7 @@ async def test_authentication_rejects_invalid_tokens(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("account_change", ["deactivate", "delete"])
 async def test_authentication_checks_current_account_state(
-    current_user_api, account_change,
+        current_user_api, account_change
 ):
     client, sessions, manager, user_id, _ = current_user_api
     token = manager.create_access_token(user_id)
@@ -188,7 +188,7 @@ async def test_authentication_checks_current_account_state(
         await db.commit()
 
     response = await client.get(PROTECTED_URL, headers={
-        "Authorization": f"Bearer {token}",
+        "Authorization": f"Bearer {token}"
     })
     if account_change == "delete":
         assert response.status_code == 401
@@ -202,21 +202,21 @@ async def test_authentication_database_failure(current_user_api, monkeypatch):
     client, _, manager, user_id, _ = current_user_api
     error = OperationalError("private database details", {}, Exception())
     monkeypatch.setattr(
-        AsyncSession, "execute", AsyncMock(side_effect=error),
+        AsyncSession, "execute", AsyncMock(side_effect=error)
     )
     response = await client.get(PROTECTED_URL, headers={
-        "Authorization": f"Bearer {manager.create_access_token(user_id)}",
+        "Authorization": f"Bearer {manager.create_access_token(user_id)}"
     })
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Authentication is temporarily unavailable.",
+        "detail": "Authentication is temporarily unavailable."
     }
 
 
 @pytest.mark.asyncio
 async def test_accounts_me_is_not_available():
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test",
+            transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         response = await client.get("/api/v1/accounts/me")
     assert response.status_code == 404

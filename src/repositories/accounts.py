@@ -23,7 +23,11 @@ class AccountRepository(BaseRepository):
         )
 
     async def get_user_by_id(self, user_id: int) -> UserModel | None:
-        stmt = select(UserModel).options(joinedload(UserModel.group)).where(UserModel.id == user_id)
+        stmt = (
+            select(UserModel)
+            .options(joinedload(UserModel.group))
+            .where(UserModel.id == user_id)
+        )
         result = await self.db.execute(stmt)
 
         return result.scalars().first()

@@ -36,7 +36,11 @@ class CartRepository(BaseRepository):
         )
 
     async def get_movie_ids(self, cart_id: int) -> list[int]:
-        stmt = select(CartItemModel.movie_id).where(CartItemModel.cart_id == cart_id).order_by(CartItemModel.id)
+        stmt = (
+            select(CartItemModel.movie_id)
+            .where(CartItemModel.cart_id == cart_id)
+            .order_by(CartItemModel.id)
+        )
 
         return list((await self.db.scalars(stmt)).all())
 
@@ -59,9 +63,12 @@ class CartRepository(BaseRepository):
         deleted_id = await self.db.scalar(
             delete(CartItemModel).where(
                 CartItemModel.cart_id == cart_id, CartItemModel.movie_id == movie_id,
-            ).returning(CartItemModel.id)
+                ).returning(CartItemModel.id)
         )
         return deleted_id is not None
 
     async def clear(self, cart_id: int) -> None:
-        await self.db.execute(delete(CartItemModel).where(CartItemModel.cart_id == cart_id))
+        await self.db.execute(
+            delete(CartItemModel)
+            .where(CartItemModel.cart_id == cart_id)
+        )

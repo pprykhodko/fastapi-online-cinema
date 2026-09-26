@@ -5,10 +5,16 @@ from src.database.models import MovieReactionModel
 
 
 class ReactionRepository(BaseRepository):
-    async def get_reaction(self, user_id: int, movie_id: int) -> MovieReactionModel | None:
+    async def get_reaction(
+            self,
+            user_id: int, movie_id: int
+    ) -> MovieReactionModel | None:
         return await self.db.scalar(
             select(MovieReactionModel)
-            .where(MovieReactionModel.user_id == user_id, MovieReactionModel.movie_id == movie_id)
+            .where(
+                MovieReactionModel.user_id == user_id,
+                MovieReactionModel.movie_id == movie_id
+            )
         )
 
     async def save(self, reaction: MovieReactionModel) -> None:

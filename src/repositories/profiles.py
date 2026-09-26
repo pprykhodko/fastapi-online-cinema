@@ -8,7 +8,6 @@ class ProfileRepository(BaseRepository):
     def add_profile(self, user_id: int) -> None:
         self.db.add(UserProfileModel(user_id=user_id))
 
-
     async def get_profile(self, user_id: int) -> UserProfileModel | None:
         stmt = (
             select(UserProfileModel)

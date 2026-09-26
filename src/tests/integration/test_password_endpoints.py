@@ -7,7 +7,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models import (
-    PasswordResetTokenModel, RefreshTokenModel, UserModel,
+    PasswordResetTokenModel, RefreshTokenModel, UserModel
 )
 from src.main import app
 from src.notifications.queue import EmailQueueError, EmailQueue
@@ -34,8 +34,8 @@ async def create_reset_token(sessions, user_id, *, expired=False):
         db.add(PasswordResetTokenModel(
             user_id=user_id, token=hash_reset_token("reset-token"),
             expires_at=datetime.now(timezone.utc) + timedelta(
-                hours=-1 if expired else 1,
-            ),
+                hours=-1 if expired else 1
+            )
         ))
         await db.commit()
 
@@ -44,17 +44,17 @@ async def create_reset_token(sessions, user_id, *, expired=False):
 async def test_change_password_revokes_tokens_and_updates_login(login_api):
     client, sessions, manager, user_id = login_api
     login = await client.post(f"{PREFIX}/login/", json={
-        "email": "user@example.com", "password": OLD_PASSWORD,
+        "email": "user@example.com", "password": OLD_PASSWORD
     })
     pair = login.json()
     await create_reset_token(sessions, user_id)
 
     response = await client.patch(CHANGE, json={
-        "old_password": OLD_PASSWORD, "new_password": NEW_PASSWORD,
+        "old_password": OLD_PASSWORD, "new_password": NEW_PASSWORD
     }, headers={"Authorization": f"Bearer {pair['access_token']}"})
     assert response.status_code == 200
     assert response.json() == {
-        "message": "Password changed successfully. Please log in again.",
+        "message": "Password changed successfully. Please log in again."
     }
     async with sessions() as db:
         user = await db.get(UserModel, user_id)
@@ -64,16 +64,16 @@ async def test_change_password_revokes_tokens_and_updates_login(login_api):
         assert await db.scalar(select(RefreshTokenModel)) is None
         assert await db.scalar(select(PasswordResetTokenModel)) is None
     assert (await client.post(f"{PREFIX}/token/refresh/", json={
-        "refresh_token": pair["refresh_token"],
+        "refresh_token": pair["refresh_token"]
     })).status_code == 401
     assert (await client.post(RESET, json={
-        "token": "reset-token", "new_password": OLD_PASSWORD,
+        "token": "reset-token", "new_password": OLD_PASSWORD
     })).status_code == 400
     assert (await client.post(f"{PREFIX}/login/", json={
-        "email": "user@example.com", "password": OLD_PASSWORD,
+        "email": "user@example.com", "password": OLD_PASSWORD
     })).status_code == 401
     assert (await client.post(f"{PREFIX}/login/", json={
-        "email": "user@example.com", "password": NEW_PASSWORD,
+        "email": "user@example.com", "password": NEW_PASSWORD
     })).status_code == 200
     manager.decode_access_token(pair["access_token"])
 
@@ -82,15 +82,15 @@ async def test_change_password_revokes_tokens_and_updates_login(login_api):
 @pytest.mark.parametrize("old,new,status_code", [
     ("WrongPassword1!", NEW_PASSWORD, 400),
     (OLD_PASSWORD, OLD_PASSWORD, 400),
-    (OLD_PASSWORD, "weak", 422),
+    (OLD_PASSWORD, "weak", 422)
 ])
 async def test_change_rejects_bad_passwords(login_api, old, new, status_code):
     client, sessions, manager, user_id = login_api
     await create_reset_token(sessions, user_id)
     response = await client.patch(CHANGE, json={
-        "old_password": old, "new_password": new,
+        "old_password": old, "new_password": new
     }, headers={
-        "Authorization": f"Bearer {manager.create_access_token(user_id)}",
+        "Authorization": f"Bearer {manager.create_access_token(user_id)}"
     })
     assert response.status_code == status_code
     async with sessions() as db:
@@ -116,7 +116,7 @@ async def test_change_requires_active_user(login_api, auth_case):
             f"Bearer {manager.create_access_token(user_id)}"
         )
     response = await client.patch(CHANGE, headers=headers, json={
-        "old_password": OLD_PASSWORD, "new_password": NEW_PASSWORD,
+        "old_password": OLD_PASSWORD, "new_password": NEW_PASSWORD
     })
     assert response.status_code == (403 if auth_case == "inactive" else 401)
 
@@ -125,7 +125,7 @@ async def test_change_requires_active_user(login_api, auth_case):
 async def test_reset_password_full_flow(login_api, reset_email):
     client, sessions, _, user_id = login_api
     await client.post(f"{PREFIX}/login/", json={
-        "email": "user@example.com", "password": OLD_PASSWORD,
+        "email": "user@example.com", "password": OLD_PASSWORD
     })
     response = await client.post(FORGOT, json={"email": "USER@example.com"})
     assert response.status_code == 202
@@ -142,7 +142,7 @@ async def test_reset_password_full_flow(login_api, reset_email):
         assert await db.scalar(select(RefreshTokenModel)) is not None
 
     response = await client.post(RESET, json={
-        "token": token, "new_password": NEW_PASSWORD,
+        "token": token, "new_password": NEW_PASSWORD
     })
     assert response.status_code == 200
     assert NEW_PASSWORD not in response.text
@@ -151,20 +151,20 @@ async def test_reset_password_full_flow(login_api, reset_email):
         assert await db.scalar(select(PasswordResetTokenModel)) is None
         assert await db.scalar(select(RefreshTokenModel)) is None
     assert (await client.post(RESET, json={
-        "token": token, "new_password": OLD_PASSWORD,
+        "token": token, "new_password": OLD_PASSWORD
     })).status_code == 400
     assert (await client.post(f"{PREFIX}/login/", json={
-        "email": email, "password": NEW_PASSWORD,
+        "email": email, "password": NEW_PASSWORD
     })).status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_reset_rejects_current_password_without_consuming_tokens(
-    login_api, reset_email,
+        login_api, reset_email
 ):
     client, sessions, _, user_id = login_api
     login = await client.post(f"{PREFIX}/login/", json={
-        "email": "user@example.com", "password": OLD_PASSWORD,
+        "email": "user@example.com", "password": OLD_PASSWORD
     })
     refresh_token = login.json()["refresh_token"]
     await client.post(FORGOT, json={"email": "user@example.com"})
@@ -176,11 +176,11 @@ async def test_reset_rejects_current_password_without_consuming_tokens(
         ).expires_at
 
     response = await client.post(RESET, json={
-        "token": token, "new_password": OLD_PASSWORD,
+        "token": token, "new_password": OLD_PASSWORD
     })
     assert response.status_code == 400
     assert response.json() == {
-        "detail": "New password must differ from the current password",
+        "detail": "New password must differ from the current password"
     }
     async with sessions() as db:
         user = await db.get(UserModel, user_id)
@@ -192,7 +192,7 @@ async def test_reset_rejects_current_password_without_consuming_tokens(
         assert refresh_record.token == refresh_token
 
     response = await client.post(RESET, json={
-        "token": token, "new_password": NEW_PASSWORD,
+        "token": token, "new_password": NEW_PASSWORD
     })
     assert response.status_code == 200
     async with sessions() as db:
@@ -200,14 +200,14 @@ async def test_reset_rejects_current_password_without_consuming_tokens(
         assert await db.scalar(select(PasswordResetTokenModel)) is None
         assert await db.scalar(select(RefreshTokenModel)) is None
     old_login = await client.post(f"{PREFIX}/login/", json={
-        "email": "user@example.com", "password": OLD_PASSWORD,
+        "email": "user@example.com", "password": OLD_PASSWORD
     })
     assert old_login.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_reset_unknown_inactive_and_active_have_same_response(
-    login_api, reset_email,
+        login_api, reset_email
 ):
     client, sessions, _, user_id = login_api
     unknown = await client.post(FORGOT, json={"email": "unknown@example.com"})
@@ -238,7 +238,7 @@ async def test_new_reset_request_replaces_old_token(login_api, reset_email):
         assert len(tokens) == 1
         assert tokens[0].token == hash_reset_token(new_token)
     response = await client.post(RESET, json={
-        "token": old_token, "new_password": NEW_PASSWORD,
+        "token": old_token, "new_password": NEW_PASSWORD
     })
     assert response.status_code == 400
 
@@ -258,17 +258,17 @@ async def test_reset_rejects_invalid_token_or_account(login_api, case):
             await db.commit()
     response = await client.post(RESET, json={
         "token": "unknown-token" if case == "unknown" else "reset-token",
-        "new_password": NEW_PASSWORD,
+        "new_password": NEW_PASSWORD
     })
     assert response.status_code == 400
     assert response.json() == {
-        "detail": "Invalid or expired password reset token",
+        "detail": "Invalid or expired password reset token"
     }
 
 
 @pytest.mark.asyncio
 async def test_reset_email_failure_can_be_retried(
-    login_api, monkeypatch, caplog,
+        login_api, monkeypatch, caplog
 ):
     client, sessions, _, user_id = login_api
     enqueue = AsyncMock(side_effect=EmailQueueError("private broker error"))
@@ -293,17 +293,17 @@ async def test_reset_email_failure_can_be_retried(
 @pytest.mark.parametrize("path", [CHANGE, FORGOT, RESET])
 @pytest.mark.parametrize("failure_point", ["query", "commit"])
 async def test_password_database_errors_are_atomic(
-    login_api, reset_email, monkeypatch, path, failure_point,
+        login_api, reset_email, monkeypatch, path, failure_point
 ):
     client, sessions, manager, user_id = login_api
     await create_reset_token(sessions, user_id)
     await client.post(f"{PREFIX}/login/", json={
-        "email": "user@example.com", "password": OLD_PASSWORD,
+        "email": "user@example.com", "password": OLD_PASSWORD
     })
     payloads = {
         CHANGE: {"old_password": OLD_PASSWORD, "new_password": NEW_PASSWORD},
         FORGOT: {"email": "user@example.com"},
-        RESET: {"token": "reset-token", "new_password": NEW_PASSWORD},
+        RESET: {"token": "reset-token", "new_password": NEW_PASSWORD}
     }
     error = OperationalError("private SQL error", {}, Exception())
 
@@ -316,15 +316,15 @@ async def test_password_database_errors_are_atomic(
             patch.setattr(AsyncSession, "commit", fail_commit)
         else:
             patch.setattr(
-                AsyncSession, "execute", AsyncMock(side_effect=error),
+                AsyncSession, "execute", AsyncMock(side_effect=error)
             )
         response = await client.request(
             "PATCH" if path == CHANGE else "POST",
             path, json=payloads[path], headers={
                 "Authorization": (
                     f"Bearer {manager.create_access_token(user_id)}"
-                ),
-            },
+                )
+            }
         )
     assert response.status_code == 503
     assert "private" not in response.text
@@ -341,7 +341,7 @@ async def test_password_database_errors_are_atomic(
     (FORGOT, {}), (FORGOT, {"email": "invalid"}),
     (RESET, {"token": "reset-token", "new_password": "weak"}),
     (RESET, {"token": "", "new_password": NEW_PASSWORD}),
-    (RESET, {"token": "reset-token"}),
+    (RESET, {"token": "reset-token"})
 ])
 async def test_password_request_validation(login_api, path, payload):
     client, _, _, _ = login_api
@@ -354,10 +354,10 @@ async def test_password_request_validation(login_api, path, payload):
     ("POST", CHANGE, 405), ("PATCH", RESET, 405),
     ("GET", f"{PREFIX}/password/reset/confirm/", 404),
     ("POST", f"{PREFIX}/password/reset/confirm/", 404),
-    ("POST", f"{PREFIX}/password/reset/confirm/form/", 404),
+    ("POST", f"{PREFIX}/password/reset/confirm/form/", 404)
 ])
 async def test_only_agreed_password_routes_exist(
-    login_api, method, path, expected,
+        login_api, method, path, expected
 ):
     client, _, _, _ = login_api
     response = await client.request(method, path)
@@ -371,7 +371,7 @@ def test_password_openapi_contract():
         if path.startswith(f"{PREFIX}/password/")
     }
     assert password_paths == {
-        CHANGE: {"patch"}, FORGOT: {"post"}, RESET: {"post"},
+        CHANGE: {"patch"}, FORGOT: {"post"}, RESET: {"post"}
     }
     assert paths[CHANGE]["patch"]["security"] == [{"HTTPBearer": []}]
     for path in (FORGOT, RESET):
@@ -381,13 +381,13 @@ def test_password_openapi_contract():
 
 @pytest.mark.asyncio
 async def test_stored_reset_hash_cannot_be_used_as_token(
-    login_api, reset_email,
+        login_api, reset_email
 ):
     client, sessions, _, user_id = login_api
     await client.post(FORGOT, json={"email": "user@example.com"})
     token = reset_email.call_args.args[1]
     response = await client.post(RESET, json={
-        "token": hash_reset_token(token), "new_password": NEW_PASSWORD,
+        "token": hash_reset_token(token), "new_password": NEW_PASSWORD
     })
     assert response.status_code == 400
     async with sessions() as db:
@@ -397,7 +397,7 @@ async def test_stored_reset_hash_cannot_be_used_as_token(
 
 @pytest.mark.asyncio
 async def test_email_is_queued_after_token_commit_before_response(
-    login_api, monkeypatch,
+        login_api, monkeypatch
 ):
     client, sessions, _, _ = login_api
     response_sent = False

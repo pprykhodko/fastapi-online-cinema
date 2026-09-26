@@ -6,16 +6,26 @@ from sqlalchemy.orm import Session
 from sqlalchemy.schema import CreateTable
 
 from src.database import (
-    Base, GenderEnum, UserGroupEnum, UserGroupModel,
-    UserModel, UserProfileModel,
+    Base,
+    GenderEnum,
+    UserGroupEnum,
+    UserGroupModel,
+    UserModel,
+    UserProfileModel
 )
 
 
-@pytest.mark.parametrize(("table_name", "column", "length"), [
-    ("user_groups", "name", 50), ("user_profiles", "gender", 10),
-])
+@pytest.mark.parametrize(
+    ("table_name", "column", "length"),
+    [
+        ("user_groups", "name", 50),
+        ("user_profiles", "gender", 10)
+    ]
+)
 def test_account_enums_use_assignment_varchar_sizes(
-    table_name: str, column: str, length: int,
+        table_name: str,
+        column: str,
+        length: int
 ) -> None:
     table = Base.metadata.tables[table_name]
     column_type = table.c[column].type
@@ -29,7 +39,8 @@ def test_account_enums_use_assignment_varchar_sizes(
 
 @pytest.mark.parametrize("group_name", list(UserGroupEnum))
 def test_groups_preserve_python_enum_after_database_round_trip(
-    db_session: Session, group_name: UserGroupEnum,
+        db_session: Session,
+        group_name: UserGroupEnum
 ) -> None:
     group = UserGroupModel(name=group_name)
     db_session.add(group)
@@ -40,8 +51,9 @@ def test_groups_preserve_python_enum_after_database_round_trip(
 
 @pytest.mark.parametrize("gender", [*GenderEnum, None])
 def test_profile_gender_preserves_optional_enum(
-    db_session: Session, catalog_users: tuple[UserModel, UserModel],
-    gender: GenderEnum | None,
+        db_session: Session,
+        catalog_users: tuple[UserModel, UserModel],
+        gender: GenderEnum | None
 ) -> None:
     profile = UserProfileModel(user_id=catalog_users[0].id, gender=gender)
     db_session.add(profile)
@@ -52,15 +64,16 @@ def test_profile_gender_preserves_optional_enum(
 
 @pytest.mark.parametrize("target", ["group", "gender"])
 def test_database_rejects_unknown_account_enum_values(
-    db_session: Session, catalog_users: tuple[UserModel, UserModel],
-    target: str,
+        db_session: Session,
+        catalog_users: tuple[UserModel, UserModel],
+        target: str
 ) -> None:
     profile = UserProfileModel(user_id=catalog_users[0].id)
     db_session.add(profile)
     db_session.commit()
     statements = {
         "group": "UPDATE user_groups SET name = 'UNKNOWN'",
-        "gender": "UPDATE user_profiles SET gender = 'UNKNOWN'",
+        "gender": "UPDATE user_profiles SET gender = 'UNKNOWN'"
     }
     with pytest.raises(IntegrityError):
         with db_session.begin_nested():

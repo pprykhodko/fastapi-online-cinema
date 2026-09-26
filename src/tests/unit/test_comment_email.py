@@ -13,7 +13,7 @@ async def test_comment_email(monkeypatch, event):
     send = AsyncMock(return_value=({}, "OK"))
     monkeypatch.setattr(emails.aiosmtplib, "send", send)
     await sender.send_comment_notification(
-        "author@example.com", "Movie <script>", 12, event,
+        "author@example.com", "Movie <script>", 12, event
     )
     message = send.call_args.args[0]
     assert message["To"] == "author@example.com"
@@ -32,5 +32,5 @@ async def test_email_failure_propagates_for_worker_retry(monkeypatch):
                         AsyncMock(side_effect=OSError("private")))
     with pytest.raises(emails.EmailDeliveryError):
         await sender.send_comment_notification(
-            "author@example.com", "Movie", 1, "like",
+            "author@example.com", "Movie", 1, "like"
         )

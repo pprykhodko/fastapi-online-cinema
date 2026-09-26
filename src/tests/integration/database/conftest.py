@@ -11,7 +11,7 @@ from src.database import (
     MovieModel,
     UserGroupEnum,
     UserGroupModel,
-    UserModel,
+    UserModel
 )
 
 
@@ -19,12 +19,15 @@ from src.database import (
 def db_session() -> Iterator[Session]:
     """Use an isolated in-memory database with real foreign key enforcement."""
     engine = create_engine("sqlite://")
+
     try:
         with engine.begin() as connection:
             connection.exec_driver_sql("PRAGMA foreign_keys=ON")
             Base.metadata.create_all(connection)
+
         with Session(engine) as session:
             yield session
+
     finally:
         engine.dispose()
 
@@ -34,16 +37,19 @@ def catalog_users(db_session: Session) -> tuple[UserModel, UserModel]:
     group = UserGroupModel(name=UserGroupEnum.USER)
     users = (
         UserModel(
-            email="first@example.com", group=group,
-            _hashed_password="unused-in-database-tests",
+            email="first@example.com",
+            group=group,
+            _hashed_password="unused-in-database-tests"
         ),
         UserModel(
-            email="second@example.com", group=group,
-            _hashed_password="unused-in-database-tests",
-        ),
+            email="second@example.com",
+            group=group,
+            _hashed_password="unused-in-database-tests"
+        )
     )
     db_session.add_all(users)
     db_session.commit()
+
     return users
 
 
@@ -59,10 +65,11 @@ def catalog_movies(db_session: Session) -> tuple[MovieModel, MovieModel]:
             votes=100,
             description="A test movie.",
             price=Decimal("9.99"),
-            certification=certification,
+            certification=certification
         )
         for name in ("First movie", "Second movie")
     )
     db_session.add_all(movies)
     db_session.commit()
+
     return movies[0], movies[1]

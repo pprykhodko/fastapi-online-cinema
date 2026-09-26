@@ -9,7 +9,7 @@ from src.schemas.common import (
     AdminTransactionListQuerySchema,
     MessageResponseSchema,
     PaginationQuerySchema,
-    PaginationResponseSchema,
+    PaginationResponseSchema
 )
 
 

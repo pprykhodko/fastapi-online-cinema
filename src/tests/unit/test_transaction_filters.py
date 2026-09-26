@@ -9,12 +9,22 @@ from src.schemas.orders import AdminOrderListQuerySchema, OrderListQuerySchema
 from src.schemas.payments import AdminPaymentListQuerySchema, PaymentListQuerySchema
 
 
-@pytest.mark.parametrize("model,schema,transaction_status", [
-    (OrderModel, AdminOrderListQuerySchema, "paid"),
-    (PaymentModel, AdminPaymentListQuerySchema, "successful"),
-])
-def test_shared_filters_preserve_owner_and_inclusive_dates(model, schema, transaction_status):
-    query = schema(user_id=2, status=transaction_status, date_from=date(2030, 1, 1), date_to=date(2030, 1, 2))
+@pytest.mark.parametrize(
+    "model,schema,transaction_status",
+    [
+        (OrderModel, AdminOrderListQuerySchema, "paid"),
+        (PaymentModel, AdminPaymentListQuerySchema, "successful")
+    ]
+)
+def test_shared_filters_preserve_owner_and_inclusive_dates(
+        model, schema, transaction_status
+):
+    query = schema(
+        user_id=2,
+        status=transaction_status,
+        date_from=date(2030, 1, 1),
+        date_to=date(2030, 1, 2)
+    )
     stmt = select(model).where(*transaction_filters(model, query, user_id=1))
     sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
     table = model.__tablename__
@@ -24,6 +34,9 @@ def test_shared_filters_preserve_owner_and_inclusive_dates(model, schema, transa
     assert "2030-01-02 23:59:59.999999" in sql
 
 
-@pytest.mark.parametrize("model,schema", [(OrderModel, OrderListQuerySchema), (PaymentModel, PaymentListQuerySchema)])
+@pytest.mark.parametrize(
+    "model,schema",
+    [(OrderModel, OrderListQuerySchema), (PaymentModel, PaymentListQuerySchema)]
+)
 def test_shared_filters_leave_unfiltered_queries_unchanged(model, schema):
     assert transaction_filters(model, schema()) == []

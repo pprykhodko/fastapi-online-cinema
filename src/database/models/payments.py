@@ -37,7 +37,11 @@ class PaymentStatusEnum(str, enum.Enum):
 class PaymentModel(Base):
     __tablename__ = "payments"
     __table_args__ = (
-        Index("ix_payments_external_payment_id_unique", "external_payment_id", unique=True),
+        Index(
+            "ix_payments_external_payment_id_unique",
+            "external_payment_id",
+            unique=True
+        ),
         CheckConstraint(
             "amount >= 0 AND amount <= 99999999.99",
             name="valid_payment_amount"
@@ -47,22 +51,22 @@ class PaymentModel(Base):
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
-        autoincrement=True,
+        autoincrement=True
     )
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
-        index=True,
+        index=True
     )
     order_id: Mapped[int] = mapped_column(
         ForeignKey("orders.id", ondelete="RESTRICT"),
         nullable=False,
-        index=True,
+        index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=func.now(),
+        server_default=func.now()
     )
     status: Mapped[PaymentStatusEnum] = mapped_column(
         Enum(
@@ -74,17 +78,21 @@ class PaymentModel(Base):
             validate_strings=True,
             values_callable=lambda enum_type: [
                 item.value for item in enum_type
-            ],
+            ]
         ),
         nullable=False,
         default=PaymentStatusEnum.SUCCESSFUL,
-        server_default=PaymentStatusEnum.SUCCESSFUL.value,
+        server_default=PaymentStatusEnum.SUCCESSFUL.value
     )
     amount: Mapped[Decimal] = mapped_column(
         DECIMAL(10, 2),
-        nullable=False,
+        nullable=False
     )
-    currency: Mapped[str] = mapped_column(String(3), default="usd", server_default="usd")
+    currency: Mapped[str] = mapped_column(
+        String(3),
+        default="usd",
+        server_default="usd"
+    )
     external_payment_id: Mapped[Optional[str]] = mapped_column(String(255))
 
     user: Mapped[UserModel] = relationship(back_populates="payments")
@@ -92,7 +100,7 @@ class PaymentModel(Base):
     items: Mapped[List[PaymentItemModel]] = relationship(
         back_populates="payment",
         cascade="all, delete-orphan",
-        passive_deletes=True,
+        passive_deletes=True
     )
 
     @validates("status")
@@ -115,27 +123,27 @@ class PaymentItemModel(Base):
     __table_args__ = (
         CheckConstraint(
             "price_at_payment >= 0 AND price_at_payment <= 99999999.99",
-            name="valid_price_at_payment",
+            name="valid_price_at_payment"
         ),
     )
 
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
-        autoincrement=True,
+        autoincrement=True
     )
     payment_id: Mapped[int] = mapped_column(
         ForeignKey("payments.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=False
     )
     order_item_id: Mapped[int] = mapped_column(
         ForeignKey("order_items.id", ondelete="RESTRICT"),
         nullable=False,
-        index=True,
+        index=True
     )
     price_at_payment: Mapped[Decimal] = mapped_column(
         DECIMAL(10, 2),
-        nullable=False,
+        nullable=False
     )
 
     payment: Mapped[PaymentModel] = relationship(back_populates="items")
@@ -145,9 +153,9 @@ class PaymentItemModel(Base):
 
     @validates("price_at_payment")
     def validate_price_at_payment(
-        self,
-        _key: str,
-        value: Decimal,
+            self,
+            _key: str,
+            value: Decimal,
     ) -> Decimal:
         return validators.validate_price_at_payment(value)
 
@@ -159,11 +167,13 @@ class PaymentItemModel(Base):
 
 
 class PaymentCheckoutModel(Base):
-
     __tablename__ = "payment_checkouts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="RESTRICT"), unique=True)
+    order_id: Mapped[int] = mapped_column(
+        ForeignKey("orders.id", ondelete="RESTRICT"),
+        unique=True
+    )
     request_key: Mapped[str] = mapped_column(String(36), unique=True)
     request_data: Mapped[dict] = mapped_column(JSON)
     session_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True)
@@ -174,5 +184,9 @@ class PaymentCheckoutModel(Base):
         ForeignKey("payments.id", ondelete="RESTRICT"),
         unique=True
     )
-    email_queued: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    email_queued: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="0"
+    )
     refund_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True)

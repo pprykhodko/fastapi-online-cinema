@@ -31,7 +31,10 @@ class CartService:
         return cart
 
     async def get_cart(self, user_id: int) -> CartResponseSchema:
-        async with database_errors(self.repository, detail="Cart is temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Cart is temporarily unavailable"
+        ):
             cart = await self._get_cart(user_id)
             items = await self.repository.get_items(cart.id)
 
@@ -48,7 +51,12 @@ class CartService:
                 conflict_detail="The movie is already in the cart or its data changed"
         ):
             cart = await self._get_cart(user_id, lock=True)
-            movie = await get_movie_or_404(self.movie_repository, movie_id, lock=True, with_relations=True)
+            movie = await get_movie_or_404(
+                self.movie_repository,
+                movie_id,
+                lock=True,
+                with_relations=True
+            )
 
             if not movie.is_available_for_purchase:
                 raise HTTPException(
@@ -59,7 +67,8 @@ class CartService:
             if await self.order_repository.purchased_movie_ids(user_id, [movie_id]):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="You have already purchased this movie. Repeat purchases are not allowed"
+                    detail="You have already purchased this movie. "
+                           "Repeat purchases are not allowed"
                 )
 
             if await self.repository.get_item(cart.id, movie_id):
@@ -75,7 +84,10 @@ class CartService:
             return response
 
     async def remove_item(self, user_id: int, movie_id: int) -> None:
-        async with database_errors(self.repository, detail="Cart item could not be removed"):
+        async with database_errors(
+                self.repository,
+                detail="Cart item could not be removed"
+        ):
             cart = await self._get_cart(user_id, lock=True)
 
             if not await self.repository.remove_item(cart.id, movie_id):

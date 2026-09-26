@@ -70,7 +70,9 @@ def get_director_service(db: AsyncSession = Depends(get_db)) -> DirectorService:
     return DirectorService(DirectorRepository(db))
 
 
-def get_certification_service(db: AsyncSession = Depends(get_db)) -> CertificationService:
+def get_certification_service(
+        db: AsyncSession = Depends(get_db)
+) -> CertificationService:
     return CertificationService(CertificationRepository(db))
 
 
@@ -111,4 +113,9 @@ def get_comment_service(
         db: AsyncSession = Depends(get_db),
         email_queue: EmailQueue = Depends(get_email_queue)
 ) -> CommentService:
-    return CommentService(CommentRepository(db), email_queue, MovieRepository(db), AccountRepository(db))
+    return CommentService(
+        CommentRepository(db),
+        email_queue,
+        MovieRepository(db),
+        AccountRepository(db)
+    )

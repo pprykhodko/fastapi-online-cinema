@@ -29,14 +29,25 @@ class CommentService:
         self.movie_repository = movie_repository
         self.account_repository = account_repository
 
-    async def list_comments(self, movie_id: int, query: MovieCommentListQuerySchema) -> MovieCommentListResponseSchema:
+    async def list_comments(
+            self,
+            movie_id: int,
+            query: MovieCommentListQuerySchema
+    ) -> MovieCommentListResponseSchema:
         async with database_errors(self.repository, detail="Comments are unavailable"):
             await get_movie_or_404(self.movie_repository, movie_id)
 
-            comments, total = await self.repository.list_comments(movie_id, query.page, query.per_page)
+            comments, total = await self.repository.list_comments(
+                movie_id,
+                query.page,
+                query.per_page
+            )
 
             return MovieCommentListResponseSchema(
-                items=[MovieCommentResponseSchema.model_validate(comment) for comment in comments],
+                items=[
+                    MovieCommentResponseSchema.model_validate(comment)
+                    for comment in comments
+                ],
                 total=total,
                 page=query.page,
                 per_page=query.per_page
@@ -67,7 +78,9 @@ class CommentService:
                     )
 
                 if parent.user_id != user_id:
-                    email = await self.account_repository.get_active_email(parent.user_id)
+                    email = await self.account_repository.get_active_email(
+                        parent.user_id
+                    )
 
             comment = MovieCommentModel(
                 user_id=user_id,
@@ -108,7 +121,11 @@ class CommentService:
                     detail="Comment not found"
                 )
 
-            movie = await get_movie_or_404(self.movie_repository, comment.movie_id, lock=True)
+            movie = await get_movie_or_404(
+                self.movie_repository,
+                comment.movie_id,
+                lock=True
+            )
 
             like = await self.repository.get_like(user_id, comment_id)
             created = like is None
@@ -119,7 +136,9 @@ class CommentService:
                 await self.repository.save(like)
 
                 if comment.user_id != user_id:
-                    email = await self.account_repository.get_active_email(comment.user_id)
+                    email = await self.account_repository.get_active_email(
+                        comment.user_id
+                    )
 
             response = CommentLikeResponseSchema.model_validate(like)
             movie_name = movie.name

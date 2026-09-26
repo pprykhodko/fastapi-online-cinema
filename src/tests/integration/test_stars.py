@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.api.dependencies import get_star_service
 from src.database.models import (
     CertificationModel, StarModel, MovieModel, UserGroupEnum,
-    UserGroupModel, UserModel,
+    UserGroupModel, UserModel
 )
 from src.database.models.movies import MoviesStarsModel
 from src.main import app
@@ -30,7 +30,7 @@ async def stars_api(login_api):
                     StarModel(id=2, name="Tom Hanks")])
         await db.commit()
     headers = {
-        "Authorization": f"Bearer {manager.create_access_token(user_id)}",
+        "Authorization": f"Bearer {manager.create_access_token(user_id)}"
     }
     return client, sessions, user_id, headers
 
@@ -42,10 +42,10 @@ async def test_star_crud(stars_api):
     assert listing.status_code == 200
     assert listing.json() == [
         {"id": 1, "name": "Keanu Reeves"},
-        {"id": 2, "name": "Tom Hanks"},
+        {"id": 2, "name": "Tom Hanks"}
     ]
     created = await client.post(
-        URL, headers=headers, json={"name": " Jean-Claude Van Damme "},
+        URL, headers=headers, json={"name": " Jean-Claude Van Damme "}
     )
     assert created.status_code == 201
     star = created.json()
@@ -74,11 +74,11 @@ async def test_rename_and_delete_preserve_movies(stars_api):
                 id=movie_id, name=f"Movie {movie_id}", year=2020, time=90,
                 imdb=8, votes=100, description="Story", price=Decimal("5"),
                 certification=certification, stars=[star],
-                is_deleted=deleted,
+                is_deleted=deleted
             ))
         await db.commit()
     response = await client.patch(
-        URL + "1/", headers=headers, json={"name": "Renamed"},
+        URL + "1/", headers=headers, json={"name": "Renamed"}
     )
     assert response.status_code == 200
     movies = await client.get("/api/v1/movies/", params={"search": "Renamed"})
@@ -106,7 +106,7 @@ async def test_write_permissions(stars_api, method, role):
     path = URL if method == "POST" else URL + "1/"
     response = await client.request(
         method, path, headers=headers,
-        **({"json": {"name": "New"}} if method != "DELETE" else {}),
+        **({"json": {"name": "New"}} if method != "DELETE" else {})
     )
     if role is None:
         assert response.status_code == 401
@@ -125,13 +125,13 @@ async def test_write_permissions(stars_api, method, role):
     {"name": "Actor123"}, {"name": "Актёр"}, {"name": "Actor!"},
     {"name": "Actor?"}, {"name": "—-"}, {"name": "---"},
     {"name": "Lupita Nyong'o"}, {"name": "Penélope Cruz"},
-    {"name": "Tom\tHanks"}, {"name": "Tom\nHanks"},
+    {"name": "Tom\tHanks"}, {"name": "Tom\nHanks"}
 ])
 async def test_invalid_names(stars_api, method, body):
     client, _, _, headers = stars_api
     response = await client.request(
         method, URL if method == "POST" else URL + "1/",
-        headers=headers, json=body,
+        headers=headers, json=body
     )
     assert response.status_code == 422
     assert (await client.get(URL + "1/")).json()["name"] == "Keanu Reeves"
@@ -144,7 +144,7 @@ async def test_duplicate_name_rolls_back(stars_api, method):
     client, _, _, headers = stars_api
     response = await client.request(
         method, URL if method == "POST" else URL + "2/",
-        headers=headers, json={"name": " Keanu Reeves "},
+        headers=headers, json={"name": " Keanu Reeves "}
     )
     assert response.status_code == 409
     assert (await client.get(URL + "2/")).json()["name"] == "Tom Hanks"
@@ -153,13 +153,13 @@ async def test_duplicate_name_rolls_back(stars_api, method):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method", ["GET", "PATCH", "DELETE"])
 @pytest.mark.parametrize("star_id, expected", [
-    (999, 404), (0, 422), (-1, 422), (2**31, 422), ("abc", 422),
+    (999, 404), (0, 422), (-1, 422), (2**31, 422), ("abc", 422)
 ])
 async def test_missing_or_invalid_id(stars_api, method, star_id, expected):
     client, _, _, headers = stars_api
     response = await client.request(
         method, f"{URL}{star_id}/", headers=headers,
-        **({"json": {"name": "New"}} if method == "PATCH" else {}),
+        **({"json": {"name": "New"}} if method == "PATCH" else {})
     )
     assert response.status_code == expected
 
@@ -167,7 +167,7 @@ async def test_missing_or_invalid_id(stars_api, method, star_id, expected):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method, path, failing_method", [
     ("GET", URL, "list_stars"), ("GET", URL + "1/", "get_star"),
-    ("POST", URL, "save"), ("DELETE", URL + "1/", "delete"),
+    ("POST", URL, "save"), ("DELETE", URL + "1/", "delete")
 ])
 async def test_database_errors(stars_api, monkeypatch, method, path,
                                failing_method):
@@ -176,11 +176,11 @@ async def test_database_errors(stars_api, monkeypatch, method, path,
     getattr(repository, failing_method).side_effect = SQLAlchemyError("secret")
     monkeypatch.setitem(
         app.dependency_overrides, get_star_service,
-        lambda: StarService(repository),
+        lambda: StarService(repository)
     )
     response = await client.request(
         method, path, headers=headers,
-        **({"json": {"name": "New"}} if method == "POST" else {}),
+        **({"json": {"name": "New"}} if method == "POST" else {})
     )
     assert response.status_code == 503
     assert "secret" not in response.text
@@ -208,7 +208,7 @@ async def test_inactive_moderator_cannot_write(stars_api, method):
         await db.commit()
     response = await client.request(
         method, URL if method == "POST" else URL + "1/", headers=headers,
-        **({"json": {"name": "New Actor"}} if method != "DELETE" else {}),
+        **({"json": {"name": "New Actor"}} if method != "DELETE" else {})
     )
     assert response.status_code == 403
     assert (await client.get(URL + "1/")).json()["name"] == "Keanu Reeves"
@@ -221,7 +221,7 @@ async def test_actor_names_allow_spaces_and_hyphens(stars_api, method, name):
     client, _, _, headers = stars_api
     response = await client.request(
         method, URL if method == "POST" else URL + "1/",
-        headers=headers, json={"name": name},
+        headers=headers, json={"name": name}
     )
     assert response.status_code == (201 if method == "POST" else 200)
     assert response.json()["name"] == name

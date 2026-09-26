@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from src.schemas.cart import (
     CartItemCreateRequestSchema,
     CartItemResponseSchema,
-    CartResponseSchema,
+    CartResponseSchema
 )
 
 
@@ -25,8 +25,8 @@ def cart_item_data() -> dict[str, Any]:
             "imdb": 8.7,
             "price": Decimal("9.99"),
             "is_available_for_purchase": True,
-            "genres": [{"id": 1, "name": "Action"}],
-        },
+            "genres": [{"id": 1, "name": "Action"}]
+        }
     }
 
 
@@ -36,7 +36,7 @@ def test_add_to_cart_request_accepts_a_positive_movie_id() -> None:
 
 
 @pytest.mark.parametrize("movie_id", [
-    0, -1, True, False, 1.5, 1.0, "1", None, [],
+    0, -1, True, False, 1.5, 1.0, "1", None, []
 ])
 def test_add_to_cart_request_rejects_invalid_movie_ids(movie_id: Any) -> None:
     with pytest.raises(ValidationError):
@@ -49,10 +49,10 @@ def test_add_to_cart_request_requires_a_movie_id() -> None:
 
 
 @pytest.mark.parametrize("field", [
-    "user_id", "cart_id", "id", "price", "quantity", "added_at",
+    "user_id", "cart_id", "id", "price", "quantity", "added_at"
 ])
 def test_add_to_cart_request_rejects_client_supplied_server_fields(
-    field: str,
+        field: str
 ) -> None:
     with pytest.raises(ValidationError) as error:
         CartItemCreateRequestSchema.model_validate({"movie_id": 5, field: 1})
@@ -60,7 +60,7 @@ def test_add_to_cart_request_rejects_client_supplied_server_fields(
 
 
 def test_cart_item_contains_required_movie_details(
-    cart_item_data: dict[str, Any],
+        cart_item_data: dict[str, Any]
 ) -> None:
     item = CartItemResponseSchema.model_validate(cart_item_data)
     assert item.movie.name == "The Matrix"
@@ -74,12 +74,12 @@ def test_cart_item_contains_required_movie_details(
 
 
 def test_cart_response_supports_empty_and_populated_carts(
-    cart_item_data: dict[str, Any],
+        cart_item_data: dict[str, Any]
 ) -> None:
     empty = CartResponseSchema(id=1, user_id=2, items=[])
     assert empty.model_dump() == {"id": 1, "user_id": 2, "items": []}
     cart = CartResponseSchema.model_validate({
-        "id": 1, "user_id": 2, "items": [cart_item_data],
+        "id": 1, "user_id": 2, "items": [cart_item_data]
     })
     assert len(cart.items) == 1
     assert cart.items[0].movie.id == 5
@@ -89,7 +89,7 @@ def test_cart_response_supports_empty_and_populated_carts(
 def test_cart_response_rejects_invalid_items(items: Any) -> None:
     with pytest.raises(ValidationError):
         CartResponseSchema.model_validate({
-            "id": 1, "user_id": 2, "items": items,
+            "id": 1, "user_id": 2, "items": items
         })
 
 
@@ -101,11 +101,11 @@ def test_cart_response_requires_items_instead_of_assuming_empty_cart() -> None:
 @pytest.mark.parametrize("field", ["id", "user_id"])
 @pytest.mark.parametrize("value", [0, -1])
 def test_cart_response_rejects_non_positive_ids(
-    field: str, value: int,
+        field: str, value: int
 ) -> None:
     with pytest.raises(ValidationError):
         CartResponseSchema.model_validate({
-            "id": 1, "user_id": 2, "items": [], field: value,
+            "id": 1, "user_id": 2, "items": [], field: value
         })
 
 

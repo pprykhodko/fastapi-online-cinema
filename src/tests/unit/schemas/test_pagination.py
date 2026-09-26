@@ -5,7 +5,7 @@ from pydantic import BaseModel, ValidationError
 
 from src.schemas.accounts import UserListResponseSchema
 from src.schemas.interactions import (
-    MovieCommentListResponseSchema, MovieFavoriteListResponseSchema,
+    MovieCommentListResponseSchema, MovieFavoriteListResponseSchema
 )
 from src.schemas.movies import MovieListResponseSchema
 from src.schemas.orders import OrderListResponseSchema
@@ -18,14 +18,14 @@ from src.schemas.payments import PaymentListResponseSchema
     MovieFavoriteListResponseSchema,
     MovieListResponseSchema,
     OrderListResponseSchema,
-    PaymentListResponseSchema,
+    PaymentListResponseSchema
 ])
 def list_schema(request: pytest.FixtureRequest) -> type[BaseModel]:
     return request.param
 
 
 def test_list_responses_preserve_pagination_fields(
-    list_schema: type[BaseModel],
+        list_schema: type[BaseModel]
 ) -> None:
     data = {"items": [], "total": 0, "page": 1, "per_page": 100}
     assert list_schema.model_validate(data).model_dump() == data
@@ -33,7 +33,7 @@ def test_list_responses_preserve_pagination_fields(
 
 @pytest.mark.parametrize("field", ["items", "total", "page", "per_page"])
 def test_list_responses_still_require_all_fields(
-    list_schema: type[BaseModel], field: str,
+        list_schema: type[BaseModel], field: str
 ) -> None:
     data = {"items": [], "total": 0, "page": 1, "per_page": 10}
     data.pop(field)
@@ -44,10 +44,10 @@ def test_list_responses_still_require_all_fields(
 
 
 @pytest.mark.parametrize(("field", "value"), [
-    ("total", -1), ("page", 0), ("per_page", 0), ("per_page", 101),
+    ("total", -1), ("page", 0), ("per_page", 0), ("per_page", 101)
 ])
 def test_list_responses_keep_pagination_limits(
-    list_schema: type[BaseModel], field: str, value: Any,
+        list_schema: type[BaseModel], field: str, value: Any
 ) -> None:
     data = {"items": [], "total": 0, "page": 1, "per_page": 10}
     with pytest.raises(ValidationError) as error:

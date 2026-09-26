@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.database.models import (
     CertificationModel, DirectorModel, GenreModel, MovieFavoriteModel,
-    MovieModel, StarModel,
+    MovieModel, StarModel
 )
 from src.repositories.certifications import CertificationRepository
 from src.repositories.directors import DirectorRepository
@@ -28,7 +28,7 @@ REFERENCE_CASES = [
     (StarModel, StarRepository, StarService, "delete_star"),
     (DirectorModel, DirectorRepository, DirectorService, "delete_director"),
     (CertificationModel, CertificationRepository, CertificationService,
-     "delete_certification"),
+     "delete_certification")
 ]
 
 
@@ -55,7 +55,7 @@ async def test_multiple_repositories_share_one_transaction(login_api):
 @pytest.mark.parametrize("model,repo_class,service_class,delete_method",
                          REFERENCE_CASES)
 async def test_repository_writes_can_be_rolled_back(
-    login_api, model, repo_class, service_class, delete_method,
+        login_api, model, repo_class, service_class, delete_method
 ):
     _, sessions, _, _ = login_api
     async with sessions() as db:
@@ -87,8 +87,8 @@ async def test_repository_writes_can_be_rolled_back(
 @pytest.mark.parametrize("operation", ["create", "update", "delete"])
 @pytest.mark.parametrize("conflict", [False, True])
 async def test_service_commit_failure_rolls_back(
-    login_api, monkeypatch, model, repo_class, service_class,
-    delete_method, operation, conflict,
+        login_api, monkeypatch, model, repo_class, service_class,
+        delete_method, operation, conflict
 ):
     _, sessions, _, _ = login_api
     async with sessions() as db:
@@ -126,7 +126,7 @@ async def test_service_commit_failure_rolls_back(
 @pytest.mark.parametrize("model,repo_class,service_class,delete_method",
                          REFERENCE_CASES)
 async def test_missing_delete_does_not_commit(
-    login_api, monkeypatch, model, repo_class, service_class, delete_method,
+        login_api, monkeypatch, model, repo_class, service_class, delete_method
 ):
     _, sessions, _, _ = login_api
     async with sessions() as db:
@@ -147,7 +147,7 @@ async def test_favorite_delete_transaction(login_api, monkeypatch):
         movie = MovieModel(
             name="Movie", year=2020, time=90, imdb=8, votes=5,
             description="Story", price=Decimal("5"),
-            certification=CertificationModel(name="PG"),
+            certification=CertificationModel(name="PG")
         )
         db.add(movie)
         await db.flush()
@@ -165,7 +165,7 @@ async def test_favorite_delete_transaction(login_api, monkeypatch):
         monkeypatch.setattr(repo, "commit", commit)
         with pytest.raises(HTTPException) as caught:
             await FavoriteService(repo, MovieRepository(db)).delete_favorite(
-                user_id, movie_id,
+                user_id, movie_id
             )
         assert caught.value.status_code == 503
         commit.assert_awaited_once()
@@ -175,7 +175,7 @@ async def test_favorite_delete_transaction(login_api, monkeypatch):
         commit.reset_mock()
         with pytest.raises(HTTPException) as caught:
             await FavoriteService(repo, MovieRepository(db)).delete_favorite(
-                user_id, 999,
+                user_id, 999
             )
         assert caught.value.status_code == 404
         commit.assert_not_awaited()

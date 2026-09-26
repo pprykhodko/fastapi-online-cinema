@@ -8,7 +8,7 @@ from sqlalchemy import (
     Numeric,
     Table,
     create_engine,
-    inspect,
+    inspect
 )
 
 from src.database import Base
@@ -17,11 +17,11 @@ from src.database.models.movies import MovieModel
 from src.database.models.orders import (
     OrderItemModel,
     OrderModel,
-    OrderStatusEnum,
+    OrderStatusEnum
 )
 from src.database.validators.orders import (
     validate_price_at_order,
-    validate_total_amount,
+    validate_total_amount
 )
 
 
@@ -29,7 +29,7 @@ def test_order_status_enum_contains_required_values() -> None:
     assert {status.value for status in OrderStatusEnum} == {
         "pending",
         "paid",
-        "canceled",
+        "canceled"
     }
 
 
@@ -92,7 +92,7 @@ def test_order_foreign_keys_define_delete_behavior() -> None:
 
 @pytest.mark.parametrize("amount", [None, Decimal("0.00"), Decimal("9.99")])
 def test_validate_total_amount_accepts_valid_values(
-    amount: Decimal | None,
+        amount: Decimal | None
 ) -> None:
     assert validate_total_amount(amount) == amount
 
@@ -120,7 +120,7 @@ def test_order_models_apply_amount_validation() -> None:
         OrderItemModel(
             order_id=1,
             movie_id=1,
-            price_at_order=Decimal("-0.01"),
+            price_at_order=Decimal("-0.01")
         )
 
 
@@ -129,13 +129,13 @@ def test_order_model_representations() -> None:
         id=1,
         user_id=2,
         status=OrderStatusEnum.PENDING,
-        total_amount=Decimal("9.99"),
+        total_amount=Decimal("9.99")
     )
     item = OrderItemModel(
         id=3,
         order_id=1,
         movie_id=4,
-        price_at_order=Decimal("9.99"),
+        price_at_order=Decimal("9.99")
     )
 
     assert repr(order) == "<OrderModel(id=1, user_id=2, status=pending)>"

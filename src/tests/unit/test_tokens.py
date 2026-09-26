@@ -8,7 +8,7 @@ from pydantic import SecretStr, ValidationError
 
 from src.core.config import Settings
 from src.schemas.accounts import (
-    TokenPairResponseSchema, TokenRefreshRequestSchema,
+    TokenPairResponseSchema, TokenRefreshRequestSchema
 )
 from src.security import tokens
 
@@ -26,7 +26,7 @@ def jwt_settings(monkeypatch):
         JWT_REFRESH_SECRET_KEY=SecretStr(REFRESH_KEY),
         JWT_ALGORITHM="HS256",
         ACCESS_TOKEN_EXPIRE_MINUTES=15,
-        REFRESH_TOKEN_EXPIRE_DAYS=7,
+        REFRESH_TOKEN_EXPIRE_DAYS=7
     )
     monkeypatch.setattr(tokens, "get_settings", lambda: settings)
 
@@ -51,7 +51,7 @@ def valid_payload(manager):
 
 
 @pytest.mark.parametrize("token_type, lifetime", [
-    ("access", 15 * 60), ("refresh", 7 * 24 * 60 * 60),
+    ("access", 15 * 60), ("refresh", 7 * 24 * 60 * 60)
 ])
 def test_create_and_decode_tokens(manager, token_type, lifetime):
     create = (
@@ -82,7 +82,7 @@ def test_configured_lifetimes_are_used(jwt_settings):
 
 
 @pytest.mark.parametrize("create", [
-    "create_access_token", "create_refresh_token",
+    "create_access_token", "create_refresh_token"
 ])
 def test_tokens_are_unique_even_in_same_second(manager, create):
     create_token = getattr(manager, create)
@@ -101,7 +101,7 @@ def test_tokens_fit_existing_schemas_and_database_length(manager):
 
 @pytest.mark.parametrize("user_id", [0, -1, True, False, "1", None, 1.5])
 @pytest.mark.parametrize("create", [
-    "create_access_token", "create_refresh_token",
+    "create_access_token", "create_refresh_token"
 ])
 def test_invalid_user_id_is_rejected(manager, user_id, create):
     with pytest.raises(ValueError, match="positive integer"):
@@ -115,10 +115,10 @@ def test_oversized_token_is_not_created(manager):
 
 @pytest.mark.parametrize("create, expected", [
     ("create_access_token", "decode_refresh_token"),
-    ("create_refresh_token", "decode_access_token"),
+    ("create_refresh_token", "decode_access_token")
 ])
 def test_access_and_refresh_cannot_be_interchanged(
-    manager, create, expected,
+        manager, create, expected
 ):
     with pytest.raises(tokens.InvalidTokenError):
         token = getattr(manager, create)(1)
@@ -144,10 +144,10 @@ def test_required_claims_must_exist(manager, valid_payload, claim):
     ("exp", None), ("exp", True), ("exp", []), ("exp", "bad"),
     ("exp", float("inf")), ("exp", float("nan")),
     ("exp", int(NOW.timestamp()) + 0.5),
-    ("exp", str(int(NOW.timestamp()) + 60)),
+    ("exp", str(int(NOW.timestamp()) + 60))
 ])
 def test_invalid_claim_values_are_rejected(
-    manager, valid_payload, claim, value,
+        manager, valid_payload, claim, value
 ):
     valid_payload[claim] = value
     token = jwt.encode(valid_payload, TEST_KEY, algorithm="HS256")
@@ -157,7 +157,7 @@ def test_invalid_claim_values_are_rejected(
 
 @pytest.mark.parametrize("offset", [-1, 0])
 def test_expired_token_including_exact_boundary(
-    manager, valid_payload, offset,
+        manager, valid_payload, offset
 ):
     valid_payload["iat"] = int(NOW.timestamp()) - 60
     valid_payload["exp"] = int(NOW.timestamp()) + offset
@@ -196,7 +196,7 @@ def test_disallowed_algorithm_is_rejected(manager, valid_payload, algorithm):
 
 def test_wrong_signing_key_is_rejected(manager, valid_payload):
     token = jwt.encode(
-        valid_payload, "different-secret" * 3, algorithm="HS256",
+        valid_payload, "different-secret" * 3, algorithm="HS256"
     )
     with pytest.raises(tokens.InvalidTokenError):
         manager.decode_access_token(token)
@@ -233,7 +233,7 @@ def test_missing_keys_fail_without_defaults(jwt_settings, missing):
 
 
 @pytest.mark.parametrize("field", [
-    "JWT_ACCESS_SECRET_KEY", "JWT_REFRESH_SECRET_KEY",
+    "JWT_ACCESS_SECRET_KEY", "JWT_REFRESH_SECRET_KEY"
 ])
 @pytest.mark.parametrize("value", ["", "short", "x" * 31, " " * 32])
 def test_settings_reject_short_or_blank_key(field, value):
@@ -246,7 +246,7 @@ def test_settings_reject_identical_keys():
         Settings(
             _env_file=None,
             JWT_ACCESS_SECRET_KEY=SecretStr(TEST_KEY),
-            JWT_REFRESH_SECRET_KEY=SecretStr(TEST_KEY),
+            JWT_REFRESH_SECRET_KEY=SecretStr(TEST_KEY)
         )
 
 
@@ -257,7 +257,7 @@ def test_settings_reject_identical_keys():
     ("ACCESS_TOKEN_EXPIRE_MINUTES", 1441),
     ("REFRESH_TOKEN_EXPIRE_DAYS", 0),
     ("REFRESH_TOKEN_EXPIRE_DAYS", -1),
-    ("REFRESH_TOKEN_EXPIRE_DAYS", 366),
+    ("REFRESH_TOKEN_EXPIRE_DAYS", 366)
 ])
 def test_settings_reject_invalid_jwt_options(field, value):
     with pytest.raises(ValidationError):
@@ -275,14 +275,14 @@ def test_settings_allow_jwt_to_remain_unconfigured():
     settings = Settings(
         _env_file=None,
         JWT_ACCESS_SECRET_KEY=None,
-        JWT_REFRESH_SECRET_KEY=None,
+        JWT_REFRESH_SECRET_KEY=None
     )
     assert settings.JWT_ACCESS_SECRET_KEY is None
     assert settings.JWT_REFRESH_SECRET_KEY is None
 
 
 @pytest.mark.parametrize("token_type, key", [
-    ("access", TEST_KEY), ("refresh", REFRESH_KEY),
+    ("access", TEST_KEY), ("refresh", REFRESH_KEY)
 ])
 def test_each_token_uses_its_own_key(manager, token_type, key):
     token = getattr(manager, f"create_{token_type}_token")(1)
@@ -291,10 +291,10 @@ def test_each_token_uses_its_own_key(manager, token_type, key):
 
 
 @pytest.mark.parametrize("expected_type, signing_key, wrong_type", [
-    ("access", TEST_KEY, "refresh"), ("refresh", REFRESH_KEY, "access"),
+    ("access", TEST_KEY, "refresh"), ("refresh", REFRESH_KEY, "access")
 ])
 def test_correct_signature_does_not_bypass_type_check(
-    manager, valid_payload, expected_type, signing_key, wrong_type,
+        manager, valid_payload, expected_type, signing_key, wrong_type
 ):
     valid_payload["type"] = wrong_type
     token = jwt.encode(valid_payload, signing_key, algorithm="HS256")
@@ -303,11 +303,11 @@ def test_correct_signature_does_not_bypass_type_check(
 
 
 @pytest.mark.parametrize("token_type, key", [
-    ("access", TEST_KEY), ("refresh", REFRESH_KEY),
+    ("access", TEST_KEY), ("refresh", REFRESH_KEY)
 ])
 @pytest.mark.parametrize("offset", [-1, 0])
 def test_both_token_types_raise_expired_error(
-    manager, valid_payload, token_type, key, offset,
+        manager, valid_payload, token_type, key, offset
 ):
     valid_payload["type"] = token_type
     valid_payload["iat"] = int(NOW.timestamp()) - 60

@@ -6,7 +6,11 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 
 @asynccontextmanager
-async def database_errors(repository, detail: str, conflict_detail: str | None = None) -> AsyncIterator[None]:
+async def database_errors(
+        repository,
+        detail: str,
+        conflict_detail: str | None = None
+) -> AsyncIterator[None]:
     """
     Handle the whole DB operation, including queries, flush and commit.
 
@@ -19,7 +23,10 @@ async def database_errors(repository, detail: str, conflict_detail: str | None =
     except IntegrityError:
         await repository.rollback()
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT if conflict_detail else status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=(
+                status.HTTP_409_CONFLICT
+                if conflict_detail else status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
             detail=conflict_detail or detail
         )
 

@@ -9,7 +9,7 @@ from sqlalchemy import (
     String,
     Table,
     create_engine,
-    inspect,
+    inspect
 )
 
 from src.database import Base
@@ -18,11 +18,11 @@ from src.database.models.orders import OrderItemModel, OrderModel
 from src.database.models.payments import (
     PaymentItemModel,
     PaymentModel,
-    PaymentStatusEnum,
+    PaymentStatusEnum
 )
 from src.database.validators.payments import (
     validate_payment_amount,
-    validate_price_at_payment,
+    validate_price_at_payment
 )
 
 
@@ -30,7 +30,7 @@ def test_payment_status_enum_contains_required_values() -> None:
     assert {status.value for status in PaymentStatusEnum} == {
         "successful",
         "canceled",
-        "refunded",
+        "refunded"
     }
 
 
@@ -116,7 +116,7 @@ def test_validate_payment_amount_rejects_negative_value() -> None:
 
 @pytest.mark.parametrize("price", [Decimal("0.00"), Decimal("9.99")])
 def test_validate_price_at_payment_accepts_valid_values(
-    price: Decimal,
+        price: Decimal
 ) -> None:
     assert validate_price_at_payment(price) == price
 
@@ -131,14 +131,14 @@ def test_payment_models_apply_amount_validation() -> None:
         PaymentModel(
             user_id=1,
             order_id=1,
-            amount=Decimal("-0.01"),
+            amount=Decimal("-0.01")
         )
 
     with pytest.raises(ValueError):
         PaymentItemModel(
             payment_id=1,
             order_item_id=1,
-            price_at_payment=Decimal("-0.01"),
+            price_at_payment=Decimal("-0.01")
         )
 
 
@@ -148,13 +148,13 @@ def test_payment_model_representations() -> None:
         user_id=2,
         order_id=3,
         status=PaymentStatusEnum.SUCCESSFUL,
-        amount=Decimal("9.99"),
+        amount=Decimal("9.99")
     )
     item = PaymentItemModel(
         id=4,
         payment_id=1,
         order_item_id=5,
-        price_at_payment=Decimal("9.99"),
+        price_at_payment=Decimal("9.99")
     )
 
     assert repr(payment) == (

@@ -11,7 +11,8 @@ from src.database.models import UserProfileModel
 from src.database.validators.avatars import validate_avatar
 from src.repositories.profiles import ProfileRepository
 from src.schemas.accounts import (
-    UserProfileResponseSchema, UserProfileUpdateRequestSchema,
+    UserProfileResponseSchema,
+    UserProfileUpdateRequestSchema
 )
 from src.storages.s3 import S3Storage, StorageError
 
@@ -20,17 +21,28 @@ logger = logging.getLogger(__name__)
 
 
 class ProfileService:
-    def __init__(self, repository: ProfileRepository, storage: S3Storage, settings: Settings):
+    def __init__(
+            self,
+            repository: ProfileRepository,
+            storage: S3Storage,
+            settings: Settings
+    ):
         self.repository = repository
         self.storage = storage
         self.settings = settings
 
-    async def serialize_profile(self, profile: UserProfileModel) -> UserProfileResponseSchema:
+    async def serialize_profile(
+            self,
+            profile: UserProfileModel
+    ) -> UserProfileResponseSchema:
         response = UserProfileResponseSchema.model_validate(profile)
 
         if profile.avatar:
             try:
-                response.avatar = await run_in_threadpool(self.storage.get_file_url, profile.avatar)
+                response.avatar = await run_in_threadpool(
+                    self.storage.get_file_url,
+                    profile.avatar
+                )
 
             except StorageError:
                 raise HTTPException(
@@ -63,7 +75,11 @@ class ProfileService:
             )
 
         try:
-            data, extension = await run_in_threadpool(validate_avatar, data, avatar.content_type)
+            data, extension = await run_in_threadpool(
+                validate_avatar,
+                data,
+                avatar.content_type
+            )
 
         except ValueError as error:
             raise HTTPException(
@@ -80,7 +96,10 @@ class ProfileService:
         return data, extension
 
     async def get_profile(self, user_id: int) -> UserProfileModel:
-        async with database_errors(self.repository, detail="Profiles are temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Profiles are temporarily unavailable"
+        ):
             profile = await self.repository.get_profile(user_id)
 
         if profile is None:

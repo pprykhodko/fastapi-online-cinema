@@ -9,7 +9,7 @@ from src.schemas.common import PaginationQuerySchema, PaginationResponseSchema
 from src.schemas.movies import (
     BaseMovieIdRequestSchema,
     BaseMovieItemResponseSchema,
-    MovieListQuerySchema,
+    MovieListQuerySchema
 )
 
 

@@ -8,7 +8,10 @@ class DirectorRepository(NamedEntityRepository[DirectorModel]):
     model = DirectorModel
 
     async def list_directors(self) -> list[DirectorModel]:
-        directors = await self.db.scalars(select(DirectorModel).order_by(DirectorModel.id))
+        directors = await self.db.scalars(
+            select(DirectorModel)
+            .order_by(DirectorModel.id)
+        )
 
         return list(directors.all())
 

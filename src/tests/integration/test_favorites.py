@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.api.dependencies import get_favorite_service
 from src.database.models import (
     CertificationModel, DirectorModel, GenreModel, MovieFavoriteModel,
-    MovieModel, StarModel, UserModel,
+    MovieModel, StarModel, UserModel
 )
 from src.main import app
 from src.repositories.favorites import FavoriteRepository
@@ -26,7 +26,7 @@ async def favorites_api(login_api):
         user = await db.get(UserModel, user_id)
         other = UserModel(
             email="other@example.com", group_id=user.group_id,
-            _hashed_password="unused", is_active=True,
+            _hashed_password="unused", is_active=True
         )
         db.add(other)
         await db.flush()
@@ -40,7 +40,7 @@ async def favorites_api(login_api):
             (2, "Second", 2022, 6, 300, "5"),
             (3, "100%_Movie/", 2022, 10, 200, None),
             (4, "Deleted", 2025, 9, 1000, "1"),
-            (5, "Other movie", 2024, 9, 1000, "1"),
+            (5, "Other movie", 2024, 9, 1000, "1")
         ]:
             db.add(MovieModel(
                 id=movie_id, name=name, year=year, time=90, imdb=imdb,
@@ -49,7 +49,7 @@ async def favorites_api(login_api):
                 certification=certification, is_deleted=movie_id == 4,
                 genres=[genre] if movie_id in (1, 2) else [],
                 stars=stars if movie_id == 1 else [],
-                directors=[director] if movie_id == 2 else [],
+                directors=[director] if movie_id == 2 else []
             ))
         await db.flush()
         db.add_all([
@@ -62,7 +62,7 @@ async def favorites_api(login_api):
         ])
         await db.commit()
     headers = {
-        "Authorization": f"Bearer {manager.create_access_token(user_id)}",
+        "Authorization": f"Bearer {manager.create_access_token(user_id)}"
     }
     return client, sessions, user_id, other_id, headers
 
@@ -81,7 +81,7 @@ async def favorites_api(login_api):
     ({"sort_by": "price", "sort_order": "desc"}, [1, 2, 3]),
     ({"sort_by": "year", "sort_order": "asc"}, [1, 2, 3]),
     ({"sort_by": "popularity", "sort_order": "asc"}, [1, 3, 2]),
-    ({"sort_by": "popularity", "sort_order": "desc"}, [2, 3, 1]),
+    ({"sort_by": "popularity", "sort_order": "desc"}, [2, 3, 1])
 ])
 async def test_favorite_queries(favorites_api, params, expected):
     client, _, _, _, headers = favorites_api
@@ -101,7 +101,7 @@ async def test_favorite_queries(favorites_api, params, expected):
 async def test_favorite_pagination(favorites_api, page, expected):
     client, _, _, _, headers = favorites_api
     response = await client.get(
-        URL, headers=headers, params={"page": page, "per_page": 2},
+        URL, headers=headers, params={"page": page, "per_page": 2}
     )
     assert response.status_code == 200
     data = response.json()
@@ -129,11 +129,11 @@ async def test_add_remove_and_isolation(favorites_api):
         assert await db.get(MovieModel, 5) is not None
         assert await db.scalar(select(MovieFavoriteModel.id).where(
             MovieFavoriteModel.user_id == other_id,
-            MovieFavoriteModel.movie_id == 5,
+            MovieFavoriteModel.movie_id == 5
         )) is not None
         assert await db.scalar(select(MovieFavoriteModel.id).where(
             MovieFavoriteModel.user_id == user_id,
-            MovieFavoriteModel.movie_id == 5,
+            MovieFavoriteModel.movie_id == 5
         )) is None
 
 
@@ -157,7 +157,7 @@ async def test_remove_deleted_movie_and_empty_list(favorites_api):
 async def test_missing_or_deleted_movie(favorites_api, movie_id):
     client, _, _, _, headers = favorites_api
     response = await client.post(
-        URL, headers=headers, json={"movie_id": movie_id},
+        URL, headers=headers, json={"movie_id": movie_id}
     )
     assert response.status_code == 404
 
@@ -165,7 +165,7 @@ async def test_missing_or_deleted_movie(favorites_api, movie_id):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("body", [
     {}, {"movie_id": 0}, {"movie_id": -1}, {"movie_id": True},
-    {"movie_id": "1"}, {"movie_id": 2**63}, {"movie_id": 5, "user_id": 2},
+    {"movie_id": "1"}, {"movie_id": 2**63}, {"movie_id": 5, "user_id": 2}
 ])
 async def test_invalid_favorite_body(favorites_api, body):
     client, _, _, _, headers = favorites_api
@@ -176,7 +176,7 @@ async def test_invalid_favorite_body(favorites_api, body):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("params", [
     {"page": 0}, {"per_page": 101}, {"min_imdb": 11}, {"search": "   "},
-    {"genre_id": 0}, {"sort_by": "invalid"}, {"user_id": 2},
+    {"genre_id": 0}, {"sort_by": "invalid"}, {"user_id": 2}
 ])
 async def test_invalid_favorite_query(favorites_api, params):
     client, _, _, _, headers = favorites_api
@@ -198,14 +198,14 @@ async def test_favorites_require_active_account(favorites_api, method, auth):
         headers = {} if auth == "missing" else {"Authorization": "Bearer bad"}
     response = await client.request(
         method, URL + "1/" if method == "DELETE" else URL, headers=headers,
-        **({"json": {"movie_id": 5}} if method == "POST" else {}),
+        **({"json": {"movie_id": 5}} if method == "POST" else {})
     )
     assert response.status_code == (403 if auth == "inactive" else 401)
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method, failure", [
-    ("GET", "list_movies"), ("POST", "get_movie"), ("DELETE", "delete"),
+    ("GET", "list_movies"), ("POST", "get_movie"), ("DELETE", "delete")
 ])
 async def test_favorite_database_failure(favorites_api, monkeypatch,
                                          method, failure):
@@ -218,7 +218,7 @@ async def test_favorite_database_failure(favorites_api, monkeypatch,
                         lambda: FavoriteService(repository, movie_repository))
     response = await client.request(
         method, URL + "1/" if method == "DELETE" else URL, headers=headers,
-        **({"json": {"movie_id": 5}} if method == "POST" else {}),
+        **({"json": {"movie_id": 5}} if method == "POST" else {})
     )
     assert response.status_code == 503
     assert "secret" not in response.text
@@ -238,7 +238,7 @@ async def test_favorite_commit_failure_rolls_back(favorites_api, monkeypatch):
     async with sessions() as db:
         assert await db.scalar(select(MovieFavoriteModel.id).where(
             MovieFavoriteModel.user_id == user_id,
-            MovieFavoriteModel.movie_id == 5,
+            MovieFavoriteModel.movie_id == 5
         )) is None
 
 
@@ -251,5 +251,5 @@ def test_favorites_openapi():
             assert operation["security"]
     assert {p["name"] for p in paths[URL]["get"]["parameters"]} == {
         "page", "per_page", "year", "min_imdb", "genre_id", "search",
-        "sort_by", "sort_order",
+        "sort_by", "sort_order"
     }

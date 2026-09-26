@@ -12,7 +12,7 @@ from src.api.dependencies import get_movie_service
 from src.database import get_db
 from src.database.models import (
     Base, CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel,
-    MovieReactionModel, UserGroupModel, UserGroupEnum, UserModel,
+    MovieReactionModel, UserGroupModel, UserGroupEnum, UserModel
 )
 from src.database.session_sqlite import create_sqlite_engine
 from src.main import app
@@ -42,7 +42,7 @@ async def catalog_api(monkeypatch):
             (2, "Second", 2022, 6.0, 300, "5.00", [drama, comedy]),
             (3, "100%_Movie/", 2022, 10.0, 200, None, [comedy]),
             (4, "Fourth", 2019, 0.0, 100, "10.00", []),
-            (5, "Deleted", 2025, 9.0, 999, "1.00", [drama]),
+            (5, "Deleted", 2025, 9.0, 999, "1.00", [drama])
         ]:
             db.add(MovieModel(
                 id=movie_id, name=name, year=year, time=90, imdb=imdb,
@@ -51,7 +51,7 @@ async def catalog_api(monkeypatch):
                 description="Space adventure" if movie_id == 1 else "Story",
                 certification=certification, is_deleted=movie_id == 5,
                 stars=stars if movie_id == 1 else [],
-                directors=[director] if movie_id == 2 else [],
+                directors=[director] if movie_id == 2 else []
             ))
         await db.commit()
 
@@ -62,7 +62,7 @@ async def catalog_api(monkeypatch):
     monkeypatch.setitem(app.dependency_overrides, get_db, override_db)
     try:
         async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test",
+                transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             yield client, sessions
     finally:
@@ -80,7 +80,7 @@ async def test_catalog_is_public_and_excludes_deleted(catalog_api):
     assert [item["votes"] for item in data["items"]] == [300, 200, 100, 100]
     assert data["items"][0]["is_available_for_purchase"] is True
     assert {g["name"] for g in data["items"][0]["genres"]} == {
-        "Drama", "Comedy",
+        "Drama", "Comedy"
     }
     assert data["items"][1]["price"] is None
     assert data["items"][1]["is_available_for_purchase"] is False
@@ -104,7 +104,7 @@ async def test_catalog_is_public_and_excludes_deleted(catalog_api):
     ({"search": "_"}, [3]),
     ({"search": "/"}, [3]),
     ({"search": "deleted"}, []),
-    ({"search": "' OR 1=1 --"}, []),
+    ({"search": "' OR 1=1 --"}, [])
 ])
 async def test_catalog_filters_and_search(catalog_api, params, expected):
     client, _ = catalog_api
@@ -121,12 +121,12 @@ async def test_catalog_filters_and_search(catalog_api, params, expected):
     ("price", "asc", [2, 1, 4, 3]),
     ("price", "desc", [1, 4, 2, 3]),
     ("popularity", "asc", [1, 4, 3, 2]),
-    ("popularity", "desc", [2, 3, 1, 4]),
+    ("popularity", "desc", [2, 3, 1, 4])
 ])
 async def test_catalog_sorting(catalog_api, sort_by, sort_order, expected):
     client, _ = catalog_api
     response = await client.get(URL_PATH, params={
-        "sort_by": sort_by, "sort_order": sort_order,
+        "sort_by": sort_by, "sort_order": sort_order
     })
     assert response.status_code == 200
     assert [item["id"] for item in response.json()["items"]] == expected
@@ -168,7 +168,7 @@ async def test_empty_catalog(catalog_api):
     {"min_imdb": -1}, {"min_imdb": 11}, {"min_imdb": "nan"},
     {"min_imdb": "inf"}, {"search": ""}, {"search": "   "},
     {"search": "a" * 251}, {"sort_by": "invalid"},
-    {"sort_order": "invalid"}, {"unknown": "field"},
+    {"sort_order": "invalid"}, {"unknown": "field"}
 ])
 async def test_invalid_catalog_parameters(catalog_api, params):
     client, _ = catalog_api
@@ -183,12 +183,12 @@ async def test_catalog_database_failure(catalog_api, monkeypatch):
     db.scalar.side_effect = SQLAlchemyError("private DB details")
     monkeypatch.setitem(
         app.dependency_overrides, get_movie_service,
-        lambda: MovieService(MovieRepository(db)),
+        lambda: MovieService(MovieRepository(db))
     )
     response = await client.get(URL_PATH)
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "The movie catalog is temporarily unavailable",
+        "detail": "The movie catalog is temporarily unavailable"
     }
     db.rollback.assert_awaited_once()
 
@@ -199,7 +199,7 @@ def test_catalog_openapi():
     assert not operation.get("security")
     assert {p["name"] for p in operation["parameters"]} == {
         "page", "per_page", "year", "min_imdb", "genre_id", "search",
-        "sort_by", "sort_order",
+        "sort_by", "sort_order"
     }
     assert {"200", "422", "503"} <= operation["responses"].keys()
 
@@ -211,17 +211,17 @@ async def test_catalog_reaction_counts(catalog_api):
         group = UserGroupModel(name=UserGroupEnum.USER)
         users = [UserModel(
             email=f"user{i}@example.com", group=group,
-            _hashed_password="unused", is_active=True,
+            _hashed_password="unused", is_active=True
         ) for i in range(3)]
         db.add_all(users)
         await db.flush()
         reactions = [MovieReactionModel(
             user_id=user.id, movie_id=2,
-            reaction="dislike" if index == 2 else "like",
+            reaction="dislike" if index == 2 else "like"
         ) for index, user in enumerate(users)]
         db.add_all(reactions)
         db.add(MovieReactionModel(
-            user_id=users[0].id, movie_id=1, reaction="dislike",
+            user_id=users[0].id, movie_id=1, reaction="dislike"
         ))
         await db.commit()
         reaction_id = reactions[0].id
@@ -234,8 +234,8 @@ async def test_catalog_reaction_counts(catalog_api):
               for item in data["items"]}
     assert counts == {1: (0, 1), 2: (2, 1), 3: (0, 0), 4: (0, 0)}
     for params in (
-        {"page": 1, "per_page": 1}, {"search": "Second"},
-        {"genre_id": 1, "year": 2022},
+            {"page": 1, "per_page": 1}, {"search": "Second"},
+            {"genre_id": 1, "year": 2022}
     ):
         page = (await client.get(URL_PATH, params=params)).json()
         assert len(page["items"]) == 1
@@ -253,7 +253,7 @@ async def test_catalog_reaction_counts(catalog_api):
     assert (changed["likes_count"], changed["dislikes_count"]) == (1, 2)
     async with sessions() as db:
         await db.execute(delete(MovieReactionModel).where(
-            MovieReactionModel.id == reaction_id,
+            MovieReactionModel.id == reaction_id
         ))
         await db.commit()
     changed = (await client.get(URL_PATH)).json()["items"][0]

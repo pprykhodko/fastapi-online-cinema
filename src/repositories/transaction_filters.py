@@ -20,9 +20,17 @@ def transaction_filters(model, query, user_id: int | None = None) -> list:
             filters.append(model.status == transaction_status)
 
         if query.date_from is not None:
-            filters.append(model.created_at >= datetime.combine(query.date_from, time.min, timezone.utc))
+            filters.append(
+                model.created_at >= datetime.combine(
+                    query.date_from, time.min, timezone.utc
+                )
+            )
 
         if query.date_to is not None:
-            filters.append(model.created_at <= datetime.combine(query.date_to, time.max, timezone.utc))
+            filters.append(
+                model.created_at <= datetime.combine(
+                    query.date_to, time.max, timezone.utc
+                )
+            )
 
     return filters

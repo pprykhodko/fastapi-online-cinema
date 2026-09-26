@@ -10,7 +10,7 @@ from src.api.dependencies import get_movie_service
 from src.database.models import (
     CartItemModel, CartModel, CertificationModel, DirectorModel, GenreModel,
     MovieModel, OrderItemModel, OrderModel, OrderStatusEnum, PaymentModel,
-    PaymentStatusEnum, StarModel, UserGroupModel, UserGroupEnum, UserModel,
+    PaymentStatusEnum, StarModel, UserGroupModel, UserGroupEnum, UserModel
 )
 from src.main import app
 from src.services.movies import MovieService
@@ -26,7 +26,7 @@ def movie_data():
         "name": "Interstellar", "year": 2014, "time": 169, "imdb": 8.7,
         "votes": 100, "description": "Space adventure", "price": "9.99",
         "certification_id": 1, "genre_ids": [1], "star_ids": [1],
-        "director_ids": [1], "meta_score": 74, "gross": 1000,
+        "director_ids": [1], "meta_score": 74, "gross": 1000
     }
 
 
@@ -46,11 +46,11 @@ async def movies_api(login_api):
             id=1, name="Existing", year=2020, time=90, imdb=7, votes=5,
             description="Story", price=Decimal("5"),
             certification=certification, genres=[genre], stars=[star],
-            directors=[director],
+            directors=[director]
         ))
         await db.commit()
     headers = {
-        "Authorization": f"Bearer {manager.create_access_token(user_id)}",
+        "Authorization": f"Bearer {manager.create_access_token(user_id)}"
     }
     return client, sessions, user_id, headers
 
@@ -105,10 +105,10 @@ async def test_movie_write_permissions(movies_api, movie_data, method, role):
             await db.commit()
     response = await client.request(
         method, URL if method == "POST" else URL + "1/", headers=headers,
-        **({"json": movie_data} if method != "DELETE" else {}),
+        **({"json": movie_data} if method != "DELETE" else {})
     )
     expected = 401 if role is None else 403 if role == "user" else {
-        "POST": 201, "PUT": 200, "DELETE": 204,
+        "POST": 201, "PUT": 200, "DELETE": 204
     }[method]
     assert response.status_code == expected
 
@@ -119,16 +119,16 @@ async def test_movie_write_permissions(movies_api, movie_data, method, role):
     ("certification_id", 999), ("genre_ids", [999]), ("star_ids", [999]),
     ("director_ids", [999]), ("genre_ids", [1, 1]), ("genre_ids", [-1]),
     ("name", ""), ("imdb", 11), ("time", 0), ("price", "-1"),
-    ("is_deleted", True),
+    ("is_deleted", True)
 ])
 async def test_invalid_movie_is_not_saved(
-    movies_api, movie_data, method, field, value,
+        movies_api, movie_data, method, field, value
 ):
     client, _, _, headers = movies_api
     before = (await client.get(URL + "1/")).json()
     response = await client.request(
         method, URL if method == "POST" else URL + "1/", headers=headers,
-        json={**movie_data, field: value},
+        json={**movie_data, field: value}
     )
     assert response.status_code == 422
     assert (await client.get(URL + "1/")).json() == before
@@ -162,7 +162,7 @@ async def test_cart_warning_and_confirmation(movies_api):
     async with sessions() as db:
         assert await db.scalar(select(CartItemModel.id)) is not None
     response = await client.delete(
-        URL + "1/", headers=headers, params={"confirm": True},
+        URL + "1/", headers=headers, params={"confirm": True}
     )
     assert response.status_code == 204
     async with sessions() as db:
@@ -173,15 +173,15 @@ async def test_cart_warning_and_confirmation(movies_api):
 @pytest.mark.parametrize("order_status, payment_status, expected", [
     ("paid", None, 409), ("pending", "successful", 409),
     ("canceled", "refunded", 409), ("pending", None, 204),
-    ("canceled", "canceled", 204),
+    ("canceled", "canceled", 204)
 ])
 async def test_purchase_blocks_deletion(
-    movies_api, order_status, payment_status, expected,
+        movies_api, order_status, payment_status, expected
 ):
     client, sessions, user_id, headers = movies_api
     async with sessions() as db:
         order = OrderModel(
-            user_id=user_id, status=OrderStatusEnum(order_status),
+            user_id=user_id, status=OrderStatusEnum(order_status)
         )
         order.items = [OrderItemModel(movie_id=1, price_at_order=Decimal("5"))]
         db.add(order)
@@ -189,11 +189,11 @@ async def test_purchase_blocks_deletion(
         if payment_status:
             db.add(PaymentModel(
                 user_id=user_id, order_id=order.id, amount=Decimal("5"),
-                status=PaymentStatusEnum(payment_status),
+                status=PaymentStatusEnum(payment_status)
             ))
         await db.commit()
     response = await client.delete(
-        URL + "1/", headers=headers, params={"confirm": True},
+        URL + "1/", headers=headers, params={"confirm": True}
     )
     assert response.status_code == expected
     async with sessions() as db:
@@ -206,12 +206,12 @@ async def test_purchase_blocks_deletion(
 @pytest.mark.parametrize("method", ["GET", "PUT", "DELETE"])
 @pytest.mark.parametrize("movie_id, expected", [(999, 404), (0, 422)])
 async def test_missing_movie(
-    movies_api, movie_data, method, movie_id, expected,
+        movies_api, movie_data, method, movie_id, expected
 ):
     client, _, _, headers = movies_api
     response = await client.request(
         method, f"{URL}{movie_id}/", headers=headers,
-        **({"json": movie_data} if method == "PUT" else {}),
+        **({"json": movie_data} if method == "PUT" else {})
     )
     assert response.status_code == expected
 
@@ -219,7 +219,7 @@ async def test_missing_movie(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method, failure", [
     ("GET", "get_movie"), ("POST", "get_relations"),
-    ("DELETE", "get_movie"),
+    ("DELETE", "get_movie")
 ])
 async def test_database_errors(movies_api, movie_data, monkeypatch,
                                method, failure):
@@ -230,7 +230,7 @@ async def test_database_errors(movies_api, movie_data, monkeypatch,
                         lambda: MovieService(repository))
     response = await client.request(
         method, URL if method == "POST" else URL + "1/", headers=headers,
-        **({"json": movie_data} if method == "POST" else {}),
+        **({"json": movie_data} if method == "POST" else {})
     )
     assert response.status_code == 503
     assert "secret" not in response.text
@@ -240,7 +240,7 @@ async def test_database_errors(movies_api, movie_data, monkeypatch,
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method", ["POST", "PUT", "DELETE"])
 async def test_failed_commit_rolls_back(
-    movies_api, movie_data, monkeypatch, method,
+        movies_api, movie_data, monkeypatch, method
 ):
     client, sessions, user_id, headers = movies_api
     async with sessions() as db:
@@ -258,7 +258,7 @@ async def test_failed_commit_rolls_back(
     response = await client.request(
         method, URL if method == "POST" else URL + "1/", headers=headers,
         params={"confirm": True} if method == "DELETE" else {},
-        **({"json": movie_data} if method != "DELETE" else {}),
+        **({"json": movie_data} if method != "DELETE" else {})
     )
     assert response.status_code == 503
     assert (await client.get(URL + "1/")).json() == before

@@ -15,7 +15,7 @@ from src.schemas.payments import (
     PaymentListResponseSchema,
     PaymentRefundRequestSchema,
     PaymentRefundResponseSchema,
-    PaymentResponseSchema,
+    PaymentResponseSchema
 )
 
 
@@ -26,7 +26,7 @@ def payment_data() -> dict[str, Any]:
         "created_at": datetime(2026, 9, 10, tzinfo=timezone.utc),
         "status": "successful", "amount": "9.99",
         "external_payment_id": "pi_test_123",
-        "items": [{"id": 4, "order_item_id": 5, "price_at_payment": "9.99"}],
+        "items": [{"id": 4, "order_item_id": 5, "price_at_payment": "9.99"}]
     }
 
 
@@ -48,7 +48,7 @@ def test_payment_creation_requires_order_id() -> None:
 
 @pytest.mark.parametrize("field", [
     "user_id", "amount", "status", "items", "external_payment_id",
-    "success_url", "cancel_url",
+    "success_url", "cancel_url"
 ])
 def test_payment_creation_rejects_server_controlled_fields(field: str) -> None:
     with pytest.raises(ValidationError) as error:
@@ -59,11 +59,11 @@ def test_payment_creation_rejects_server_controlled_fields(field: str) -> None:
 def test_checkout_response_serializes_payment_page_url() -> None:
     response = PaymentCheckoutResponseSchema.model_validate({
         "order_id": 3,
-        "checkout_url": "https://checkout.stripe.com/c/pay/test",
+        "checkout_url": "https://checkout.stripe.com/c/pay/test"
     })
     assert response.model_dump(mode="json") == {
         "order_id": 3,
-        "checkout_url": "https://checkout.stripe.com/c/pay/test",
+        "checkout_url": "https://checkout.stripe.com/c/pay/test"
     }
 
 
@@ -71,12 +71,12 @@ def test_checkout_response_serializes_payment_page_url() -> None:
 def test_checkout_response_rejects_invalid_url(url: str) -> None:
     with pytest.raises(ValidationError):
         PaymentCheckoutResponseSchema.model_validate({
-            "order_id": 3, "checkout_url": url,
+            "order_id": 3, "checkout_url": url
         })
 
 
 def test_payment_response_serializes_amounts_and_items(
-    payment_data: dict[str, Any],
+        payment_data: dict[str, Any]
 ) -> None:
     response = PaymentResponseSchema.model_validate(payment_data)
     assert response.amount == Decimal("9.99")
@@ -85,39 +85,39 @@ def test_payment_response_serializes_amounts_and_items(
     assert data["amount"] == "9.99"
     assert data["status"] == "successful"
     assert data["items"][0] == {
-        "id": 4, "order_item_id": 5, "price_at_payment": "9.99",
+        "id": 4, "order_item_id": 5, "price_at_payment": "9.99"
     }
 
 
 @pytest.mark.parametrize("status", list(PaymentStatusEnum))
 def test_payment_response_accepts_assignment_statuses(
-    payment_data: dict[str, Any], status: PaymentStatusEnum,
+        payment_data: dict[str, Any], status: PaymentStatusEnum
 ) -> None:
     response = PaymentResponseSchema.model_validate({
-        **payment_data, "status": status.value,
+        **payment_data, "status": status.value
     })
     assert response.status is status
 
 
 @pytest.mark.parametrize("status", ["pending", "paid", "SUCCESSFUL", "", None])
 def test_payment_response_rejects_invalid_status(
-    payment_data: dict[str, Any], status: Any,
+        payment_data: dict[str, Any], status: Any
 ) -> None:
     with pytest.raises(ValidationError):
         PaymentResponseSchema.model_validate({
-            **payment_data, "status": status,
+            **payment_data, "status": status
         })
 
 
 @pytest.mark.parametrize("amount", ["0", "0.01", "9.9900", "99999999.99"])
 def test_payment_amounts_accept_valid_values(
-    payment_data: dict[str, Any], amount: str,
+        payment_data: dict[str, Any], amount: str
 ) -> None:
     response = PaymentResponseSchema.model_validate({
-        **payment_data, "amount": amount,
+        **payment_data, "amount": amount
     })
     item = PaymentItemResponseSchema.model_validate({
-        **payment_data["items"][0], "price_at_payment": amount,
+        **payment_data["items"][0], "price_at_payment": amount
     })
     assert response.amount == Decimal(amount)
     assert item.price_at_payment == Decimal(amount)
@@ -125,36 +125,36 @@ def test_payment_amounts_accept_valid_values(
 
 @pytest.mark.parametrize("amount", [
     "-0.01", "100000000", "0.001", "NaN", "sNaN", "Infinity",
-    "-Infinity", True, None, "not-a-price",
+    "-Infinity", True, None, "not-a-price"
 ])
 def test_payment_amounts_reject_invalid_values(
-    payment_data: dict[str, Any], amount: Any,
+        payment_data: dict[str, Any], amount: Any
 ) -> None:
     with pytest.raises(ValidationError):
         PaymentResponseSchema.model_validate({
-            **payment_data, "amount": amount,
+            **payment_data, "amount": amount
         })
     with pytest.raises(ValidationError):
         PaymentItemResponseSchema.model_validate({
-            **payment_data["items"][0], "price_at_payment": amount,
+            **payment_data["items"][0], "price_at_payment": amount
         })
 
 
 @pytest.mark.parametrize("external_id", [None, "pi_test_123", "x" * 255])
 def test_payment_external_id_can_be_null_or_string(
-    payment_data: dict[str, Any], external_id: str | None,
+        payment_data: dict[str, Any], external_id: str | None
 ) -> None:
     response = PaymentResponseSchema.model_validate({
-        **payment_data, "external_payment_id": external_id,
+        **payment_data, "external_payment_id": external_id
     })
     assert response.external_payment_id == external_id
 
 
 @pytest.mark.parametrize("field", [
-    "status", "amount", "external_payment_id", "items",
+    "status", "amount", "external_payment_id", "items"
 ])
 def test_payment_response_does_not_invent_missing_values(
-    payment_data: dict[str, Any], field: str,
+        payment_data: dict[str, Any], field: str
 ) -> None:
     payment_data.pop(field)
     with pytest.raises(ValidationError):
@@ -164,10 +164,10 @@ def test_payment_response_does_not_invent_missing_values(
 @pytest.mark.parametrize(("field", "value"), [
     ("id", 0), ("user_id", -1), ("order_id", 0),
     ("created_at", "not-a-date"), ("external_payment_id", "x" * 256),
-    ("items", None),
+    ("items", None)
 ])
 def test_payment_response_rejects_invalid_fields(
-    payment_data: dict[str, Any], field: str, value: Any,
+        payment_data: dict[str, Any], field: str, value: Any
 ) -> None:
     with pytest.raises(ValidationError):
         PaymentResponseSchema.model_validate({**payment_data, field: value})
@@ -175,16 +175,16 @@ def test_payment_response_rejects_invalid_fields(
 
 @pytest.mark.parametrize("field", ["id", "order_item_id"])
 def test_payment_item_requires_positive_ids(
-    payment_data: dict[str, Any], field: str,
+        payment_data: dict[str, Any], field: str
 ) -> None:
     with pytest.raises(ValidationError):
         PaymentItemResponseSchema.model_validate({
-            **payment_data["items"][0], field: 0,
+            **payment_data["items"][0], field: 0
         })
 
 
 @pytest.mark.parametrize("schema", [
-    PaymentListQuerySchema, AdminPaymentListQuerySchema,
+    PaymentListQuerySchema, AdminPaymentListQuerySchema
 ])
 def test_payment_queries_parse_pagination(schema: type[BaseModel]) -> None:
     defaults = schema.model_validate({}).model_dump()
@@ -196,13 +196,13 @@ def test_payment_queries_parse_pagination(schema: type[BaseModel]) -> None:
 
 
 @pytest.mark.parametrize("schema", [
-    PaymentListQuerySchema, AdminPaymentListQuerySchema,
+    PaymentListQuerySchema, AdminPaymentListQuerySchema
 ])
 @pytest.mark.parametrize(("field", "value"), [
-    ("page", 0), ("page", "invalid"), ("per_page", 0), ("per_page", 101),
+    ("page", 0), ("page", "invalid"), ("per_page", 0), ("per_page", 101)
 ])
 def test_payment_queries_reject_invalid_pagination(
-    schema: type[BaseModel], field: str, value: Any,
+        schema: type[BaseModel], field: str, value: Any
 ) -> None:
     with pytest.raises(ValidationError):
         schema.model_validate({field: value})
@@ -218,7 +218,7 @@ def test_user_payment_query_rejects_extra_filters(field: str) -> None:
 def test_admin_payment_query_parses_filters() -> None:
     query = AdminPaymentListQuerySchema.model_validate({
         "user_id": "2", "status": "refunded",
-        "date_from": "2026-09-01", "date_to": "2026-09-10",
+        "date_from": "2026-09-01", "date_to": "2026-09-10"
     })
     assert query.user_id == 2
     assert query.status is PaymentStatusEnum.REFUNDED
@@ -229,10 +229,10 @@ def test_admin_payment_query_parses_filters() -> None:
 @pytest.mark.parametrize("filters", [
     {"date_from": "2026-09-10", "date_to": "2026-09-10"},
     {"date_from": "2026-09-10", "date_to": None},
-    {"date_to": "2026-09-10"}, {"date_from": None, "date_to": None},
+    {"date_to": "2026-09-10"}, {"date_from": None, "date_to": None}
 ])
 def test_admin_payment_query_allows_equal_and_open_date_ranges(
-    filters: dict[str, Any],
+        filters: dict[str, Any]
 ) -> None:
     query = AdminPaymentListQuerySchema.model_validate(filters)
     assert query.model_dump(exclude_unset=True).keys() == filters.keys()
@@ -241,22 +241,22 @@ def test_admin_payment_query_allows_equal_and_open_date_ranges(
 @pytest.mark.parametrize("filters", [
     {"date_from": "2026-09-10", "date_to": "2026-09-01"},
     {"date_from": "2026-02-30"}, {"date_to": "invalid"},
-    {"user_id": 0}, {"status": "paid"}, {"amount": "0"},
+    {"user_id": 0}, {"status": "paid"}, {"amount": "0"}
 ])
 def test_admin_payment_query_rejects_invalid_filters(
-    filters: dict[str, Any],
+        filters: dict[str, Any]
 ) -> None:
     with pytest.raises(ValidationError):
         AdminPaymentListQuerySchema.model_validate(filters)
 
 
 def test_payment_list_response_handles_empty_and_populated_pages(
-    payment_data: dict[str, Any],
+        payment_data: dict[str, Any]
 ) -> None:
     empty = PaymentListResponseSchema(items=[], total=0, page=1, per_page=10)
     assert empty.items == []
     response = PaymentListResponseSchema.model_validate({
-        "items": [payment_data], "total": 1, "page": 1, "per_page": 10,
+        "items": [payment_data], "total": 1, "page": 1, "per_page": 10
     })
     assert response.items[0].id == 1
     with pytest.raises(ValidationError):
@@ -269,7 +269,7 @@ def test_payment_schemas_expose_required_fields_and_status_metadata() -> None:
     assert request["required"] == ["order_id"]
     response = PaymentResponseSchema.model_json_schema()
     assert response["$defs"]["PaymentStatusEnum"]["enum"] == [
-        "successful", "canceled", "refunded",
+        "successful", "canceled", "refunded"
     ]
     assert "status" in response["required"]
     assert "default" not in response["properties"]["status"]
@@ -287,10 +287,10 @@ def test_refund_request_rejects_invalid_id(payment_id: Any) -> None:
 
 
 @pytest.mark.parametrize("field", [
-    "user_id", "amount", "status", "external_payment_id", "items",
+    "user_id", "amount", "status", "external_payment_id", "items"
 ])
 def test_refund_request_does_not_accept_client_amount_or_status(
-    field: str,
+        field: str
 ) -> None:
     with pytest.raises(ValidationError) as error:
         PaymentRefundRequestSchema.model_validate({"payment_id": 3, field: 1})
@@ -305,10 +305,10 @@ def test_refund_request_requires_payment_id() -> None:
 def test_refund_response_acknowledges_request_without_claiming_completion(
 ) -> None:
     response = PaymentRefundResponseSchema(
-        payment_id=3, message="Refund request accepted.",
+        payment_id=3, message="Refund request accepted."
     )
     assert response.model_dump() == {
-        "payment_id": 3, "message": "Refund request accepted.",
+        "payment_id": 3, "message": "Refund request accepted."
     }
     assert "status" not in response.model_dump()
     assert "amount" not in response.model_dump()
@@ -317,7 +317,7 @@ def test_refund_response_acknowledges_request_without_claiming_completion(
 @pytest.mark.parametrize("data", [
     {"payment_id": 0, "message": "Accepted."},
     {"payment_id": 3, "message": ""},
-    {"payment_id": 3}, {"message": "Accepted."},
+    {"payment_id": 3}, {"message": "Accepted."}
 ])
 def test_refund_response_requires_id_and_message(data: dict[str, Any]) -> None:
     with pytest.raises(ValidationError):

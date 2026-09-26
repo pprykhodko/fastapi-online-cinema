@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.api.dependencies import (
     get_comment_service, get_favorite_service, get_rating_service,
-    get_reaction_service, get_account_service,
+    get_reaction_service, get_account_service
 )
 from src.services.database_errors import database_errors
 from src.services.movie_checks import get_movie_or_404
@@ -45,11 +45,11 @@ async def test_named_entity_service_saves_and_deletes():
 async def test_database_error_translation_and_rollback(failure, conflict):
     repository = AsyncMock()
     getattr(repository, failure).side_effect = IntegrityError(
-        "private", {}, Exception(),
+        "private", {}, Exception()
     )
     with pytest.raises(HTTPException) as caught:
         async with database_errors(
-            repository, detail="Unavailable", conflict_detail=conflict,
+                repository, detail="Unavailable", conflict_detail=conflict
         ):
             await getattr(repository, failure)()
     assert caught.value.status_code == (409 if conflict else 503)
@@ -71,7 +71,7 @@ async def test_other_database_errors():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("error", [
     HTTPException(status_code=404, detail="Missing"),
-    ValueError("Invalid response"),
+    ValueError("Invalid response")
 ])
 async def test_unexpected_and_http_errors_are_not_replaced(error):
     repository = AsyncMock()
@@ -88,10 +88,10 @@ async def test_movie_check_preserves_lock_and_loading_options():
     movie = object()
     repository.get_movie.return_value = movie
     assert await get_movie_or_404(
-        repository, 12, lock=True, with_relations=True,
+        repository, 12, lock=True, with_relations=True
     ) is movie
     repository.get_movie.assert_awaited_once_with(
-        12, for_update=True, with_relations=True,
+        12, for_update=True, with_relations=True
     )
     repository.get_movie.return_value = None
     with pytest.raises(HTTPException) as caught:
@@ -102,7 +102,7 @@ async def test_movie_check_preserves_lock_and_loading_options():
 def test_injected_repositories_share_session():
     db = AsyncMock()
     for factory in (
-        get_favorite_service, get_rating_service, get_reaction_service,
+            get_favorite_service, get_rating_service, get_reaction_service
     ):
         service = factory(db=db)
         assert service.repository.db is db

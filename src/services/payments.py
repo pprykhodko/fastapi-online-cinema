@@ -49,18 +49,27 @@ class PaymentService:
             query: PaymentListQuerySchema | AdminPaymentListQuerySchema,
             user_id: int | None = None
     ) -> PaymentListResponseSchema:
-        async with database_errors(self.repository, detail="Payments are temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Payments are temporarily unavailable"
+        ):
             records, total = await self.repository.list_payments(query, user_id)
 
             return PaymentListResponseSchema(
-                items=[PaymentResponseSchema.model_validate(record) for record in records],
+                items=[
+                    PaymentResponseSchema.model_validate(record)
+                    for record in records
+                ],
                 total=total,
                 page=query.page,
                 per_page=query.per_page
             )
 
     async def get_payment(self, user_id: int, payment_id: int) -> PaymentResponseSchema:
-        async with database_errors(self.repository, detail="Payment is temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Payment is temporarily unavailable"
+        ):
             payment = await self._owned_payment(user_id, payment_id)
 
             return PaymentResponseSchema.model_validate(payment)
@@ -76,19 +85,40 @@ class PaymentService:
 
         return payment
 
-    async def purchased_movies(self, user_id: int, query: PaymentListQuerySchema) -> PurchasedMovieListResponseSchema:
-        async with database_errors(self.repository, detail="Purchased movies are temporarily unavailable"):
-            movies, total = await self.repository.purchased_movies(user_id, query.page, query.per_page)
+    async def purchased_movies(
+            self,
+            user_id: int,
+            query: PaymentListQuerySchema
+    ) -> PurchasedMovieListResponseSchema:
+        async with database_errors(
+                self.repository,
+                detail="Purchased movies are temporarily unavailable"
+        ):
+            movies, total = await self.repository.purchased_movies(
+                user_id,
+                query.page,
+                query.per_page
+            )
 
             return PurchasedMovieListResponseSchema(
-                items=[MovieListItemResponseSchema.model_validate(movie) for movie in movies],
+                items=[
+                    MovieListItemResponseSchema.model_validate(movie)
+                    for movie in movies
+                ],
                 total=total,
                 page=query.page,
                 per_page=query.per_page
             )
 
-    async def create_checkout(self, user_id: int, order_id: int) -> PaymentCheckoutResponseSchema:
-        async with database_errors(self.repository, detail="Payment checkout could not be saved"):
+    async def create_checkout(
+            self,
+            user_id: int,
+            order_id: int
+    ) -> PaymentCheckoutResponseSchema:
+        async with database_errors(
+                self.repository,
+                detail="Payment checkout could not be saved"
+        ):
             order = await self.orders.get_owned_order(user_id, order_id, lock=True)
             checkout = await self.repository.checkout_for_order(order_id)
 
@@ -106,7 +136,8 @@ class PaymentService:
                 if 0 < amount < 50 or amount > 99999999:
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
-                        detail="Stripe requires a zero total or a total between 0.50 and 999999.99 USD/EUR"
+                        detail="Stripe requires a zero total or "
+                               "a total between 0.50 and 999999.99 USD/EUR"
                     )
                 self.gateway.client()
                 key = str(uuid4())
@@ -139,11 +170,15 @@ class PaymentService:
                 if checkout.expires_at <= int(time.time()):
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
-                        detail="Checkout outcome is unknown. Wait for the Stripe webhook or contact support."
+                        detail="Checkout outcome is unknown. "
+                               "Wait for the Stripe webhook or contact support."
                     )
 
                 try:
-                    session = await self.gateway.create_checkout(checkout.request_data, checkout.request_key)
+                    session = await self.gateway.create_checkout(
+                        checkout.request_data,
+                        checkout.request_key
+                    )
 
                 except CheckoutRejectedError:
                     checkout.status = "rejected"
@@ -151,7 +186,8 @@ class PaymentService:
                     await self.repository.commit()
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
-                        detail="Stripe could not create checkout. Check payment-method configuration, then create a new order."
+                        detail="Stripe could not create checkout. Check "
+                               "payment-method configuration, then create a new order."
                     )
 
             self._validate_session(checkout, session)
@@ -161,27 +197,35 @@ class PaymentService:
                 await self._finalize_checkout(order, checkout, session)
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Checkout has ended. Check payment history; create a new order if it expired."
+                    detail="Checkout has ended. Check payment history; "
+                           "create a new order if it expired."
                 )
 
             checkout.status = "open"
             checkout.checkout_url = session["url"]
-            response = PaymentCheckoutResponseSchema(order_id=order_id, checkout_url=HttpUrl(session["url"]))
+            response = PaymentCheckoutResponseSchema(
+                order_id=order_id,
+                checkout_url=HttpUrl(session["url"])
+            )
             await self.repository.commit()
 
             return response
 
     def _validate_session(self, checkout: PaymentCheckoutModel, session: dict) -> None:
         price = checkout.request_data["line_items"][0]["price_data"]
+        metadata = session.get("metadata") or {}
 
         if (
-                (session.get("metadata") or {}).get("request_key") != checkout.request_key
-                or (session.get("metadata") or {}).get("order_id") != str(checkout.order_id)
+                metadata.get("request_key") != checkout.request_key
+                or metadata.get("order_id") != str(checkout.order_id)
                 or session.get("client_reference_id") != str(checkout.order_id)
                 or session.get("amount_total") != checkout_amount(checkout.request_data)
                 or session.get("currency") != price["currency"]
                 or session.get("mode") != "payment"
-                or (checkout.session_id is not None and checkout.session_id != session.get("id"))
+                or (
+                    checkout.session_id is not None
+                    and checkout.session_id != session.get("id")
+                )
         ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -189,7 +233,10 @@ class PaymentService:
             )
 
     async def cancel_checkout(self, user_id: int, order_id: int) -> None:
-        async with database_errors(self.repository, detail="Checkout could not be canceled"):
+        async with database_errors(
+                self.repository,
+                detail="Checkout could not be canceled"
+        ):
             order = await self.orders.get_owned_order(user_id, order_id, lock=True)
             checkout = await self.repository.checkout_for_order(order_id)
 
@@ -203,7 +250,10 @@ class PaymentService:
                 return
 
             if order.status != OrderStatusEnum.PENDING or not checkout.session_id:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Checkout cannot be canceled now")
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Checkout cannot be canceled now"
+                )
 
             session = await self.gateway.retrieve_checkout(checkout.session_id)
 
@@ -220,11 +270,19 @@ class PaymentService:
             await self._record_session(order, checkout, session)
             await self.repository.commit()
 
-    async def _record_session(self, order: OrderModel, checkout: PaymentCheckoutModel, session: dict) -> None:
-        paid = session.get("status") == "complete" and (
-            session.get("payment_status") == "paid" or (
-                session.get("payment_status") == "no_payment_required" and session.get("amount_total") == 0
-            )
+    async def _record_session(
+            self,
+            order: OrderModel,
+            checkout: PaymentCheckoutModel,
+            session: dict
+    ) -> None:
+        paid = (
+                session.get("status") == "complete"
+                and (session.get("payment_status") == "paid"
+                     or (session.get("payment_status") == "no_payment_required"
+                         and session.get("amount_total") == 0
+                         )
+                     )
         )
 
         if checkout.payment_id is not None:
@@ -253,9 +311,16 @@ class PaymentService:
             order_id=order.id,
             amount=amount,
             currency=session["currency"],
-            external_payment_id=(session.get("payment_intent") or session["id"]) if paid else session["id"],
+            external_payment_id=(
+                    session.get("payment_intent") or session["id"]
+            ) if paid else session["id"],
             status=PaymentStatusEnum.SUCCESSFUL if paid else PaymentStatusEnum.CANCELED,
-            items=[PaymentItemModel(order_item_id=item.id, price_at_payment=item.price_at_order) for item in order.items]
+            items=[
+                PaymentItemModel(
+                    order_item_id=item.id,
+                    price_at_payment=item.price_at_order
+                ) for item in order.items
+            ]
         )
         await self.repository.add(payment)
         checkout.payment_id = payment.id
@@ -267,9 +332,16 @@ class PaymentService:
             cart = await self.orders.cart_repository.get_cart(order.user_id, lock=True)
 
             if cart is not None:
-                await self.orders.cart_repository.remove_items(cart.id, [item.movie_id for item in order.items])
+                await self.orders.cart_repository.remove_items(
+                    cart.id,
+                    [item.movie_id for item in order.items]
+                )
 
-    async def _queue_confirmation(self, order: OrderModel, checkout: PaymentCheckoutModel) -> None:
+    async def _queue_confirmation(
+            self,
+            order: OrderModel,
+            checkout: PaymentCheckoutModel
+    ) -> None:
         if checkout.status != "completed" or checkout.email_queued:
             return
 
@@ -309,7 +381,12 @@ class PaymentService:
 
         return checkout
 
-    async def _finalize_checkout(self, order: OrderModel, checkout: PaymentCheckoutModel, session: dict) -> None:
+    async def _finalize_checkout(
+            self,
+            order: OrderModel,
+            checkout: PaymentCheckoutModel,
+            session: dict
+    ) -> None:
         await self._record_session(order, checkout, session)
         await self.repository.commit()
         order = await self.orders.get_owned_order(order.user_id, order.id, lock=True)
@@ -318,7 +395,10 @@ class PaymentService:
         await self._queue_confirmation(order, locked_checkout)
 
     async def handle_event(self, event: dict) -> None:
-        async with database_errors(self.repository, detail="Payment notification could not be saved"):
+        async with database_errors(
+                self.repository,
+                detail="Payment notification could not be saved"
+        ):
             kind = event.get("type", "")
             data = event.get("data", {}).get("object", {})
 
@@ -348,7 +428,9 @@ class PaymentService:
                 payment = await self.repository.payment_by_external_id(external_id)
 
                 if payment is None:
-                    session = await self.gateway.checkout_for_payment_intent(external_id)
+                    session = await self.gateway.checkout_for_payment_intent(
+                        external_id
+                    )
 
                     if session is None or await self._find_checkout(session) is None:
                         return
@@ -357,7 +439,10 @@ class PaymentService:
                         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                         detail="Payment not recorded yet"
                     )
-                order = await self.orders.repository.get_by_id(payment.order_id, lock=True)
+                order = await self.orders.repository.get_by_id(
+                    payment.order_id,
+                    lock=True
+                )
                 assert order is not None
                 checkout = await self.repository.checkout_for_order(order.id)
 
@@ -379,7 +464,8 @@ class PaymentService:
 
         if (
                 refund.get("payment_intent") != payment.external_payment_id
-                or refund.get("amount") != int(payment.amount * 100) or refund.get("currency") != currency
+                or refund.get("amount") != int(payment.amount * 100)
+                or refund.get("currency") != currency
         ):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -391,15 +477,26 @@ class PaymentService:
             payment.status = PaymentStatusEnum.REFUNDED
             order.status = OrderStatusEnum.CANCELED
 
-    async def refund(self, user_id: int, payment_id: int) -> PaymentRefundResponseSchema:
+    async def refund(
+            self,
+            user_id: int,
+            payment_id: int
+    ) -> PaymentRefundResponseSchema:
         async with database_errors(self.repository, detail="Refund could not be saved"):
             payment = await self._owned_payment(user_id, payment_id)
-            order = await self.orders.get_owned_order(user_id, payment.order_id, lock=True)
+            order = await self.orders.get_owned_order(
+                user_id,
+                payment.order_id,
+                lock=True
+            )
             payment = await self._owned_payment(user_id, payment_id)
             checkout = await self.repository.checkout_for_order(order.id)
 
             if payment.status == PaymentStatusEnum.REFUNDED:
-                return PaymentRefundResponseSchema(payment_id=payment.id, message="Payment already refunded")
+                return PaymentRefundResponseSchema(
+                    payment_id=payment.id,
+                    message="Payment already refunded"
+                )
 
             if (
                     payment.status != PaymentStatusEnum.SUCCESSFUL or checkout is None
@@ -428,27 +525,45 @@ class PaymentService:
                     detail="Refund failed. Contact support before retrying."
                 )
 
-            message = "Payment refunded" if payment.status == PaymentStatusEnum.REFUNDED else "Refund is processing"
+            if payment.status == PaymentStatusEnum.REFUNDED:
+                message = "Payment refunded"
+            else:
+                message = "Refund is processing"
 
             return PaymentRefundResponseSchema(payment_id=payment.id, message=message)
 
     async def return_message(self, session_id: str | None) -> str:
         if not session_id:
-            return "Payment was not confirmed. You can return to checkout or cancel it through the API."
+            return (
+                "Payment was not confirmed. "
+                "You can return to checkout or cancel it through the API."
+            )
 
-        async with database_errors(self.repository, detail="Payment status unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Payment status unavailable"
+        ):
             checkout = await self.repository.checkout_for_session(session_id)
 
             if checkout is None or checkout.payment_id is None:
-                return "Payment confirmation is processing. Check your payment history shortly."
+                return (
+                    "Payment confirmation is processing. "
+                    "Check your payment history shortly."
+                )
 
             payment = await self.repository.get_payment(checkout.payment_id)
             assert payment is not None
 
             if payment.status == PaymentStatusEnum.SUCCESSFUL:
-                return "Payment successful. Your movies are now in Purchased. You can close this page."
+                return (
+                    "Payment successful. Your movies are now in Purchased. "
+                    "You can close this page."
+                )
 
             if payment.status == PaymentStatusEnum.REFUNDED:
                 return "Payment refunded. You can close this page."
 
-            return "Checkout expired or was canceled. Your card was not charged by this checkout."
+            return (
+                "Checkout expired or was canceled. "
+                "Your card was not charged by this checkout."
+            )

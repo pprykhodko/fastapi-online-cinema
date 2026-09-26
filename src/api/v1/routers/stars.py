@@ -17,18 +17,18 @@ router = APIRouter(
     responses={
         503: {
             "model": ErrorResponseSchema,
-            "description": "Database unavailable",
+            "description": "Database unavailable"
         }
     }
 )
 write_responses: dict[int | str, dict[str, Any]] = {
     401: {
         "model": ErrorResponseSchema,
-        "description": "Unauthorized."
+        "description": "Unauthorized"
     },
     403: {
         "model": ErrorResponseSchema,
-        "description": "Moderator required."
+        "description": "Moderator required"
     },
     409: {
         "model": ErrorResponseSchema,
@@ -38,7 +38,7 @@ write_responses: dict[int | str, dict[str, Any]] = {
 not_found: dict[int | str, dict[str, Any]] = {
     404: {
         "model": ErrorResponseSchema,
-        "description": "Star not found."
+        "description": "Star not found"
     }
 }
 
@@ -53,7 +53,7 @@ not_found: dict[int | str, dict[str, Any]] = {
     )
 )
 async def list_stars(
-    service: StarService = Depends(get_star_service),
+    service: StarService = Depends(get_star_service)
 ):
     return await service.list_stars()
 
@@ -67,7 +67,7 @@ async def list_stars(
 )
 async def get_star(
     star_id: int = Path(gt=0, le=2**31 - 1),
-    service: StarService = Depends(get_star_service),
+    service: StarService = Depends(get_star_service)
 ):
     return await service.get_star(star_id)
 
@@ -87,7 +87,7 @@ async def get_star(
 )
 async def create_star(
     data: StarCreateRequestSchema,
-    service: StarService = Depends(get_star_service),
+    service: StarService = Depends(get_star_service)
 ):
     return await service.create_star(data)
 
@@ -107,7 +107,7 @@ async def create_star(
 async def update_star(
     data: StarUpdateRequestSchema,
     star_id: int = Path(gt=0, le=2**31 - 1),
-    service: StarService = Depends(get_star_service),
+    service: StarService = Depends(get_star_service)
 ):
     return await service.update_star(star_id, data)
 
@@ -117,7 +117,9 @@ async def update_star(
     status_code=204,
     dependencies=[Depends(get_current_moderator)],
     responses={
-        **not_found, 401: write_responses[401], 403: write_responses[403],
+        **not_found,
+        401: write_responses[401],
+        403: write_responses[403]
     },
     summary="Delete a star",
     description=(
@@ -127,7 +129,7 @@ async def update_star(
 )
 async def delete_star(
     star_id: int = Path(gt=0, le=2**31 - 1),
-    service: StarService = Depends(get_star_service),
+    service: StarService = Depends(get_star_service)
 ):
     await service.delete_star(star_id)
 

@@ -6,17 +6,29 @@ from src.repositories.ratings import RatingRepository
 from src.repositories.movies import MovieRepository
 from src.services.movie_checks import get_movie_or_404
 from src.schemas.interactions import (
-    MovieRatingRequestSchema, MovieRatingResponseSchema,
+    MovieRatingRequestSchema,
+    MovieRatingResponseSchema
 )
 
 
 class RatingService:
-    def __init__(self, repository: RatingRepository, movie_repository: MovieRepository):
+    def __init__(
+            self,
+            repository: RatingRepository,
+            movie_repository: MovieRepository
+    ):
         self.repository = repository
         self.movie_repository = movie_repository
 
-    async def get_rating(self, user_id: int, movie_id: int) -> MovieRatingResponseSchema:
-        async with database_errors(self.repository, detail="Ratings are temporarily unavailable"):
+    async def get_rating(
+            self,
+            user_id: int,
+            movie_id: int
+    ) -> MovieRatingResponseSchema:
+        async with database_errors(
+                self.repository,
+                detail="Ratings are temporarily unavailable"
+        ):
             await get_movie_or_404(self.movie_repository, movie_id)
 
             rating = await self.repository.get_rating(user_id, movie_id)
@@ -46,7 +58,11 @@ class RatingService:
             created = rating is None
 
             if rating is None:
-                rating = MovieRatingModel(user_id=user_id, movie_id=movie_id, score=data.score)
+                rating = MovieRatingModel(
+                    user_id=user_id,
+                    movie_id=movie_id,
+                    score=data.score
+                )
 
             else:
                 rating.score = data.score
@@ -58,7 +74,10 @@ class RatingService:
             return response, created
 
     async def delete_rating(self, user_id: int, movie_id: int) -> None:
-        async with database_errors(self.repository, detail="The rating could not be removed"):
+        async with database_errors(
+                self.repository,
+                detail="The rating could not be removed"
+        ):
             deleted = await self.repository.delete(user_id, movie_id)
 
             if not deleted:

@@ -18,7 +18,7 @@ from src.database import (
     UserGroupEnum,
     UserGroupModel,
     UserModel,
-    UserProfileModel,
+    UserProfileModel
 )
 
 
@@ -35,10 +35,10 @@ from src.database import (
     StarModel(id=1, name="Actor"),
     DirectorModel(id=1, name="Director"),
     CertificationModel(id=1, name="PG-13"),
-    MovieModel(id=1, name="Film", year=2020, price=Decimal("9.99")),
+    MovieModel(id=1, name="Film", year=2020, price=Decimal("9.99"))
 ])
 def test_model_representations_identify_records_without_secrets(
-    model: Base,
+        model: Base
 ) -> None:
     result = repr(model)
     assert type(model).__name__ in result

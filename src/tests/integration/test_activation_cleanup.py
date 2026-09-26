@@ -8,18 +8,18 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from src.core.config import Settings
 from src.database.models import (
     ActivationTokenModel, Base, PasswordResetTokenModel, UserGroupEnum,
-    UserGroupModel, UserModel,
+    UserGroupModel, UserModel
 )
 from src.tasks import accounts
 
 
 @pytest.mark.asyncio
 async def test_cleanup_removes_only_expired_activation_tokens(
-    tmp_path, monkeypatch,
+        tmp_path, monkeypatch
 ):
     database_path = tmp_path / "activation-cleanup.sqlite3"
     settings = Settings(
-        _env_file=None, DATABASE_TYPE="sqlite", PATH_TO_DB=str(database_path),
+        _env_file=None, DATABASE_TYPE="sqlite", PATH_TO_DB=str(database_path)
     )
     monkeypatch.setattr(accounts, "get_settings", lambda: settings)
     engine = create_async_engine(
@@ -34,11 +34,11 @@ async def test_cleanup_removes_only_expired_activation_tokens(
             db.add(UserGroupModel(id=42, name=UserGroupEnum.USER))
             await db.flush()
             for index, expiry in enumerate([
-                now - timedelta(hours=1), now, now + timedelta(hours=1),
+                now - timedelta(hours=1), now, now + timedelta(hours=1)
             ], start=1):
                 db.add(UserModel(
                     id=index, email=f"user{index}@example.com", group_id=42,
-                    _hashed_password="unused-test-hash",
+                    _hashed_password="unused-test-hash"
                 ))
                 await db.flush()
                 db.add(ActivationTokenModel(user_id=index, expires_at=expiry))
@@ -62,7 +62,7 @@ async def test_cleanup_removes_only_expired_activation_tokens(
 async def test_cleanup_disposes_engine_on_error(monkeypatch):
     engine = AsyncMock()
     monkeypatch.setattr(
-        accounts, "create_async_engine", lambda *a, **k: engine,
+        accounts, "create_async_engine", lambda *a, **k: engine
     )
 
     def failing_sessions(*args, **kwargs):

@@ -10,8 +10,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from src.database import get_db
 from src.database.models import (
-    ActivationTokenModel, Base, CartModel, UserGroupEnum, UserGroupModel,
-    UserModel, UserProfileModel,
+    ActivationTokenModel,
+    Base,
+    CartModel,
+    UserGroupEnum,
+    UserGroupModel,
+    UserModel,
+    UserProfileModel
 )
 from src.database.session_sqlite import create_sqlite_engine
 from src.main import app
@@ -34,9 +39,7 @@ def completion_email(monkeypatch):
 
 @pytest_asyncio.fixture
 async def activation_api(monkeypatch, completion_email):
-    engine = create_sqlite_engine(
-        URL.create("sqlite+aiosqlite", database=":memory:")
-    )
+    engine = create_sqlite_engine(URL.create("sqlite+aiosqlite", database=":memory:"))
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
@@ -57,7 +60,8 @@ async def activation_api(monkeypatch, completion_email):
     monkeypatch.setitem(app.dependency_overrides, get_db, override_db)
     try:
         async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test",
+                transport=ASGITransport(app=app),
+                base_url="http://test"
         ) as client:
             yield client, sessions, send_email
     finally:
@@ -67,15 +71,21 @@ async def activation_api(monkeypatch, completion_email):
 async def create_account(sessions, *, active=False, expires_at=None):
     async with sessions() as db:
         user = UserModel(
-            email="user@example.com", group_id=42,
-            _hashed_password="unused-test-hash", is_active=active,
+            email="user@example.com",
+            group_id=42,
+            _hashed_password="unused-test-hash",
+            is_active=active
         )
         db.add(user)
         await db.flush()
         if expires_at is not None:
-            db.add(ActivationTokenModel(
-                user_id=user.id, token="original-token", expires_at=expires_at,
-            ))
+            db.add(
+                ActivationTokenModel(
+                    user_id=user.id,
+                    token="original-token",
+                    expires_at=expires_at
+                )
+            )
         await db.commit()
         return user.id
 
@@ -83,12 +93,18 @@ async def create_account(sessions, *, active=False, expires_at=None):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method", ["POST", "GET"])
 async def test_registration_email_activation_and_replay(
-    activation_api, completion_email, method,
+        activation_api,
+        completion_email,
+        method
 ):
     client, sessions, send_email = activation_api
-    response = await client.post(f"{PREFIX}/register/", json={
-        "email": "User@Example.com", "password": "StrongPassword1!",
-    })
+    response = await client.post(
+        f"{PREFIX}/register/",
+        json={
+            "email": "User@Example.com",
+            "password": "StrongPassword1!"
+        }
+    )
     assert response.status_code == 201
     completion_email.assert_not_awaited()
     user_id = response.json()["id"]
@@ -104,8 +120,12 @@ async def test_registration_email_activation_and_replay(
         assert record.token == token
         assert record.user_id == cart.user_id == profile.user_id == user_id
         for field in (
-            "first_name", "last_name", "avatar", "gender",
-            "date_of_birth", "info",
+                "first_name",
+                "last_name",
+                "avatar",
+                "gender",
+                "date_of_birth",
+                "info"
         ):
             assert getattr(profile, field) is None
         profile_id = profile.id
@@ -126,9 +146,13 @@ async def test_registration_email_activation_and_replay(
 async def test_registration_mail_failure_can_be_retried(activation_api):
     client, sessions, send_email = activation_api
     send_email.side_effect = EmailQueueError("private SMTP failure")
-    response = await client.post(f"{PREFIX}/register/", json={
-        "email": "user@example.com", "password": "StrongPassword1!",
-    })
+    response = await client.post(
+        f"{PREFIX}/register/",
+        json={
+            "email": "user@example.com",
+            "password": "StrongPassword1!"
+        }
+    )
     assert response.status_code == 503
     assert "Account created" in response.json()["detail"]
     assert "private" not in response.text
@@ -140,14 +164,17 @@ async def test_registration_mail_failure_can_be_retried(activation_api):
         assert (await db.scalar(select(UserProfileModel))).user_id == user.id
     send_email.side_effect = None
     response = await client.post(
-        f"{PREFIX}/activation/resend/", json={"email": "USER@example.com"},
+        f"{PREFIX}/activation/resend/",
+        json={"email": "USER@example.com"}
     )
     assert response.status_code == 200
     assert send_email.call_args.args[1] == token
 
 
 @pytest.mark.asyncio
-async def test_registration_queues_email_after_all_records_are_committed(activation_api):
+async def test_registration_queues_email_after_all_records_are_committed(
+        activation_api
+):
     client, sessions, send_email = activation_api
 
     async def check_saved_records(email, token, expires_at):
@@ -160,9 +187,13 @@ async def test_registration_queues_email_after_all_records_are_committed(activat
             assert record.token == token
 
     send_email.side_effect = check_saved_records
-    response = await client.post(f"{PREFIX}/register/", json={
-        "email": "user@example.com", "password": "StrongPassword1!",
-    })
+    response = await client.post(
+        f"{PREFIX}/register/",
+        json={
+            "email": "user@example.com",
+            "password": "StrongPassword1!"
+        }
+    )
     assert response.status_code == 201
     send_email.assert_awaited_once()
 
@@ -181,35 +212,51 @@ async def test_duplicate_registration_does_not_add_profile(activation_api):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("failure", [
-    "profile_insert", "cart_insert", "token_insert", "after_flush",
-])
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "profile_insert",
+        "cart_insert",
+        "token_insert",
+        "after_flush"
+    ]
+)
 async def test_registration_related_records_failure_rolls_back(
-    activation_api, monkeypatch, failure,
+        activation_api,
+        monkeypatch,
+        failure
 ):
     client, sessions, send_email = activation_api
     if failure == "profile_insert":
+
         def add_duplicate_profile(self, user_id):
-            self.db.add_all([
-                UserProfileModel(user_id=user_id),
-                UserProfileModel(user_id=user_id),
-            ])
+            self.db.add_all(
+                [
+                    UserProfileModel(user_id=user_id),
+                    UserProfileModel(user_id=user_id)
+                ]
+            )
 
         monkeypatch.setattr(
-            ProfileRepository, "add_profile", add_duplicate_profile,
+            ProfileRepository,
+            "add_profile",
+            add_duplicate_profile
         )
         expected_status = 500
     elif failure in {"cart_insert", "token_insert"}:
+
         def fail_insert(self, value):
             raise OperationalError("insert failed", {}, Exception())
 
         repository, method = (
-            (CartRepository, "add_cart") if failure == "cart_insert"
+            (CartRepository, "add_cart")
+            if failure == "cart_insert"
             else (TokenRepository, "add_activation_token")
         )
         monkeypatch.setattr(repository, method, fail_insert)
         expected_status = 503
     else:
+
         async def fail_commit(self):
             await self.db.flush()
             raise OperationalError("commit failed", {}, Exception())
@@ -217,14 +264,21 @@ async def test_registration_related_records_failure_rolls_back(
         monkeypatch.setattr(AccountRepository, "commit", fail_commit)
         expected_status = 503
 
-    response = await client.post(f"{PREFIX}/register/", json={
-        "email": "user@example.com", "password": "StrongPassword1!",
-    })
+    response = await client.post(
+        f"{PREFIX}/register/",
+        json={
+            "email": "user@example.com",
+            "password": "StrongPassword1!"
+        }
+    )
     assert response.status_code == expected_status
     send_email.assert_not_awaited()
     async with sessions() as db:
         for model in (
-            UserModel, UserProfileModel, CartModel, ActivationTokenModel,
+                UserModel,
+                UserProfileModel,
+                CartModel,
+                ActivationTokenModel
         ):
             assert await db.scalar(select(model)) is None
 
@@ -232,16 +286,23 @@ async def test_registration_related_records_failure_rolls_back(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("expired", [True, False, None])
 async def test_resend_replaces_only_expired_or_missing_token(
-    activation_api, expired,
+        activation_api,
+        expired
 ):
     client, sessions, send_email = activation_api
     now = datetime.now(timezone.utc)
-    expiry = None if expired is None else now + timedelta(
-        hours=-1 if expired else 1,
+    expiry = (
+        None
+        if expired is None
+        else now
+        + timedelta(
+            hours=-1 if expired else 1
+        )
     )
     user_id = await create_account(sessions, expires_at=expiry)
     response = await client.post(
-        f"{PREFIX}/activation/resend/", json={"email": "User@Example.com"},
+        f"{PREFIX}/activation/resend/",
+        json={"email": "User@Example.com"}
     )
     assert response.status_code == 200
     async with sessions() as db:
@@ -257,12 +318,11 @@ async def test_resend_replaces_only_expired_or_missing_token(
         else:
             assert token.token != "original-token"
             assert now + timedelta(hours=24) <= expires_at
-            assert expires_at <= (
-                datetime.now(timezone.utc) + timedelta(hours=24)
-            )
+            assert expires_at <= (datetime.now(timezone.utc) + timedelta(hours=24))
     if expired:
         response = await client.post(
-            f"{PREFIX}/activate/", json={"token": "original-token"},
+            f"{PREFIX}/activate/",
+            json={"token": "original-token"}
         )
         assert response.status_code == 400
 
@@ -271,11 +331,13 @@ async def test_resend_replaces_only_expired_or_missing_token(
 async def test_unknown_and_active_accounts_get_same_response(activation_api):
     client, sessions, send_email = activation_api
     unknown = await client.post(
-        f"{PREFIX}/activation/resend/", json={"email": "user@example.com"},
+        f"{PREFIX}/activation/resend/",
+        json={"email": "user@example.com"}
     )
     await create_account(sessions, active=True)
     active = await client.post(
-        f"{PREFIX}/activation/resend/", json={"email": "user@example.com"},
+        f"{PREFIX}/activation/resend/",
+        json={"email": "user@example.com"}
     )
     assert unknown.status_code == active.status_code == 200
     assert unknown.json() == active.json()
@@ -288,11 +350,13 @@ async def test_unknown_and_active_accounts_get_same_response(activation_api):
 async def test_resend_mail_failure_preserves_new_token(activation_api):
     client, sessions, send_email = activation_api
     await create_account(
-        sessions, expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        sessions,
+        expires_at=datetime.now(timezone.utc) - timedelta(hours=1)
     )
     send_email.side_effect = EmailQueueError("private failure")
     response = await client.post(
-        f"{PREFIX}/activation/resend/", json={"email": "user@example.com"},
+        f"{PREFIX}/activation/resend/",
+        json={"email": "user@example.com"}
     )
     assert response.status_code == 503
     assert "private" not in response.text
@@ -300,16 +364,25 @@ async def test_resend_mail_failure_preserves_new_token(activation_api):
     assert token != "original-token"
     send_email.side_effect = None
     response = await client.post(
-        f"{PREFIX}/activation/resend/", json={"email": "user@example.com"},
+        f"{PREFIX}/activation/resend/",
+        json={"email": "user@example.com"}
     )
     assert response.status_code == 200
     assert send_email.call_args.args[1] == token
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("payload", [{}, {"email": "bad"}, {
-    "email": "user@example.com", "is_active": True,
-}])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"email": "bad"},
+        {
+            "email": "user@example.com",
+            "is_active": True
+        }
+    ]
+)
 async def test_resend_rejects_invalid_input(activation_api, payload):
     client, _, send_email = activation_api
     response = await client.post(f"{PREFIX}/activation/resend/", json=payload)
@@ -323,6 +396,7 @@ async def test_resend_commit_failure_rolls_back(activation_api, monkeypatch):
     expiry = datetime.now(timezone.utc) - timedelta(hours=1)
     await create_account(sessions, expires_at=expiry)
     async with sessions() as failing_db:
+
         async def override_db():
             yield failing_db
 
@@ -333,7 +407,8 @@ async def test_resend_commit_failure_rolls_back(activation_api, monkeypatch):
         monkeypatch.setitem(app.dependency_overrides, get_db, override_db)
         monkeypatch.setattr(failing_db, "commit", failing_commit)
         response = await client.post(
-            f"{PREFIX}/activation/resend/", json={"email": "user@example.com"},
+            f"{PREFIX}/activation/resend/",
+            json={"email": "user@example.com"}
         )
         assert response.status_code == 503
         assert "private" not in response.text
@@ -348,10 +423,12 @@ async def test_resend_commit_failure_rolls_back(activation_api, monkeypatch):
 async def test_activation_page_get_activates_without_form(activation_api):
     client, sessions, _ = activation_api
     user_id = await create_account(
-        sessions, expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        sessions,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
     response = await client.get(
-        f"{PREFIX}/activate/", params={"token": "original-token"},
+        f"{PREFIX}/activate/",
+        params={"token": "original-token"}
     )
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
@@ -381,19 +458,30 @@ async def test_activation_page_does_not_render_token(activation_api):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("active, hours, status_code", [
-    (False, -1, 400), (False, 0, 400), (True, 1, 409),
-])
+@pytest.mark.parametrize(
+    "active, hours, status_code",
+    [
+        (False, -1, 400),
+        (False, 0, 400),
+        (True, 1, 409)
+    ]
+)
 async def test_activation_rejects_expired_or_active_account(
-    activation_api, completion_email, active, hours, status_code,
+        activation_api,
+        completion_email,
+        active,
+        hours,
+        status_code
 ):
     client, sessions, _ = activation_api
     user_id = await create_account(
-        sessions, active=active,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=hours),
+        sessions,
+        active=active,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=hours)
     )
     response = await client.post(
-        f"{PREFIX}/activate/", json={"token": "original-token"},
+        f"{PREFIX}/activate/",
+        json={"token": "original-token"}
     )
     assert response.status_code == status_code
     completion_email.assert_not_awaited()
@@ -403,21 +491,33 @@ async def test_activation_rejects_expired_or_active_account(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("path, payload", [
-    ("/activation/resend/", {"email": "user@example.com"}),
-    ("/activate/", {"token": "original-token"}),
-])
+@pytest.mark.parametrize(
+    "path, payload",
+    [
+        ("/activation/resend/", {"email": "user@example.com"}),
+        ("/activate/", {"token": "original-token"})
+    ]
+)
 async def test_activation_database_errors_are_safe(
-    activation_api, monkeypatch, path, payload,
+        activation_api,
+        monkeypatch,
+        path,
+        payload
 ):
     client, sessions, send_email = activation_api
     async with sessions() as db:
+
         async def broken_db():
             yield db
+
         monkeypatch.setitem(app.dependency_overrides, get_db, broken_db)
-        monkeypatch.setattr(db, "execute", AsyncMock(side_effect=(
-            OperationalError("test", {}, Exception("private failure"))
-        )))
+        monkeypatch.setattr(
+            db,
+            "execute",
+            AsyncMock(
+                side_effect=(OperationalError("test", {}, Exception("private failure")))
+            )
+        )
         response = await client.post(f"{PREFIX}{path}", json=payload)
     assert response.status_code == 503
     assert "private" not in response.text
@@ -441,15 +541,18 @@ def test_activation_openapi_contract():
 
 @pytest.mark.asyncio
 async def test_confirmation_mail_failure_does_not_undo_activation(
-    activation_api, completion_email,
+        activation_api,
+        completion_email
 ):
     client, sessions, _ = activation_api
     user_id = await create_account(
-        sessions, expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        sessions,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
     completion_email.side_effect = EmailQueueError("private failure")
     response = await client.post(
-        f"{PREFIX}/activate/", json={"token": "original-token"},
+        f"{PREFIX}/activate/",
+        json={"token": "original-token"}
     )
     assert response.status_code == 200
     assert "confirmation email could not be queued" in response.json()["message"]
@@ -461,11 +564,13 @@ async def test_confirmation_mail_failure_does_not_undo_activation(
 
 @pytest.mark.asyncio
 async def test_confirmation_email_is_sent_after_commit(
-    activation_api, completion_email,
+        activation_api,
+        completion_email
 ):
     client, sessions, _ = activation_api
     user_id = await create_account(
-        sessions, expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        sessions,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
 
     async def check_saved_account(email):
@@ -477,7 +582,8 @@ async def test_confirmation_email_is_sent_after_commit(
 
     completion_email.side_effect = check_saved_account
     response = await client.post(
-        f"{PREFIX}/activate/", json={"token": "original-token"},
+        f"{PREFIX}/activate/",
+        json={"token": "original-token"}
     )
     assert response.status_code == 200
     completion_email.assert_awaited_once_with("user@example.com")
@@ -485,13 +591,17 @@ async def test_confirmation_email_is_sent_after_commit(
 
 @pytest.mark.asyncio
 async def test_activation_commit_failure_does_not_send_confirmation(
-    activation_api, completion_email, monkeypatch,
+        activation_api,
+        completion_email,
+        monkeypatch
 ):
     client, sessions, _ = activation_api
     user_id = await create_account(
-        sessions, expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        sessions,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
     async with sessions() as db:
+
         async def broken_db():
             yield db
 
@@ -502,7 +612,8 @@ async def test_activation_commit_failure_does_not_send_confirmation(
         monkeypatch.setitem(app.dependency_overrides, get_db, broken_db)
         monkeypatch.setattr(db, "commit", failing_commit)
         response = await client.post(
-            f"{PREFIX}/activate/", json={"token": "original-token"},
+            f"{PREFIX}/activate/",
+            json={"token": "original-token"}
         )
     assert response.status_code == 503
     completion_email.assert_not_awaited()
@@ -513,14 +624,17 @@ async def test_activation_commit_failure_does_not_send_confirmation(
 
 @pytest.mark.asyncio
 async def test_link_activation_returns_html_and_prevents_replay(
-    activation_api, completion_email,
+        activation_api,
+        completion_email
 ):
     client, sessions, _ = activation_api
     user_id = await create_account(
-        sessions, expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        sessions,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
     response = await client.get(
-        f"{PREFIX}/activate/", params={"token": "original-token"},
+        f"{PREFIX}/activate/",
+        params={"token": "original-token"}
     )
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
@@ -537,7 +651,8 @@ async def test_link_activation_returns_html_and_prevents_replay(
         assert await db.scalar(select(ActivationTokenModel)) is None
 
     response = await client.get(
-        f"{PREFIX}/activate/", params={"token": "original-token"},
+        f"{PREFIX}/activate/",
+        params={"token": "original-token"}
     )
     assert response.status_code == 400
     assert "invalid or expired" in response.text
@@ -546,19 +661,29 @@ async def test_link_activation_returns_html_and_prevents_replay(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("active, hours, expected_status", [
-    (False, -1, 400), (True, 1, 409),
-])
+@pytest.mark.parametrize(
+    "active, hours, expected_status",
+    [
+        (False, -1, 400),
+        (True, 1, 409)
+    ]
+)
 async def test_link_activation_returns_html_errors(
-    activation_api, completion_email, active, hours, expected_status,
+        activation_api,
+        completion_email,
+        active,
+        hours,
+        expected_status
 ):
     client, sessions, _ = activation_api
     user_id = await create_account(
-        sessions, active=active,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=hours),
+        sessions,
+        active=active,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=hours)
     )
     response = await client.get(
-        f"{PREFIX}/activate/", params={"token": "original-token"},
+        f"{PREFIX}/activate/",
+        params={"token": "original-token"}
     )
     assert response.status_code == expected_status
     assert "text/html" in response.headers["content-type"]
@@ -571,15 +696,18 @@ async def test_link_activation_returns_html_errors(
 
 @pytest.mark.asyncio
 async def test_link_activation_reports_confirmation_email_failure(
-    activation_api, completion_email,
+        activation_api,
+        completion_email
 ):
     client, sessions, _ = activation_api
     user_id = await create_account(
-        sessions, expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        sessions,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
     completion_email.side_effect = EmailQueueError("private failure")
     response = await client.get(
-        f"{PREFIX}/activate/", params={"token": "original-token"},
+        f"{PREFIX}/activate/",
+        params={"token": "original-token"}
     )
     assert response.status_code == 200
     assert "confirmation email could not be queued" in response.text
@@ -590,11 +718,20 @@ async def test_link_activation_reports_confirmation_email_failure(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("payload", [{}, {"token": "a b"}, {
-    "token": "x" * 256,
-}])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"token": "a b"},
+        {
+            "token": "x" * 256
+        }
+    ]
+)
 async def test_link_activation_validates_input(
-    activation_api, completion_email, payload,
+        activation_api,
+        completion_email,
+        payload
 ):
     client, _, _ = activation_api
     response = await client.get(f"{PREFIX}/activate/", params=payload)
@@ -606,20 +743,25 @@ async def test_link_activation_validates_input(
 async def test_activation_confirm_endpoint_is_removed(activation_api):
     client, _, _ = activation_api
     response = await client.post(
-        f"{PREFIX}/activate/confirm/", data={"token": "original-token"},
+        f"{PREFIX}/activate/confirm/",
+        data={"token": "original-token"}
     )
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_link_activation_database_failure_returns_html(
-    activation_api, completion_email, monkeypatch,
+        activation_api,
+        completion_email,
+        monkeypatch
 ):
     client, sessions, _ = activation_api
     user_id = await create_account(
-        sessions, expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        sessions,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
     async with sessions() as db:
+
         async def failing_db():
             try:
                 yield db
@@ -634,7 +776,8 @@ async def test_link_activation_database_failure_returns_html(
         monkeypatch.setitem(app.dependency_overrides, get_db, failing_db)
         monkeypatch.setattr(db, "commit", fail_commit)
         response = await client.get(
-            f"{PREFIX}/activate/", params={"token": "original-token"},
+            f"{PREFIX}/activate/",
+            params={"token": "original-token"}
         )
     assert response.status_code == 503
     assert "text/html" in response.headers["content-type"]

@@ -8,7 +8,7 @@ from src.schemas.interactions import (
     MovieCommentCreateRequestSchema, MovieCommentListQuerySchema,
     MovieCommentListResponseSchema,
     MovieFavoriteCreateRequestSchema, MovieFavoriteListResponseSchema,
-    MovieRatingRequestSchema, MovieReactionRequestSchema,
+    MovieRatingRequestSchema, MovieReactionRequestSchema
 )
 
 
@@ -25,10 +25,10 @@ def test_rating_request_rejects_invalid_scores(score: Any) -> None:
 
 @pytest.mark.parametrize("reaction", list(MovieReactionEnum))
 def test_reaction_request_parses_allowed_enum_values(
-    reaction: MovieReactionEnum,
+        reaction: MovieReactionEnum
 ) -> None:
     request = MovieReactionRequestSchema.model_validate({
-        "reaction": reaction.value,
+        "reaction": reaction.value
     })
     assert request.reaction is reaction
 
@@ -49,7 +49,7 @@ def test_comments_support_posts_and_replies() -> None:
 
 @pytest.mark.parametrize("content", ["", " \n\t ", None, 123])
 def test_comment_request_rejects_empty_or_non_text_content(
-    content: Any,
+        content: Any
 ) -> None:
     with pytest.raises(ValidationError):
         MovieCommentCreateRequestSchema.model_validate({"content": content})
@@ -59,7 +59,7 @@ def test_comment_request_rejects_empty_or_non_text_content(
 def test_comment_request_rejects_invalid_parent_ids(parent_id: Any) -> None:
     with pytest.raises(ValidationError):
         MovieCommentCreateRequestSchema.model_validate({
-            "content": "Reply", "parent_id": parent_id,
+            "content": "Reply", "parent_id": parent_id
         })
 
 
@@ -77,10 +77,10 @@ def test_favorite_request_rejects_invalid_movie_ids(movie_id: Any) -> None:
     (MovieRatingRequestSchema, {"score": 5}),
     (MovieReactionRequestSchema, {"reaction": "like"}),
     (MovieCommentCreateRequestSchema, {"content": "Great!"}),
-    (MovieFavoriteCreateRequestSchema, {"movie_id": 1}),
+    (MovieFavoriteCreateRequestSchema, {"movie_id": 1})
 ])
 def test_interaction_requests_reject_user_ids(
-    schema: type[BaseModel], data: dict[str, Any],
+        schema: type[BaseModel], data: dict[str, Any]
 ) -> None:
     with pytest.raises(ValidationError):
         schema.model_validate({**data, "user_id": 999})
@@ -93,7 +93,7 @@ def test_comment_pagination_and_empty_lists() -> None:
     with pytest.raises(ValidationError):
         MovieCommentListQuerySchema(per_page=101)
     for schema in (
-        MovieCommentListResponseSchema, MovieFavoriteListResponseSchema,
+            MovieCommentListResponseSchema, MovieFavoriteListResponseSchema
     ):
         response = schema(items=[], total=0, page=1, per_page=10)
         assert response.total == 0

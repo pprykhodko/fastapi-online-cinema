@@ -1,9 +1,10 @@
 from contextlib import closing
 
-import boto3  # type: ignore[import-untyped]
-from botocore.config import Config  # type: ignore[import-untyped]
-from botocore.exceptions import (  # type: ignore[import-untyped]
-    BotoCoreError, ClientError,
+import boto3
+from botocore.config import Config
+from botocore.exceptions import (
+    BotoCoreError,
+    ClientError
 )
 
 from src.core.config import Settings, get_settings

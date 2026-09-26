@@ -9,7 +9,7 @@ from src.database import (
     UserGroupEnum,
     UserGroupModel,
     UserModel,
-    UserProfileModel,
+    UserProfileModel
 )
 from src.schemas.accounts import (
     AccessTokenResponseSchema,
@@ -31,7 +31,7 @@ from src.schemas.accounts import (
     UserProfileResponseSchema,
     UserProfileUpdateRequestSchema,
     UserRegistrationRequestSchema,
-    UserResponseSchema,
+    UserResponseSchema
 )
 
 
@@ -39,31 +39,31 @@ EMAIL_REQUESTS: list[tuple[type[BaseModel], dict[str, str]]] = [
     (UserRegistrationRequestSchema, {"password": "StrongPassword1!"}),
     (UserLoginRequestSchema, {"password": "existing"}),
     (ActivationResendRequestSchema, {}),
-    (PasswordResetRequestSchema, {}),
+    (PasswordResetRequestSchema, {})
 ]
 NEW_PASSWORD_REQUESTS: list[
     tuple[type[BaseModel], str, dict[str, str]]
 ] = [
     (UserRegistrationRequestSchema, "password", {"email": "user@example.com"}),
     (PasswordChangeRequestSchema, "new_password", {"old_password": "old"}),
-    (PasswordResetConfirmRequestSchema, "new_password", {"token": "token"}),
+    (PasswordResetConfirmRequestSchema, "new_password", {"token": "token"})
 ]
 TOKEN_REQUESTS: list[tuple[type[BaseModel], str, dict[str, str]]] = [
     (AccountActivationRequestSchema, "token", {}),
     (TokenRefreshRequestSchema, "refresh_token", {}),
     (LogoutRequestSchema, "refresh_token", {}),
     (PasswordResetConfirmRequestSchema, "token", {
-        "new_password": "StrongPassword1!",
-    }),
+        "new_password": "StrongPassword1!"
+    })
 ]
 
 
 @pytest.mark.parametrize(("schema", "other_fields"), EMAIL_REQUESTS)
 def test_email_requests_normalize_addresses(
-    schema: type[BaseModel], other_fields: dict[str, str],
+        schema: type[BaseModel], other_fields: dict[str, str]
 ) -> None:
     request = schema.model_validate({
-        "email": "User@Example.COM", **other_fields,
+        "email": "User@Example.COM", **other_fields
     })
     assert request.model_dump()["email"] == "user@example.com"
 
@@ -71,7 +71,7 @@ def test_email_requests_normalize_addresses(
 @pytest.mark.parametrize(("schema", "other_fields"), EMAIL_REQUESTS)
 @pytest.mark.parametrize("email", ["not-email", "", None, 12, "a" * 256])
 def test_email_requests_reject_invalid_addresses(
-    schema: type[BaseModel], other_fields: dict[str, str], email: Any,
+        schema: type[BaseModel], other_fields: dict[str, str], email: Any
 ) -> None:
     with pytest.raises(ValidationError):
         schema.model_validate({"email": email, **other_fields})
@@ -82,11 +82,11 @@ def test_email_requests_reject_invalid_addresses(
 @pytest.mark.parametrize("password", [
     "Short1!", "lowercase1!", "UPPERCASE1!", "NoDigits!", "NoSpecial1",
     "Aa1!" + "a" * 69, "Aa1!" + "\u044f" * 35,
-    "Aa1!" + "\U0001f600" * 18, "StrongPassword1!\x00", None, 123,
+    "Aa1!" + "\U0001f600" * 18, "StrongPassword1!\x00", None, 123
 ])
 def test_new_password_requests_reuse_strength_and_byte_validation(
-    schema: type[BaseModel], field: str, other_fields: dict[str, str],
-    password: Any,
+        schema: type[BaseModel], field: str, other_fields: dict[str, str],
+        password: Any
 ) -> None:
     with pytest.raises(ValidationError):
         schema.model_validate({field: password, **other_fields})
@@ -96,11 +96,11 @@ def test_new_password_requests_reuse_strength_and_byte_validation(
                          NEW_PASSWORD_REQUESTS)
 @pytest.mark.parametrize("password", [
     "StrongPassword1!", "Aa1!" + "a" * 68,
-    "Aa1!" + "\u044f" * 34, "  StrongPassword1!  ",
+    "Aa1!" + "\u044f" * 34, "  StrongPassword1!  "
 ])
 def test_new_password_requests_preserve_valid_secrets(
-    schema: type[BaseModel], field: str, other_fields: dict[str, str],
-    password: str,
+        schema: type[BaseModel], field: str, other_fields: dict[str, str],
+        password: str
 ) -> None:
     request = schema.model_validate({field: password, **other_fields})
     assert getattr(request, field) == password
@@ -112,10 +112,10 @@ def test_new_password_requests_preserve_valid_secrets(
 
 def test_existing_passwords_do_not_require_new_password_complexity() -> None:
     login = UserLoginRequestSchema.model_validate({
-        "email": "user@example.com", "password": "old",
+        "email": "user@example.com", "password": "old"
     })
     change = PasswordChangeRequestSchema.model_validate({
-        "old_password": "old", "new_password": "StrongPassword1!",
+        "old_password": "old", "new_password": "StrongPassword1!"
     })
     assert login.password == "old"
     assert change.old_password == "old"
@@ -125,31 +125,31 @@ def test_existing_passwords_do_not_require_new_password_complexity() -> None:
 
 
 @pytest.mark.parametrize("password", [
-    "", "a" * 73, "\u044f" * 37, "old\x00", None,
+    "", "a" * 73, "\u044f" * 37, "old\x00", None
 ])
 def test_existing_password_requests_reject_unsupported_bcrypt_inputs(
-    password: Any,
+        password: Any
 ) -> None:
     with pytest.raises(ValidationError):
         UserLoginRequestSchema.model_validate({
-            "email": "user@example.com", "password": password,
+            "email": "user@example.com", "password": password
         })
     with pytest.raises(ValidationError):
         PasswordChangeRequestSchema.model_validate({
-            "old_password": password, "new_password": "StrongPassword1!",
+            "old_password": password, "new_password": "StrongPassword1!"
         })
 
 
 @pytest.mark.parametrize("field", [
-    "group", "group_id", "is_active", "id", "hashed_password", "user_id",
+    "group", "group_id", "is_active", "id", "hashed_password", "user_id"
 ])
 def test_registration_rejects_client_supplied_privileged_fields(
-    field: str,
+        field: str
 ) -> None:
     with pytest.raises(ValidationError) as error:
         UserRegistrationRequestSchema.model_validate({
             "email": "user@example.com", "password": "StrongPassword1!",
-            field: 1,
+            field: 1
         })
     assert error.value.errors()[0]["type"] == "extra_forbidden"
 
@@ -158,8 +158,8 @@ def test_registration_rejects_client_supplied_privileged_fields(
 @pytest.mark.parametrize("token", ["", " ", "abc def", "abc\n", "a" * 256,
                                    None, 123])
 def test_token_requests_reject_empty_whitespace_and_oversized_tokens(
-    schema: type[BaseModel], field: str, other_fields: dict[str, str],
-    token: Any,
+        schema: type[BaseModel], field: str, other_fields: dict[str, str],
+        token: Any
 ) -> None:
     with pytest.raises(ValidationError):
         schema.model_validate({field: token, **other_fields})
@@ -167,7 +167,7 @@ def test_token_requests_reject_empty_whitespace_and_oversized_tokens(
 
 @pytest.mark.parametrize(("schema", "field", "other_fields"), TOKEN_REQUESTS)
 def test_token_requests_preserve_tokens_and_hide_them_in_repr(
-    schema: type[BaseModel], field: str, other_fields: dict[str, str],
+        schema: type[BaseModel], field: str, other_fields: dict[str, str]
 ) -> None:
     token = "t" * 255
     request = schema.model_validate({field: token, **other_fields})
@@ -176,15 +176,15 @@ def test_token_requests_preserve_tokens_and_hide_them_in_repr(
 
 
 @pytest.mark.parametrize("schema", [
-    UserProfileCreateRequestSchema, UserProfileUpdateRequestSchema,
+    UserProfileCreateRequestSchema, UserProfileUpdateRequestSchema
 ])
 def test_profile_requests_accept_optional_fields(
-    schema: type[BaseModel],
+        schema: type[BaseModel]
 ) -> None:
     profile = schema.model_validate({
         "first_name": "Alex", "last_name": "Smith",
         "gender": "man",
-        "date_of_birth": "2000-01-02", "info": "Movie enthusiast.",
+        "date_of_birth": "2000-01-02", "info": "Movie enthusiast."
     })
     assert getattr(profile, "gender") is GenderEnum.MAN
     assert getattr(profile, "date_of_birth") == date(2000, 1, 2)
@@ -192,15 +192,15 @@ def test_profile_requests_accept_optional_fields(
 
 
 @pytest.mark.parametrize("schema", [
-    UserProfileCreateRequestSchema, UserProfileUpdateRequestSchema,
+    UserProfileCreateRequestSchema, UserProfileUpdateRequestSchema
 ])
 @pytest.mark.parametrize(("field", "value"), [
     ("first_name", "a" * 101), ("last_name", "a" * 101),
     ("avatar", "a" * 256), ("gender", "invalid"),
-    ("date_of_birth", "2000-02-30"), ("user_id", 1), ("is_active", True),
+    ("date_of_birth", "2000-02-30"), ("user_id", 1), ("is_active", True)
 ])
 def test_profile_requests_enforce_fields_and_database_limits(
-    schema: type[BaseModel], field: str, value: Any,
+        schema: type[BaseModel], field: str, value: Any
 ) -> None:
     with pytest.raises(ValidationError):
         schema.model_validate({field: value})
@@ -210,19 +210,19 @@ def test_profile_patch_distinguishes_omitted_fields_from_null() -> None:
     omitted = UserProfileUpdateRequestSchema.model_validate({})
     cleared = UserProfileUpdateRequestSchema.model_validate({"info": None})
     changed = UserProfileUpdateRequestSchema.model_validate({
-        "first_name": "Alex", "info": None,
+        "first_name": "Alex", "info": None
     })
     assert omitted.model_dump(exclude_unset=True) == {}
     assert cleared.model_dump(exclude_unset=True) == {"info": None}
     assert changed.model_dump(exclude_unset=True) == {
-        "first_name": "Alex", "info": None,
+        "first_name": "Alex", "info": None
     }
 
 
 def test_profile_field_lengths_match_database_boundaries() -> None:
     profile = UserProfileCreateRequestSchema.model_validate({
         "first_name": "a" * 100, "last_name": "b" * 100,
-        "avatar": "a" * 255, "info": "a" * 1000,
+        "avatar": "a" * 255, "info": "a" * 1000
     })
     assert len(profile.first_name or "") == 100
     assert len(profile.avatar or "") == 255
@@ -230,10 +230,10 @@ def test_profile_field_lengths_match_database_boundaries() -> None:
 
 @pytest.mark.parametrize("group", list(UserGroupEnum))
 def test_admin_group_update_accepts_only_known_group_names(
-    group: UserGroupEnum,
+        group: UserGroupEnum
 ) -> None:
     request = UserGroupUpdateRequestSchema.model_validate({
-        "group": group.value,
+        "group": group.value
     })
     assert request.group is group
 
@@ -250,12 +250,12 @@ def test_user_response_reads_orm_without_exposing_hashes_or_tokens() -> None:
     user = UserModel(
         id=2, email="user@example.com", group=group,
         _hashed_password="must-never-be-returned", is_active=False,
-        created_at=now, updated_at=now,
+        created_at=now, updated_at=now
     )
     response = UserResponseSchema.model_validate(user)
     data = response.model_dump(mode="json")
     assert set(data) == {
-        "id", "email", "is_active", "created_at", "updated_at", "group",
+        "id", "email", "is_active", "created_at", "updated_at", "group"
     }
     assert data["group"] == {"id": 1, "name": "user"}
     assert "must-never-be-returned" not in response.model_dump_json()
@@ -264,13 +264,13 @@ def test_user_response_reads_orm_without_exposing_hashes_or_tokens() -> None:
 def test_profile_response_reads_orm_and_serializes_dates_and_enums() -> None:
     profile = UserProfileModel(
         id=3, user_id=2, gender=GenderEnum.WOMAN,
-        date_of_birth=date(2000, 1, 2),
+        date_of_birth=date(2000, 1, 2)
     )
     response = UserProfileResponseSchema.model_validate(profile)
     assert response.model_dump(mode="json") == {
         "id": 3, "user_id": 2, "first_name": None, "last_name": None,
         "avatar": None, "gender": "woman", "date_of_birth": "2000-01-02",
-        "info": None,
+        "info": None
     }
 
 
@@ -278,27 +278,27 @@ def test_profile_response_reads_orm_and_serializes_dates_and_enums() -> None:
 def test_group_response_rejects_non_positive_ids(invalid_id: int) -> None:
     with pytest.raises(ValidationError):
         UserGroupResponseSchema.model_validate({
-            "id": invalid_id, "name": "user",
+            "id": invalid_id, "name": "user"
         })
 
 
 def test_token_responses_return_plain_tokens_and_bearer_type() -> None:
     pair = TokenPairResponseSchema.model_validate({
-        "access_token": "header.payload.signature", "refresh_token": "refresh",
+        "access_token": "header.payload.signature", "refresh_token": "refresh"
     })
     assert pair.model_dump() == {
         "access_token": "header.payload.signature",
-        "refresh_token": "refresh", "token_type": "bearer",
+        "refresh_token": "refresh", "token_type": "bearer"
     }
     access = AccessTokenResponseSchema.model_validate({
-        "access_token": "access",
+        "access_token": "access"
     })
     assert access.model_dump() == {
-        "access_token": "access", "token_type": "bearer",
+        "access_token": "access", "token_type": "bearer"
     }
     with pytest.raises(ValidationError):
         AccessTokenResponseSchema.model_validate({
-            "access_token": "access", "token_type": "Basic",
+            "access_token": "access", "token_type": "Basic"
         })
 
 
@@ -331,10 +331,10 @@ def test_user_list_query_accepts_pagination() -> None:
 
 
 @pytest.mark.parametrize("data", [
-    {"page": 0}, {"per_page": 0}, {"per_page": 101}, {"unknown": "filter"},
+    {"page": 0}, {"per_page": 0}, {"per_page": 101}, {"unknown": "filter"}
 ])
 def test_user_list_query_rejects_invalid_parameters(
-    data: dict[str, Any],
+        data: dict[str, Any]
 ) -> None:
     with pytest.raises(ValidationError):
         UserListQuerySchema.model_validate(data)
@@ -346,10 +346,10 @@ def test_user_list_response_serializes_users_without_passwords() -> None:
         "created_at": datetime(2026, 9, 12, tzinfo=timezone.utc),
         "updated_at": datetime(2026, 9, 12, tzinfo=timezone.utc),
         "group": {"id": 1, "name": "user"},
-        "hashed_password": "private-hash",
+        "hashed_password": "private-hash"
     }
     response = UserListResponseSchema.model_validate({
-        "items": [user], "total": 1, "page": 1, "per_page": 10,
+        "items": [user], "total": 1, "page": 1, "per_page": 10
     })
     assert response.items[0].email == "user@example.com"
     assert "private-hash" not in response.model_dump_json()

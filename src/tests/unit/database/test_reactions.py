@@ -8,7 +8,7 @@ from src.database.validators import validate_movie_reaction
 
 @pytest.mark.parametrize(
     "reaction",
-    ["like", "dislike", MovieReactionEnum.LIKE, MovieReactionEnum.DISLIKE],
+    ["like", "dislike", MovieReactionEnum.LIKE, MovieReactionEnum.DISLIKE]
 )
 def test_reaction_accepts_strings_and_enum_members(reaction: str) -> None:
     assert validate_movie_reaction(reaction) == reaction

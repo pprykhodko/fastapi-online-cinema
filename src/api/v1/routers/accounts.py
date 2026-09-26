@@ -62,17 +62,17 @@ ACTIVATION_PAGE_HEADERS = {
     responses={
         401: {
             "model": ErrorResponseSchema,
-            "description": "Incorrect email or password.",
+            "description": "Incorrect email or password",
         },
         403: {
             "model": ErrorResponseSchema,
-            "description": "The account has not been activated.",
+            "description": "The account has not been activated",
         },
         503: {
             "model": ErrorResponseSchema,
-            "description": "The database is unavailable.",
-        },
-    },
+            "description": "The database is unavailable",
+        }
+    }
 )
 async def login_user(
         login_data: UserLoginRequestSchema,
@@ -101,17 +101,17 @@ async def login_user(
     responses={
         401: {
             "model": ErrorResponseSchema,
-            "description": "Invalid, expired or revoked refresh token.",
+            "description": "Invalid, expired or revoked refresh token",
         },
         403: {
             "model": ErrorResponseSchema,
-            "description": "The account is not active.",
+            "description": "The account is not active",
         },
         503: {
             "model": ErrorResponseSchema,
-            "description": "Token refresh is temporarily unavailable.",
-        },
-    },
+            "description": "Token refresh is temporarily unavailable",
+        }
+    }
 )
 async def refresh_access_token(
         token_data: TokenRefreshRequestSchema,
@@ -140,13 +140,13 @@ async def refresh_access_token(
     responses={
         401: {
             "model": ErrorResponseSchema,
-            "description": "Invalid, expired or revoked refresh token.",
+            "description": "Invalid, expired or revoked refresh token",
         },
         503: {
             "model": ErrorResponseSchema,
-            "description": "Logout is temporarily unavailable.",
-        },
-    },
+            "description": "Logout is temporarily unavailable",
+        }
+    }
 )
 async def logout_user(
         logout_data: LogoutRequestSchema,
@@ -168,15 +168,23 @@ async def logout_user(
             "Existing access tokens remain valid until they expire."
     ),
     responses={
-        400: {"model": ErrorResponseSchema,
-              "description": "Wrong current password or unchanged password."},
-        401: {"model": ErrorResponseSchema,
-              "description": "Missing or invalid access token."},
-        403: {"model": ErrorResponseSchema,
-              "description": "The account is not active."},
-        503: {"model": ErrorResponseSchema,
-              "description": "Password change is temporarily unavailable."},
-    },
+        400: {
+            "model": ErrorResponseSchema,
+            "description": "Wrong current password or unchanged password"
+        },
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Missing or invalid access token"
+        },
+        403: {
+            "model": ErrorResponseSchema,
+            "description": "The account is not active"
+        },
+        503: {
+            "model": ErrorResponseSchema,
+            "description": "Password change is temporarily unavailable"
+        },
+    }
 )
 async def change_password(
         password_data: PasswordChangeRequestSchema,
@@ -203,9 +211,11 @@ async def change_password(
             "request another email if none arrives."
     ),
     responses={
-        503: {"model": ErrorResponseSchema,
-              "description": "The database is temporarily unavailable."},
-    },
+        503: {
+            "model": ErrorResponseSchema,
+            "description": "The database is temporarily unavailable"
+        }
+    }
 )
 async def request_password_reset(
         email_data: PasswordResetRequestSchema,
@@ -228,11 +238,15 @@ async def request_password_reset(
             "Existing access tokens remain valid until they expire."
     ),
     responses={
-        400: {"model": ErrorResponseSchema,
-              "description": "Invalid/expired token or unchanged password."},
-        503: {"model": ErrorResponseSchema,
-              "description": "Password reset is temporarily unavailable."},
-    },
+        400: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid/expired token or unchanged password"
+        },
+        503: {
+            "model": ErrorResponseSchema,
+            "description": "Password reset is temporarily unavailable"
+        }
+    }
 )
 async def reset_password(
         reset_data: PasswordResetConfirmRequestSchema,
@@ -257,17 +271,17 @@ async def reset_password(
     responses={
         400: {
             "model": ErrorResponseSchema,
-            "description": "The activation token is invalid or expired.",
+            "description": "The activation token is invalid or expired",
         },
         409: {
             "model": ErrorResponseSchema,
-            "description": "The account is already active.",
+            "description": "The account is already active",
         },
         503: {
             "model": ErrorResponseSchema,
-            "description": "Account activation is temporarily unavailable.",
-        },
-    },
+            "description": "Account activation is temporarily unavailable",
+        }
+    }
 )
 async def activate_user(
         activation_data: AccountActivationRequestSchema,
@@ -288,10 +302,16 @@ async def activate_user(
             "automated email link scanners can also trigger activation."
     ),
     responses={
-        400: {"description": "Invalid or expired token; HTML error page."},
-        409: {"description": "Account already active; HTML error page."},
-        503: {"description": "Activation unavailable; HTML error page."},
-    },
+        400: {
+            "description": "Invalid or expired token; HTML error page"
+        },
+        409: {
+            "description": "Account already active; HTML error page"
+        },
+        503: {
+            "description": "Activation unavailable; HTML error page"
+        }
+    }
 )
 async def activation_page(
         request: Request,
@@ -302,7 +322,7 @@ async def activation_page(
 
     try:
         result = await service.activate_account(
-            AccountActivationRequestSchema(token=token),
+            AccountActivationRequestSchema(token=token)
         )
         context = {"message": result.message}
 
@@ -315,7 +335,7 @@ async def activation_page(
         name="account_activation.html",
         context=context,
         status_code=status_code,
-        headers=ACTIVATION_PAGE_HEADERS,
+        headers=ACTIVATION_PAGE_HEADERS
     )
 
 
@@ -334,20 +354,20 @@ async def activation_page(
     responses={
         409: {
             "model": ErrorResponseSchema,
-            "description": "A user with this email already exists.",
+            "description": "A user with this email already exists",
         },
         500: {
             "model": ErrorResponseSchema,
-            "description": "The account could not be saved.",
+            "description": "The account could not be saved",
         },
         503: {
             "model": ErrorResponseSchema,
             "description": (
                     "The database or email queue is unavailable. If the "
                     "account was saved, retry through activation/resend."
-            ),
-        },
-    },
+            )
+        }
+    }
 )
 async def register_user(
         user_data: UserRegistrationRequestSchema,
@@ -372,9 +392,9 @@ async def register_user(
     responses={
         503: {
             "model": ErrorResponseSchema,
-            "description": "The database or email queue is unavailable.",
-        },
-    },
+            "description": "The database or email queue is unavailable",
+        }
+    }
 )
 async def resend_activation_email(
         email_data: ActivationResendRequestSchema,
@@ -396,15 +416,23 @@ async def resend_activation_email(
             "use the new role on subsequent requests."
     ),
     responses={
-        401: {"model": ErrorResponseSchema,
-              "description": "Missing or invalid access token."},
-        403: {"model": ErrorResponseSchema,
-              "description": "Inactive account or insufficient permissions."},
-        404: {"model": ErrorResponseSchema,
-              "description": "The user does not exist."},
-        503: {"model": ErrorResponseSchema,
-              "description": "Database unavailable or group not configured."},
-    },
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Missing or invalid access token"
+        },
+        403: {
+            "model": ErrorResponseSchema,
+            "description": "Inactive account or insufficient permissions"
+        },
+        404: {
+            "model": ErrorResponseSchema,
+            "description": "The user does not exist"
+        },
+        503: {
+            "model": ErrorResponseSchema,
+            "description": "Database unavailable or group not configured"
+        }
+    }
 )
 async def change_user_group(
         group_data: UserGroupUpdateRequestSchema,
@@ -427,17 +455,27 @@ async def change_user_group(
             "account stays active and the success message reports the failure."
     ),
     responses={
-        401: {"model": ErrorResponseSchema,
-              "description": "Missing or invalid access token."},
-        403: {"model": ErrorResponseSchema,
-              "description": "Inactive account or insufficient permissions."},
-        404: {"model": ErrorResponseSchema,
-              "description": "The user does not exist."},
-        409: {"model": ErrorResponseSchema,
-              "description": "The account is already active."},
-        503: {"model": ErrorResponseSchema,
-              "description": "Account activation is temporarily unavailable."},
-    },
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Missing or invalid access token"
+        },
+        403: {
+            "model": ErrorResponseSchema,
+            "description": "Inactive account or insufficient permissions"
+        },
+        404: {
+            "model": ErrorResponseSchema,
+            "description": "The user does not exist"
+        },
+        409: {
+            "model": ErrorResponseSchema,
+            "description": "The account is already active"
+        },
+        503: {
+            "model": ErrorResponseSchema,
+            "description": "Account activation is temporarily unavailable"
+        }
+    }
 )
 async def activate_user_manually(
         user_id: int = Path(gt=0, le=2**63 - 1),

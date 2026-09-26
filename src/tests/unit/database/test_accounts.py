@@ -10,11 +10,11 @@ from src.database.models.accounts import (
     RefreshTokenModel,
     UserGroupEnum,
     UserGroupModel,
-    UserModel,
+    UserModel
 )
 from src.database.validators.accounts import (
     validate_email,
-    validate_password_strength,
+    validate_password_strength
 )
 from src.security.utils import generate_secure_token
 
@@ -26,11 +26,11 @@ from src.security.utils import generate_secure_token
         "lowercase1!",
         "UPPERCASE1!",
         "NoDigits!",
-        "NoSpecial1",
-    ],
+        "NoSpecial1"
+    ]
 )
 def test_validate_password_strength_rejects_weak_passwords(
-    password: str,
+        password: str
 ) -> None:
     with pytest.raises(ValueError):
         validate_password_strength(password)
@@ -66,7 +66,7 @@ def test_user_password_is_write_only() -> None:
     user = UserModel.create(
         "user@example.com",
         "StrongPassword1!",
-        group_id=1,
+        group_id=1
     )
 
     with pytest.raises(AttributeError):
@@ -77,7 +77,7 @@ def test_user_has_group() -> None:
     user = UserModel.create(
         "user@example.com",
         "StrongPassword1!",
-        group_id=1,
+        group_id=1
     )
     user.group = UserGroupModel(name=UserGroupEnum.MODERATOR)
 
@@ -91,7 +91,7 @@ def test_refresh_token_create_sets_expiration() -> None:
     refresh_token = RefreshTokenModel.create(
         user_id=1,
         days_valid=7,
-        token="refresh-token",
+        token="refresh-token"
     )
 
     expected_expiration = before_creation + timedelta(days=7)
@@ -113,9 +113,9 @@ def test_generate_secure_token_returns_unique_hex_values() -> None:
 
 def test_token_columns_match_assignment_schema() -> None:
     for model in (
-        ActivationTokenModel,
-        PasswordResetTokenModel,
-        RefreshTokenModel,
+            ActivationTokenModel,
+            PasswordResetTokenModel,
+            RefreshTokenModel
     ):
         table = cast(Table, model.__table__)
         token_type = cast(String, table.c.token.type)

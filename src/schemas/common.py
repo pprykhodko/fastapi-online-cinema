@@ -40,6 +40,8 @@ class AdminTransactionListQuerySchema(PaginationQuerySchema):
         cls, value: date | None, info: ValidationInfo,
     ) -> date | None:
         date_from = info.data.get("date_from")
+
         if value is not None and date_from is not None and value < date_from:
-            raise ValueError("date_to must not be earlier than date_from.")
+            raise ValueError("date_to must not be earlier than date_from")
+
         return value

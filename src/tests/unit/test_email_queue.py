@@ -12,7 +12,9 @@ from src.tasks import emails
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("kind", ["activation", "activation_complete", "password_reset", "comment"])
+@pytest.mark.parametrize(
+    "kind", ["activation", "activation_complete", "password_reset", "comment"]
+)
 async def test_queue_serializes_data_without_sending_smtp(monkeypatch, kind):
     publish = Mock()
     smtp = AsyncMock()
@@ -25,7 +27,9 @@ async def test_queue_serializes_data_without_sending_smtp(monkeypatch, kind):
     elif kind == "activation_complete":
         await queue.send_activation_complete_email("user@example.com")
     elif kind == "password_reset":
-        await queue.send_password_reset_email("user@example.com", "secret-token", expiry)
+        await queue.send_password_reset_email(
+            "user@example.com", "secret-token", expiry
+        )
     else:
         await queue.send_comment_notification("user@example.com", "Movie", 1, "reply")
     publish.assert_called_once()
@@ -40,18 +44,26 @@ async def test_queue_serializes_data_without_sending_smtp(monkeypatch, kind):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("error", [OperationalError, RedisConnectionError, OSError])
 async def test_queue_failure_is_translated(monkeypatch, error):
-    monkeypatch.setattr(emails.send_email, "apply_async", Mock(side_effect=error("private")))
+    monkeypatch.setattr(
+        emails.send_email, "apply_async", Mock(side_effect=error("private"))
+    )
     with pytest.raises(EmailQueueError, match="could not be queued"):
         await EmailQueue().send_activation_complete_email("user@example.com")
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kind", ["password_reset", "comment"])
-async def test_optional_queue_failure_is_logged_without_private_data(monkeypatch, caplog, kind):
-    monkeypatch.setattr(emails.send_email, "apply_async", Mock(side_effect=OperationalError("private")))
+async def test_optional_queue_failure_is_logged_without_private_data(
+        monkeypatch, caplog, kind
+):
+    monkeypatch.setattr(
+        emails.send_email, "apply_async", Mock(side_effect=OperationalError("private"))
+    )
     queue = EmailQueue()
     if kind == "password_reset":
-        await queue.send_password_reset_email("user@example.com", "secret-token", datetime.now(timezone.utc))
+        await queue.send_password_reset_email(
+            "user@example.com", "secret-token", datetime.now(timezone.utc)
+        )
     else:
         await queue.send_comment_notification("user@example.com", "Movie", 1, "like")
     assert "could not be queued" in caplog.text
@@ -60,12 +72,19 @@ async def test_optional_queue_failure_is_logged_without_private_data(monkeypatch
     assert "secret-token" not in caplog.text
 
 
-@pytest.mark.parametrize("kind,method,data", [
-    ("activation", "send_activation_email", {"token": "secret-token"}),
-    ("password_reset", "send_password_reset_email", {"token": "secret-token"}),
-    ("activation_complete", "send_activation_complete_email", {}),
-    ("comment", "send_comment_notification", {"movie_name": "Movie", "comment_id": 1, "event": "reply"}),
-])
+@pytest.mark.parametrize(
+    "kind,method,data",
+    [
+        ("activation", "send_activation_email", {"token": "secret-token"}),
+        ("password_reset", "send_password_reset_email", {"token": "secret-token"}),
+        ("activation_complete", "send_activation_complete_email", {}),
+        (
+            "comment",
+            "send_comment_notification",
+            {"movie_name": "Movie", "comment_id": 1, "event": "reply"}
+        )
+    ]
+)
 def test_worker_dispatches_email(monkeypatch, kind, method, data):
     sender = AsyncMock(spec=EmailSender)
     monkeypatch.setattr(emails, "get_email_sender", lambda: sender)
@@ -90,9 +109,17 @@ def test_worker_skips_expired_token(monkeypatch, kind, aware):
     expiry = datetime.now(timezone.utc) - timedelta(seconds=1)
     if not aware:
         expiry = expiry.replace(tzinfo=None)
-    emails.send_email.apply(args=(kind, "user@example.com", {
-        "token": "old", "expires_at": expiry.isoformat(),
-    }), throw=True)
+    emails.send_email.apply(
+        args=(
+            kind,
+            "user@example.com",
+            {
+                "token": "old",
+                "expires_at": expiry.isoformat()
+            }
+        ),
+        throw=True
+    )
     sender.send_activation_email.assert_not_awaited()
     sender.send_password_reset_email.assert_not_awaited()
 
@@ -101,9 +128,13 @@ def test_worker_skips_expired_token(monkeypatch, kind, aware):
 def test_worker_retries_smtp_failure_with_limit(monkeypatch, recover):
     sender = AsyncMock(spec=EmailSender)
     error = EmailDeliveryError("The email could not be sent")
-    sender.send_activation_complete_email.side_effect = [error, None] if recover else error
+    sender.send_activation_complete_email.side_effect = (
+        [error, None] if recover else error
+    )
     monkeypatch.setattr(emails, "get_email_sender", lambda: sender)
-    result = emails.send_email.apply(args=("activation_complete", "user@example.com", {}), throw=False)
+    result = emails.send_email.apply(
+        args=("activation_complete", "user@example.com", {}), throw=False
+    )
     assert result.successful() is recover
     assert sender.send_activation_complete_email.await_count == (2 if recover else 4)
     assert emails.send_email.max_retries == 3
@@ -114,7 +145,9 @@ def test_worker_does_not_retry_programming_errors(monkeypatch):
     sender = AsyncMock(spec=EmailSender)
     sender.send_activation_complete_email.side_effect = ValueError("Invalid template")
     monkeypatch.setattr(emails, "get_email_sender", lambda: sender)
-    result = emails.send_email.apply(args=("activation_complete", "user@example.com", {}), throw=False)
+    result = emails.send_email.apply(
+        args=("activation_complete", "user@example.com", {}), throw=False
+    )
     assert result.failed()
     assert sender.send_activation_complete_email.await_count == 1
 
@@ -126,4 +159,7 @@ def test_worker_rejects_unknown_kind():
 
 def test_email_task_is_registered_in_worker():
     assert "src.tasks.emails" in emails.celery_app.conf.include
-    assert emails.celery_app.tasks["emails.send"] is emails.send_email._get_current_object()
+    assert (
+        emails.celery_app.tasks["emails.send"]
+        is emails.send_email._get_current_object()
+    )

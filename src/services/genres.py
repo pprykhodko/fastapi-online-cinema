@@ -5,8 +5,10 @@ from src.services.database_errors import database_errors
 from src.database.models import GenreModel
 from src.repositories.genres import GenreRepository
 from src.schemas.movies import (
-    GenreCreateRequestSchema, GenreResponseSchema, GenreUpdateRequestSchema,
-    GenreWithMovieCountResponseSchema,
+    GenreCreateRequestSchema,
+    GenreResponseSchema,
+    GenreUpdateRequestSchema,
+    GenreWithMovieCountResponseSchema
 )
 
 
@@ -18,15 +20,25 @@ class GenreService(NamedEntityService[GenreResponseSchema]):
         super().__init__(repository)
 
     async def list_genres(self) -> list[GenreWithMovieCountResponseSchema]:
-        async with database_errors(self.repository, detail="Genres are temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Genres are temporarily unavailable"
+        ):
             rows = await self.repository.list_genres()
 
         return [
-            GenreWithMovieCountResponseSchema(id=genre.id, name=genre.name, movie_count=count) for genre, count in rows
+            GenreWithMovieCountResponseSchema(
+                id=genre.id,
+                name=genre.name,
+                movie_count=count
+            ) for genre, count in rows
         ]
 
     async def get_genre(self, genre_id: int) -> GenreModel:
-        async with database_errors(self.repository, detail="Genres are temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Genres are temporarily unavailable"
+        ):
             genre = await self.repository.get_genre(genre_id)
 
         if genre is None:
@@ -40,7 +52,11 @@ class GenreService(NamedEntityService[GenreResponseSchema]):
     async def create_genre(self, data: GenreCreateRequestSchema) -> GenreResponseSchema:
         return await self.save(GenreModel(name=data.name))
 
-    async def update_genre(self, genre_id: int, data: GenreUpdateRequestSchema) -> GenreResponseSchema:
+    async def update_genre(
+            self,
+            genre_id: int,
+            data: GenreUpdateRequestSchema
+    ) -> GenreResponseSchema:
         genre = await self.get_genre(genre_id)
         genre.name = data.name
 

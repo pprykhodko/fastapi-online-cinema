@@ -7,18 +7,20 @@ from src.database import MovieFavoriteModel, MovieModel, UserModel
 
 
 def test_favorites_persist_links_and_timestamp(
-    db_session: Session,
-    catalog_users: tuple[UserModel, UserModel],
-    catalog_movies: tuple[MovieModel, MovieModel],
+        db_session: Session,
+        catalog_users: tuple[UserModel, UserModel],
+        catalog_movies: tuple[MovieModel, MovieModel]
 ) -> None:
     user, other_user = catalog_users
     movie, other_movie = catalog_movies
     favorite = MovieFavoriteModel(user=user, movie=movie)
-    db_session.add_all([
-        favorite,
-        MovieFavoriteModel(user=other_user, movie=movie),
-        MovieFavoriteModel(user=user, movie=other_movie),
-    ])
+    db_session.add_all(
+        [
+            favorite,
+            MovieFavoriteModel(user=other_user, movie=movie),
+            MovieFavoriteModel(user=user, movie=other_movie)
+        ]
+    )
     db_session.commit()
 
     assert favorite.added_at is not None
@@ -31,9 +33,9 @@ def test_favorites_persist_links_and_timestamp(
 
 
 def test_favorites_reject_duplicate_and_allow_readding_after_removal(
-    db_session: Session,
-    catalog_users: tuple[UserModel, UserModel],
-    catalog_movies: tuple[MovieModel, MovieModel],
+        db_session: Session,
+        catalog_users: tuple[UserModel, UserModel],
+        catalog_movies: tuple[MovieModel, MovieModel]
 ) -> None:
     user, _ = catalog_users
     movie, _ = catalog_movies
@@ -43,9 +45,12 @@ def test_favorites_reject_duplicate_and_allow_readding_after_removal(
 
     with pytest.raises(IntegrityError):
         with db_session.begin_nested():
-            db_session.add(MovieFavoriteModel(
-                user_id=user.id, movie_id=movie.id,
-            ))
+            db_session.add(
+                MovieFavoriteModel(
+                    user_id=user.id,
+                    movie_id=movie.id
+                )
+            )
             db_session.flush()
 
     user.favorite_movies.remove(favorite)

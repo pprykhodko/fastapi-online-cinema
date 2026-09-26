@@ -27,12 +27,18 @@ class TokenRepository(BaseRepository):
         await self.db.delete(token)
 
     async def delete_user_refresh_tokens(self, user_id: int) -> None:
-        await self.db.execute(delete(RefreshTokenModel).where(RefreshTokenModel.user_id == user_id))
+        await self.db.execute(
+            delete(RefreshTokenModel)
+            .where(RefreshTokenModel.user_id == user_id)
+        )
 
     def add_password_reset_token(self, token: PasswordResetTokenModel) -> None:
         self.db.add(token)
 
-    async def get_password_reset_token(self, token_hash: str) -> PasswordResetTokenModel | None:
+    async def get_password_reset_token(
+            self,
+            token_hash: str
+    ) -> PasswordResetTokenModel | None:
         stmt = (
             select(PasswordResetTokenModel)
             .where(PasswordResetTokenModel.token == token_hash)
@@ -42,7 +48,10 @@ class TokenRepository(BaseRepository):
 
         return result.scalars().first()
 
-    async def get_user_password_reset_token(self, user_id: int) -> PasswordResetTokenModel | None:
+    async def get_user_password_reset_token(
+            self,
+            user_id: int
+    ) -> PasswordResetTokenModel | None:
         stmt = (
             select(PasswordResetTokenModel)
             .where(PasswordResetTokenModel.user_id == user_id)
@@ -53,7 +62,10 @@ class TokenRepository(BaseRepository):
         return result.scalars().first()
 
     async def delete_user_password_reset_tokens(self, user_id: int) -> None:
-        await self.db.execute(delete(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == user_id))
+        await self.db.execute(
+            delete(PasswordResetTokenModel)
+            .where(PasswordResetTokenModel.user_id == user_id)
+        )
 
     async def get_activation_token(self, token: str) -> ActivationTokenModel | None:
         stmt = (
@@ -65,7 +77,10 @@ class TokenRepository(BaseRepository):
 
         return result.scalars().first()
 
-    async def get_user_activation_token(self, user_id: int) -> ActivationTokenModel | None:
+    async def get_user_activation_token(
+            self,
+            user_id: int
+    ) -> ActivationTokenModel | None:
         stmt = (
             select(ActivationTokenModel)
             .where(ActivationTokenModel.user_id == user_id)

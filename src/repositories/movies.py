@@ -30,7 +30,11 @@ class MovieRepository(BaseRepository):
         stmt = select(MovieModel).where(MovieModel.is_deleted.is_(False))
 
         if favorite_user_id is not None:
-            stmt = stmt.where(MovieModel.favorites.any(MovieFavoriteModel.user_id == favorite_user_id))
+            stmt = stmt.where(
+                MovieModel.favorites.any(
+                    MovieFavoriteModel.user_id == favorite_user_id
+                )
+            )
 
         if query.year is not None:
             stmt = stmt.where(MovieModel.year == query.year)
@@ -43,12 +47,16 @@ class MovieRepository(BaseRepository):
 
         if query.search is not None:
             stmt = (
-                stmt.where(or_(
-                    MovieModel.name.icontains(query.search, autoescape=True),
-                    MovieModel.description.icontains(query.search, autoescape=True),
-                    MovieModel.stars.any(StarModel.name.icontains(query.search, autoescape=True)),
-                    MovieModel.directors.any(DirectorModel.name.icontains(query.search, autoescape=True))
-                )
+                stmt.where(
+                    or_(
+                        MovieModel.name.icontains(query.search, autoescape=True),
+                        MovieModel.description.icontains(query.search, autoescape=True),
+                        MovieModel.stars.any(
+                            StarModel.name.icontains(query.search, autoescape=True)
+                        ),
+                        MovieModel.directors.any(
+                            DirectorModel.name.icontains(query.search, autoescape=True))
+                    )
                 )
             )
 
@@ -88,7 +96,11 @@ class MovieRepository(BaseRepository):
             return {}
 
         rows = await self.db.execute(
-            select(MovieReactionModel.movie_id, MovieReactionModel.reaction, func.count())
+            select(
+                MovieReactionModel.movie_id,
+                MovieReactionModel.reaction,
+                func.count()
+            )
             .where(MovieReactionModel.movie_id.in_(movie_ids))
             .group_by(MovieReactionModel.movie_id, MovieReactionModel.reaction)
         )
@@ -107,7 +119,13 @@ class MovieRepository(BaseRepository):
             for_update: bool = False,
             with_relations: bool = True
     ) -> MovieModel | None:
-        stmt = select(MovieModel).where(MovieModel.id == movie_id, MovieModel.is_deleted.is_(False))
+        stmt = (
+            select(MovieModel)
+            .where(
+                MovieModel.id == movie_id,
+                MovieModel.is_deleted.is_(False)
+            )
+        )
 
         if with_relations:
             stmt = stmt.options(
@@ -124,8 +142,22 @@ class MovieRepository(BaseRepository):
 
     async def get_relations(self, data):
         certification = await self.db.get(CertificationModel, data.certification_id)
-        genres = list((await self.db.scalars(select(GenreModel).where(GenreModel.id.in_(data.genre_ids)))).all())
-        stars = list((await self.db.scalars(select(StarModel).where(StarModel.id.in_(data.star_ids)))).all())
+        genres = list(
+            (
+                await self.db.scalars(
+                    select(GenreModel)
+                    .where(GenreModel.id.in_(data.genre_ids))
+                )
+            ).all()
+        )
+        stars = list(
+            (
+                await self.db.scalars(
+                    select(StarModel)
+                    .where(StarModel.id.in_(data.star_ids))
+                )
+            ).all()
+        )
         directors = list((await self.db.scalars(
             select(DirectorModel)
             .where(DirectorModel.id.in_(data.director_ids)))).all())
@@ -139,7 +171,13 @@ class MovieRepository(BaseRepository):
             OrderItemModel.movie_id == movie_id,
             or_(OrderModel.status == OrderStatusEnum.PAID,
                 OrderModel.payments
-                .any(PaymentModel.status.in_([PaymentStatusEnum.SUCCESSFUL,PaymentStatusEnum.REFUNDED])))).limit(1))
+                .any(PaymentModel.status.in_(
+                    [PaymentStatusEnum.SUCCESSFUL, PaymentStatusEnum.REFUNDED]
+                )
+                )
+                )
+        ).limit(1)
+                )
 
         return await self.db.scalar(stmt) is not None
 
@@ -162,7 +200,10 @@ class MovieRepository(BaseRepository):
         ) or 0
 
     async def remove_from_carts(self, movie_id: int) -> None:
-        await self.db.execute(delete(CartItemModel).where(CartItemModel.movie_id == movie_id))
+        await self.db.execute(
+            delete(CartItemModel)
+            .where(CartItemModel.movie_id == movie_id)
+        )
 
     async def flush_movie(self, movie: MovieModel) -> None:
         self.db.add(movie)

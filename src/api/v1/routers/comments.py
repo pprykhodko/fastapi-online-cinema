@@ -60,7 +60,8 @@ async def list_comments(
 
 
 @router.post(
-    "/movies/{movie_id}/comments/", status_code=201,
+    "/movies/{movie_id}/comments/",
+    status_code=201,
     response_model=MovieCommentResponseSchema,
     summary="Write a comment or reply",
     description=(
@@ -80,7 +81,8 @@ async def create_comment(
 
 
 @router.put(
-    "/comments/{comment_id}/like/", response_model=CommentLikeResponseSchema,
+    "/comments/{comment_id}/like/",
+    response_model=CommentLikeResponseSchema,
     summary="Like a comment",
     description=(
             "Requires an active account. Returns 201 for a new like, 200 for a "
@@ -106,7 +108,8 @@ async def like_comment(
 
 
 @router.delete(
-    "/comments/{comment_id}/like/", status_code=204,
+    "/comments/{comment_id}/like/",
+    status_code=204,
     summary="Remove your comment like",
     description=(
             "Requires an active account. Removes only your like, even if the "

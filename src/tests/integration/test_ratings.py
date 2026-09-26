@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.api.dependencies import get_rating_service
 from src.database.models import (
-    CertificationModel, MovieModel, MovieRatingModel, UserModel,
+    CertificationModel, MovieModel, MovieRatingModel, UserModel
 )
 from src.main import app
 from src.repositories.ratings import RatingRepository
@@ -26,22 +26,22 @@ async def ratings_api(login_api):
         user = await db.get(UserModel, user_id)
         other = UserModel(
             email="other@example.com", group_id=user.group_id,
-            _hashed_password="unused", is_active=True,
+            _hashed_password="unused", is_active=True
         )
         movie = MovieModel(
             id=1, name="Movie", year=2020, time=90, imdb=8, votes=5,
             description="Story", price=Decimal("5"),
-            certification=CertificationModel(name="PG"),
+            certification=CertificationModel(name="PG")
         )
         db.add_all([other, movie])
         await db.flush()
         other_id = other.id
         db.add(MovieRatingModel(
-            user_id=other_id, movie_id=1, score=3,
+            user_id=other_id, movie_id=1, score=3
         ))
         await db.commit()
     headers = {
-        "Authorization": f"Bearer {manager.create_access_token(user_id)}",
+        "Authorization": f"Bearer {manager.create_access_token(user_id)}"
     }
     return client, sessions, user_id, other_id, headers
 
@@ -52,7 +52,7 @@ async def test_rating_lifecycle_and_user_isolation(ratings_api):
     assert (await client.get(PATH, headers=headers)).status_code == 404
     assert (await client.delete(PATH, headers=headers)).status_code == 404
     created = await client.put(
-        PATH, headers=headers, json={"score": 8},
+        PATH, headers=headers, json={"score": 8}
     )
     assert created.status_code == 201
     first = created.json()
@@ -61,7 +61,7 @@ async def test_rating_lifecycle_and_user_isolation(ratings_api):
     assert first["score"] == 8
     assert first["created_at"] and first["updated_at"]
     repeated = await client.put(
-        PATH, headers=headers, json={"score": 8},
+        PATH, headers=headers, json={"score": 8}
     )
     assert repeated.status_code == 200
     assert repeated.json() == first
@@ -70,7 +70,7 @@ async def test_rating_lifecycle_and_user_isolation(ratings_api):
         rating.updated_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
         await db.commit()
     changed = await client.put(
-        PATH, headers=headers, json={"score": 3},
+        PATH, headers=headers, json={"score": 3}
     )
     assert changed.status_code == 200
     assert changed.json()["id"] == first["id"]
@@ -80,7 +80,7 @@ async def test_rating_lifecycle_and_user_isolation(ratings_api):
     assert (await client.get(PATH, headers=headers)).json() == changed.json()
     async with sessions() as db:
         assert await db.scalar(select(func.count()).select_from(
-            MovieRatingModel,
+            MovieRatingModel
         )) == 2
     removed = await client.delete(PATH, headers=headers)
     assert removed.status_code == 204
@@ -88,7 +88,7 @@ async def test_rating_lifecycle_and_user_isolation(ratings_api):
     assert (await client.delete(PATH, headers=headers)).status_code == 404
     async with sessions() as db:
         other = await db.scalar(select(MovieRatingModel).where(
-            MovieRatingModel.user_id == other_id,
+            MovieRatingModel.user_id == other_id
         ))
         assert other.score == 3
         assert await db.get(MovieModel, 1) is not None
@@ -108,7 +108,7 @@ async def test_authentication(ratings_api, method, auth):
         headers = {} if auth == "missing" else {"Authorization": "Bearer bad"}
     response = await client.request(
         method, PATH, headers=headers,
-        **({"json": {"score": 8}} if method == "PUT" else {}),
+        **({"json": {"score": 8}} if method == "PUT" else {})
     )
     assert response.status_code == (403 if auth == "inactive" else 401)
 
@@ -117,7 +117,7 @@ async def test_authentication(ratings_api, method, auth):
 @pytest.mark.parametrize("body", [
     {}, {"score": 0}, {"score": 11}, {"score": -1}, {"score": 5.5},
     {"score": "8"}, {"score": None}, {"score": True}, {"score": 8.0},
-    {"score": 8, "user_id": 2}, {"score": 8, "movie_id": 2},
+    {"score": 8, "user_id": 2}, {"score": 8, "movie_id": 2}
 
 ])
 async def test_invalid_rating_body(ratings_api, body):
@@ -130,15 +130,15 @@ async def test_invalid_rating_body(ratings_api, body):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method", ["GET", "PUT", "DELETE"])
 @pytest.mark.parametrize("movie_id, expected", [
-    (999, 404), (0, 422), (-1, 422), (2**31, 422), ("abc", 422),
+    (999, 404), (0, 422), (-1, 422), (2**31, 422), ("abc", 422)
 ])
 async def test_missing_or_invalid_movie(
-    ratings_api, method, movie_id, expected,
+        ratings_api, method, movie_id, expected
 ):
     client, _, _, _, headers = ratings_api
     response = await client.request(
         method, f"/api/v1/movies/{movie_id}/rating/", headers=headers,
-        **({"json": {"score": 8}} if method == "PUT" else {}),
+        **({"json": {"score": 8}} if method == "PUT" else {})
     )
     assert response.status_code == expected
 
@@ -147,7 +147,7 @@ async def test_missing_or_invalid_movie(
 async def test_deleted_movie_rating_can_only_be_removed(ratings_api):
     client, sessions, _, _, headers = ratings_api
     response = await client.put(
-        PATH, headers=headers, json={"score": 8},
+        PATH, headers=headers, json={"score": 8}
     )
     assert response.status_code == 201
     async with sessions() as db:
@@ -156,7 +156,7 @@ async def test_deleted_movie_rating_can_only_be_removed(ratings_api):
         await db.commit()
     assert (await client.get(PATH, headers=headers)).status_code == 404
     response = await client.put(
-        PATH, headers=headers, json={"score": 3},
+        PATH, headers=headers, json={"score": 3}
     )
     assert response.status_code == 404
     assert (await client.delete(PATH, headers=headers)).status_code == 204
@@ -165,7 +165,7 @@ async def test_deleted_movie_rating_can_only_be_removed(ratings_api):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method, failure", [
     ("GET", "get_movie"), ("GET", "get_rating"),
-    ("PUT", "get_movie"), ("DELETE", "delete"),
+    ("PUT", "get_movie"), ("DELETE", "delete")
 ])
 async def test_database_failure(ratings_api, monkeypatch, method, failure):
     client, _, _, _, headers = ratings_api
@@ -177,7 +177,7 @@ async def test_database_failure(ratings_api, monkeypatch, method, failure):
                         lambda: RatingService(repository, movie_repository))
     response = await client.request(
         method, PATH, headers=headers,
-        **({"json": {"score": 8}} if method == "PUT" else {}),
+        **({"json": {"score": 8}} if method == "PUT" else {})
     )
     assert response.status_code == 503
     assert "secret" not in response.text
@@ -197,12 +197,12 @@ async def test_failed_commit_rolls_back(ratings_api, monkeypatch, operation):
     monkeypatch.setattr(RatingRepository, "commit", fail_commit)
     response = await client.request(
         "DELETE" if operation == "delete" else "PUT", PATH, headers=headers,
-        **({"json": {"score": 3}} if operation != "delete" else {}),
+        **({"json": {"score": 3}} if operation != "delete" else {})
     )
     assert response.status_code == 503
     async with sessions() as db:
         rating = await db.scalar(select(MovieRatingModel).where(
-            MovieRatingModel.user_id == user_id,
+            MovieRatingModel.user_id == user_id
         ))
         if operation == "create":
             assert rating is None
@@ -219,7 +219,7 @@ async def test_integrity_conflict_returns_409(ratings_api, monkeypatch):
 
     monkeypatch.setattr(RatingRepository, "save", fail_save)
     response = await client.put(
-        PATH, headers=headers, json={"score": 8},
+        PATH, headers=headers, json={"score": 8}
     )
     assert response.status_code == 409
     assert "private" not in response.text
@@ -252,7 +252,7 @@ async def test_average_rating_in_catalog(ratings_api):
             db.add(MovieModel(
                 id=movie_id, name=f"Movie {movie_id}", year=2010, time=90,
                 imdb=9, votes=10, description="Story", price=None,
-                certification_id=first.certification_id,
+                certification_id=first.certification_id
             ))
         await db.flush()
         db.add(MovieRatingModel(user_id=other_id, movie_id=2, score=10))
@@ -290,7 +290,7 @@ async def test_average_rating_in_catalog(ratings_api):
     assert catalog["items"][0]["average_rating"] == 3
     async with sessions() as db:
         await db.execute(delete(MovieRatingModel).where(
-            MovieRatingModel.movie_id == 1,
+            MovieRatingModel.movie_id == 1
         ))
         await db.commit()
     catalog = (await client.get("/api/v1/movies/")).json()

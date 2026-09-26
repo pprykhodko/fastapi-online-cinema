@@ -13,23 +13,23 @@ from src.database import (
     OrderItemModel,
     OrderModel,
     OrderStatusEnum,
-    UserModel,
+    UserModel
 )
 from src.schemas.cart import CartResponseSchema
 from src.schemas.interactions import MovieFavoriteResponseSchema
 from src.schemas.movies import (
-    MovieDetailResponseSchema, MovieListItemResponseSchema,
+    MovieDetailResponseSchema, MovieListItemResponseSchema
 )
 from src.schemas.orders import OrderResponseSchema
 
 
 @pytest.mark.parametrize(("price", "deleted", "available"), [
     (None, False, False), (Decimal("0.00"), False, True),
-    (Decimal("9.99"), False, True), (Decimal("9.99"), True, False),
+    (Decimal("9.99"), False, True), (Decimal("9.99"), True, False)
 ])
 def test_movie_availability_survives_storage_and_schema_serialization(
-    db_session: Session, catalog_movies: tuple[MovieModel, MovieModel],
-    price: Decimal | None, deleted: bool, available: bool,
+        db_session: Session, catalog_movies: tuple[MovieModel, MovieModel],
+        price: Decimal | None, deleted: bool, available: bool
 ) -> None:
     movie = catalog_movies[0]
     movie_id = movie.id
@@ -42,7 +42,7 @@ def test_movie_availability_survives_storage_and_schema_serialization(
         select(MovieModel).where(MovieModel.id == movie_id).options(
             selectinload(MovieModel.genres), selectinload(MovieModel.stars),
             selectinload(MovieModel.directors),
-            selectinload(MovieModel.certification),
+            selectinload(MovieModel.certification)
         )
     ).one()
     db_session.expunge_all()
@@ -56,11 +56,11 @@ def test_movie_availability_survives_storage_and_schema_serialization(
 
 
 @pytest.mark.parametrize("status", [
-    OrderStatusEnum.PENDING, OrderStatusEnum.CANCELED,
+    OrderStatusEnum.PENDING, OrderStatusEnum.CANCELED
 ])
 def test_logical_deletion_preserves_cart_and_unpaid_order_history(
-    db_session: Session, catalog_users: tuple[UserModel, UserModel],
-    catalog_movies: tuple[MovieModel, MovieModel], status: OrderStatusEnum,
+        db_session: Session, catalog_users: tuple[UserModel, UserModel],
+        catalog_movies: tuple[MovieModel, MovieModel], status: OrderStatusEnum
 ) -> None:
     user_id = catalog_users[0].id
     movie = catalog_movies[0]
@@ -68,10 +68,10 @@ def test_logical_deletion_preserves_cart_and_unpaid_order_history(
     cart = CartModel(user_id=user_id)
     cart.items = [CartItemModel(movie_id=movie_id)]
     order = OrderModel(
-        user_id=user_id, status=status, total_amount=Decimal("9.99"),
+        user_id=user_id, status=status, total_amount=Decimal("9.99")
     )
     order.items = [OrderItemModel(
-        movie_id=movie_id, price_at_order=Decimal("9.99"),
+        movie_id=movie_id, price_at_order=Decimal("9.99")
     )]
     db_session.add_all([cart, order])
     db_session.commit()
@@ -83,16 +83,16 @@ def test_logical_deletion_preserves_cart_and_unpaid_order_history(
     stored_cart = db_session.scalars(
         select(CartModel).where(CartModel.id == cart_id).options(
             selectinload(CartModel.items).selectinload(CartItemModel.movie)
-            .selectinload(MovieModel.genres),
+            .selectinload(MovieModel.genres)
         )
     ).one()
     stored_order = db_session.scalars(
         select(OrderModel).where(OrderModel.id == order_id).options(
-            selectinload(OrderModel.items).selectinload(OrderItemModel.movie),
+            selectinload(OrderModel.items).selectinload(OrderItemModel.movie)
         )
     ).one()
     visible_ids = db_session.scalars(
-        select(MovieModel.id).where(MovieModel.is_deleted.is_(False)),
+        select(MovieModel.id).where(MovieModel.is_deleted.is_(False))
     ).all()
     db_session.expunge_all()
 
@@ -107,16 +107,16 @@ def test_logical_deletion_preserves_cart_and_unpaid_order_history(
 
 
 def test_physical_deletion_cannot_remove_purchased_movie_history(
-    db_session: Session, catalog_users: tuple[UserModel, UserModel],
-    catalog_movies: tuple[MovieModel, MovieModel],
+        db_session: Session, catalog_users: tuple[UserModel, UserModel],
+        catalog_movies: tuple[MovieModel, MovieModel]
 ) -> None:
     movie_id = catalog_movies[0].id
     order = OrderModel(
         user_id=catalog_users[0].id, status=OrderStatusEnum.PAID,
-        total_amount=Decimal("9.99"),
+        total_amount=Decimal("9.99")
     )
     order.items = [OrderItemModel(
-        movie_id=movie_id, price_at_order=Decimal("9.99"),
+        movie_id=movie_id, price_at_order=Decimal("9.99")
     )]
     db_session.add(order)
     db_session.commit()
@@ -128,8 +128,8 @@ def test_physical_deletion_cannot_remove_purchased_movie_history(
 
 
 def test_favorite_and_cart_responses_allow_withdrawn_movie_price(
-    db_session: Session, catalog_users: tuple[UserModel, UserModel],
-    catalog_movies: tuple[MovieModel, MovieModel],
+        db_session: Session, catalog_users: tuple[UserModel, UserModel],
+        catalog_movies: tuple[MovieModel, MovieModel]
 ) -> None:
     user_id = catalog_users[0].id
     movie = catalog_movies[0]

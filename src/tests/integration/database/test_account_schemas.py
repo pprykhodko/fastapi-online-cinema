@@ -9,32 +9,35 @@ from src.database import (
     PasswordResetTokenModel,
     RefreshTokenModel,
     UserModel,
-    UserProfileModel,
+    UserProfileModel
 )
 from src.schemas.accounts import (
     UserListResponseSchema,
     UserProfileResponseSchema,
     UserProfileUpdateRequestSchema,
-    UserResponseSchema,
+    UserResponseSchema
 )
 
 
 def test_persisted_user_response_does_not_expose_tokens_or_password_hash(
-    db_session: Session, catalog_users: tuple[UserModel, UserModel],
+        db_session: Session,
+        catalog_users: tuple[UserModel, UserModel]
 ) -> None:
     user_id = catalog_users[0].id
-    db_session.add_all([
-        ActivationTokenModel(user_id=user_id, token="private-activation"),
-        PasswordResetTokenModel(user_id=user_id, token="private-reset"),
-        RefreshTokenModel.create(user_id, 7, "private-refresh"),
-    ])
+    db_session.add_all(
+        [
+            ActivationTokenModel(user_id=user_id, token="private-activation"),
+            PasswordResetTokenModel(user_id=user_id, token="private-reset"),
+            RefreshTokenModel.create(user_id, 7, "private-refresh")
+        ]
+    )
     db_session.commit()
     db_session.expunge_all()
     user = db_session.scalars(
-        select(UserModel).options(selectinload(UserModel.group))
+        select(UserModel)
+        .options(selectinload(UserModel.group))
         .where(UserModel.id == user_id)
     ).one()
-    # Serialize without a session or lazy-loading token relationships.
     db_session.expunge_all()
 
     response = UserResponseSchema.model_validate(user)
@@ -45,35 +48,54 @@ def test_persisted_user_response_does_not_expose_tokens_or_password_hash(
     assert data["updated_at"] is not None
     assert data["group"]["name"] == "user"
     assert set(data) == {
-        "id", "email", "is_active", "created_at", "updated_at", "group",
+        "id",
+        "email",
+        "is_active",
+        "created_at",
+        "updated_at",
+        "group"
     }
     serialized = response.model_dump_json()
-    page = UserListResponseSchema.model_validate({
-        "items": [user], "total": 1, "page": 1, "per_page": 10,
-    })
+    page = UserListResponseSchema.model_validate(
+        {
+            "items": [user],
+            "total": 1,
+            "page": 1,
+            "per_page": 10
+        }
+    )
     assert page.items[0].id == user_id
     serialized += page.model_dump_json()
     for secret in (
-        "unused-in-database-tests", "private-activation", "private-reset",
-        "private-refresh",
+            "unused-in-database-tests",
+            "private-activation",
+            "private-reset",
+            "private-refresh"
     ):
         assert secret not in serialized
 
 
 def test_profile_patch_updates_only_supplied_fields_and_can_clear_values(
-    db_session: Session, catalog_users: tuple[UserModel, UserModel],
+        db_session: Session,
+        catalog_users: tuple[UserModel, UserModel]
 ) -> None:
     profile = UserProfileModel(
         user_id=catalog_users[0].id,
-        first_name="Alex", last_name="Smith", avatar="avatars/original.png",
-        gender=GenderEnum.WOMAN, date_of_birth=date(2000, 1, 2),
+        first_name="Alex",
+        last_name="Smith",
+        avatar="avatars/original.png",
+        gender=GenderEnum.WOMAN,
+        date_of_birth=date(2000, 1, 2)
     )
     db_session.add(profile)
     db_session.commit()
     profile_id = profile.id
-    patch = UserProfileUpdateRequestSchema.model_validate({
-        "first_name": "Sam", "date_of_birth": None,
-    })
+    patch = UserProfileUpdateRequestSchema.model_validate(
+        {
+            "first_name": "Sam",
+            "date_of_birth": None
+        }
+    )
     for field, value in patch.model_dump(exclude_unset=True).items():
         setattr(profile, field, value)
     db_session.commit()

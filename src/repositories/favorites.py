@@ -6,13 +6,20 @@ from src.database.models import MovieFavoriteModel
 
 
 class FavoriteRepository(BaseRepository):
-    async def get_for_movies(self, user_id: int, movie_ids: list[int]) -> list[MovieFavoriteModel]:
+    async def get_for_movies(
+            self,
+            user_id: int,
+            movie_ids: list[int]
+    ) -> list[MovieFavoriteModel]:
         if not movie_ids:
             return []
 
         favorites = await self.db.scalars(
             select(MovieFavoriteModel)
-            .where(MovieFavoriteModel.user_id == user_id, MovieFavoriteModel.movie_id.in_(movie_ids))
+            .where(
+                MovieFavoriteModel.user_id == user_id,
+                MovieFavoriteModel.movie_id.in_(movie_ids)
+            )
             .options(joinedload(MovieFavoriteModel.movie)))
         by_movie = {favorite.movie_id: favorite for favorite in favorites}
 
@@ -25,7 +32,10 @@ class FavoriteRepository(BaseRepository):
     async def delete(self, user_id: int, movie_id: int) -> bool:
         deleted_id = await self.db.scalar(
             delete(MovieFavoriteModel)
-            .where(MovieFavoriteModel.user_id == user_id, MovieFavoriteModel.movie_id == movie_id)
+            .where(
+                MovieFavoriteModel.user_id == user_id,
+                MovieFavoriteModel.movie_id == movie_id
+            )
             .returning(MovieFavoriteModel.id)
         )
 

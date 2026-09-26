@@ -33,7 +33,10 @@ class OrderService:
             query: OrderListQuerySchema | AdminOrderListQuerySchema,
             user_id: int | None = None
     ) -> OrderListResponseSchema:
-        async with database_errors(self.repository, detail="Orders are temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Orders are temporarily unavailable"
+        ):
             orders, total = await self.repository.list_orders(query, user_id=user_id)
 
             return OrderListResponseSchema(
@@ -43,7 +46,12 @@ class OrderService:
                 per_page=query.per_page
             )
 
-    async def get_owned_order(self, user_id: int, order_id: int, lock: bool = False) -> OrderModel:
+    async def get_owned_order(
+            self,
+            user_id: int,
+            order_id: int,
+            lock: bool = False
+    ) -> OrderModel:
         order = await self.repository.get_order(order_id, user_id, lock=lock)
 
         if order is None:
@@ -55,25 +63,37 @@ class OrderService:
         return order
 
     async def get_order(self, user_id: int, order_id: int) -> OrderResponseSchema:
-        async with database_errors(self.repository, detail="Order is temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Order is temporarily unavailable"
+        ):
             order = await self.get_owned_order(user_id, order_id)
 
             return OrderResponseSchema.model_validate(order)
 
     async def cancel_order(self, user_id: int, order_id: int) -> OrderResponseSchema:
-        async with database_errors(self.repository, detail="Order could not be canceled"):
+        async with database_errors(
+                self.repository,
+                detail="Order could not be canceled"
+        ):
             order = await self.get_owned_order(user_id, order_id, lock=True)
 
             if await self.repository.has_checkout(order.id):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="This order has a Stripe checkout. Cancel it through Payments, or request a refund if paid."
+                    detail="This order has a Stripe checkout. "
+                           "Cancel it through Payments, "
+                           "or request a refund if paid."
                 )
 
-            if order.status == OrderStatusEnum.PAID or await self.repository.has_completed_payment(order.id):
+            if (
+                    order.status == OrderStatusEnum.PAID
+                    or await self.repository.has_completed_payment(order.id)
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="A paid order cannot be canceled. Request a payment refund instead."
+                    detail="A paid order cannot be canceled. "
+                           "Request a payment refund instead."
                 )
 
             if order.status != OrderStatusEnum.PENDING:
@@ -94,10 +114,16 @@ class OrderService:
 
         No payment is created here. The caller must use this same DB session.
         """
-        async with database_errors(self.repository, detail="Order validation is temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Order validation is temporarily unavailable"
+        ):
             order = await self.get_owned_order(user_id, order_id, lock=True)
 
-            if order.status != OrderStatusEnum.PENDING or await self.repository.has_completed_payment(order.id):
+            if (
+                    order.status != OrderStatusEnum.PENDING
+                    or await self.repository.has_completed_payment(order.id)
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Only an unpaid pending order can be paid"
@@ -110,12 +136,14 @@ class OrderService:
                 )
 
             movie_ids = [item.movie_id for item in order.items]
-            movies = {movie.id: movie for movie in await self.movie_repository.get_checkout_movies(movie_ids)}
+            checkout_movies = await self.movie_repository.get_checkout_movies(movie_ids)
+            movies = {movie.id: movie for movie in checkout_movies}
 
             if await self.repository.purchased_movie_ids(user_id, movie_ids):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="The order contains already purchased movies. Cancel it and create a new order."
+                    detail="The order contains already purchased movies. "
+                           "Cancel it and create a new order."
                 )
 
             for item in order.items:
@@ -124,13 +152,15 @@ class OrderService:
                 if movie is None or not movie.is_available_for_purchase:
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
-                        detail="The order contains unavailable movies. Cancel it and create a new order."
+                        detail="The order contains unavailable movies. "
+                               "Cancel it and create a new order."
                     )
 
                 if movie.price != item.price_at_order:
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
-                        detail="Movie prices changed. Cancel the order and create a new one to confirm the new prices."
+                        detail="Movie prices changed. Cancel the order and "
+                               "create a new one to confirm the new prices."
                     )
 
             total = sum((item.price_at_order for item in order.items), Decimal("0.00"))
@@ -138,7 +168,8 @@ class OrderService:
             if total > Decimal("99999999.99") or total != order.total_amount:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="The order total is inconsistent. Cancel it and create a new order."
+                    detail="The order total is inconsistent. "
+                           "Cancel it and create a new order."
                 )
 
             return order
@@ -165,7 +196,8 @@ class OrderService:
                     detail="Your cart is empty"
                 )
 
-            movies = {movie.id: movie for movie in await self.movie_repository.get_checkout_movies(movie_ids)}
+            checkout_movies = await self.movie_repository.get_checkout_movies(movie_ids)
+            movies = {movie.id: movie for movie in checkout_movies}
             purchased = await self.repository.purchased_movie_ids(user_id, movie_ids)
             excluded = []
             available = []
@@ -183,20 +215,31 @@ class OrderService:
                     available.append(movie)
                     continue
 
-                excluded.append(OrderExcludedItemSchema(movie_id=movie_id, reason=reason))
+                excluded.append(
+                    OrderExcludedItemSchema(
+                        movie_id=movie_id,
+                        reason=reason)
+                )
 
-            pending = await self.repository.pending_movie_ids(user_id, [movie.id for movie in available])
+            pending = await self.repository.pending_movie_ids(
+                user_id,
+                [movie.id for movie in available]
+            )
 
             if pending:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Movies already belong to a pending order: {', '.join(map(str, sorted(pending)))}",
+                    detail=f"Movies already belong to a pending order: "
+                           f"{', '.join(map(str, sorted(pending)))}"
                 )
 
             response_order = None
 
             if available:
-                total = sum((movie.price for movie in available if movie.price is not None), Decimal("0.00"))
+                total = sum(
+                    (movie.price for movie in available if movie.price is not None),
+                    Decimal("0.00")
+                )
 
                 if total > Decimal("99999999.99"):
                     raise HTTPException(
@@ -208,15 +251,24 @@ class OrderService:
                     user_id=user_id,
                     status=OrderStatusEnum.PENDING,
                     total_amount=total,
-                    items=[OrderItemModel(movie=movie, price_at_order=movie.price) for movie in available]
+                    items=[
+                        OrderItemModel(
+                            movie=movie,
+                            price_at_order=movie.price
+                        ) for movie in available
+                    ]
                 )
                 await self.repository.add_order(order)
                 response_order = OrderResponseSchema.model_validate(order)
-            await self.cart_repository.remove_items(cart.id, [item.movie_id for item in excluded])
+            await self.cart_repository.remove_items(
+                cart.id,
+                [item.movie_id for item in excluded]
+            )
             await self.repository.commit()
 
             return OrderCreateResponseSchema(
-                message="Order created. Payment is required" if response_order else "No movies available for purchase",
+                message="Order created. Payment is required"
+                if response_order else "No movies available for purchase",
                 order=response_order,
                 excluded_items=excluded
             )

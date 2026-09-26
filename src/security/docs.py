@@ -28,7 +28,10 @@ async def get_docs_user(
             detail="Authentication is temporarily unavailable"
         )
 
-    if user is None or not await run_in_threadpool(user.verify_password, credentials.password):
+    if user is None or not await run_in_threadpool(
+            user.verify_password,
+            credentials.password
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",

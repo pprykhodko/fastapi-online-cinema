@@ -24,7 +24,13 @@ class EmailSender:
             autoescape=select_autoescape(["html"])
         )
 
-    async def _send_email(self, recipient: str, subject: str, html_content: str, text_content: str) -> None:
+    async def _send_email(
+            self,
+            recipient: str,
+            subject: str,
+            html_content: str,
+            text_content: str
+    ) -> None:
         message = EmailMessage()
         message["From"] = str(self._settings.SMTP_FROM_EMAIL)
         message["To"] = recipient
@@ -47,7 +53,13 @@ class EmailSender:
         except (aiosmtplib.SMTPException, OSError, TimeoutError) as error:
             raise EmailDeliveryError("The email could not be sent") from error
 
-    async def send_payment_confirmation(self, email: str, order_id: int, amount: str, currency: str) -> None:
+    async def send_payment_confirmation(
+            self,
+            email: str,
+            order_id: int,
+            amount: str,
+            currency: str
+    ) -> None:
         html = self._env.get_template("payment_confirmation.html").render(
             order_id=order_id,
             amount=amount,
@@ -59,7 +71,12 @@ class EmailSender:
             f"Your movies are now in Purchased."
         )
 
-    async def send_comment_notification(self, email: str, movie_name: str, comment_id: int, event: str) -> None:
+    async def send_comment_notification(
+            self, email: str,
+            movie_name: str,
+            comment_id: int,
+            event: str
+    ) -> None:
         action = "received a reply" if event == "reply" else "received a like"
         template = self._env.get_template("comment_notification.html")
         html_content = template.render(
@@ -74,7 +91,12 @@ class EmailSender:
             f'Your comment #{comment_id} on "{movie_name}" {action}'
         )
 
-    async def send_activation_email(self, email: str, token: str, expires_at: datetime) -> None:
+    async def send_activation_email(
+            self,
+            email: str,
+            token: str,
+            expires_at: datetime
+    ) -> None:
         url_parts = urlsplit(str(self._settings.ACCOUNT_ACTIVATION_URL))
         query = dict(parse_qsl(url_parts.query))
         query["token"] = token
@@ -83,7 +105,9 @@ class EmailSender:
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
-        expiration = expires_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        expiration = expires_at.astimezone(timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S UTC"
+        )
 
         template = self._env.get_template("activation_request.html")
         html_content = template.render(
@@ -111,11 +135,18 @@ class EmailSender:
             "Thank you for joining Online Cinema!"
         )
 
-    async def send_password_reset_email(self, email: str, token: str, expires_at: datetime) -> None:
+    async def send_password_reset_email(
+            self,
+            email: str,
+            token: str,
+            expires_at: datetime
+    ) -> None:
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
-        expiration = expires_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        expiration = expires_at.astimezone(timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S UTC"
+        )
         template = self._env.get_template("password_reset_request.html")
         html_content = template.render(email=email, token=token, expires_at=expiration)
         await self._send_email(

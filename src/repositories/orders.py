@@ -16,7 +16,11 @@ from src.schemas.orders import AdminOrderListQuerySchema, OrderListQuerySchema
 
 class OrderRepository(BaseRepository):
     async def get_by_id(self, order_id: int, lock: bool = False) -> OrderModel | None:
-        stmt = select(OrderModel).where(OrderModel.id == order_id).options(selectinload(OrderModel.items))
+        stmt = (
+            select(OrderModel)
+            .where(OrderModel.id == order_id)
+            .options(selectinload(OrderModel.items))
+        )
 
         if lock:
             stmt = stmt.with_for_update().execution_options(populate_existing=True)
@@ -38,8 +42,10 @@ class OrderRepository(BaseRepository):
             OrderItemModel.movie_id.in_(movie_ids),
             or_(
                 OrderModel.status == OrderStatusEnum.PAID,
-                OrderModel.payments.any(PaymentModel.status == PaymentStatusEnum.SUCCESSFUL),
+                OrderModel.payments.any(
+                    PaymentModel.status == PaymentStatusEnum.SUCCESSFUL
                 )
+            )
         )
 
         return set((await self.db.scalars(stmt)).all())
@@ -60,7 +66,12 @@ class OrderRepository(BaseRepository):
         self.db.add(order)
         await self.db.flush()
 
-    async def get_order(self, order_id: int, user_id: int, lock: bool = False) -> OrderModel | None:
+    async def get_order(
+            self,
+            order_id: int,
+            user_id: int,
+            lock: bool = False
+    ) -> OrderModel | None:
         stmt = (
             select(OrderModel)
             .where(OrderModel.id == order_id, OrderModel.user_id == user_id)
@@ -77,8 +88,10 @@ class OrderRepository(BaseRepository):
             select(PaymentModel.id)
             .where(
                 PaymentModel.order_id == order_id,
-                PaymentModel.status.in_([PaymentStatusEnum.SUCCESSFUL,PaymentStatusEnum.REFUNDED]))
-            .limit(1)
+                PaymentModel.status.in_(
+                    [PaymentStatusEnum.SUCCESSFUL, PaymentStatusEnum.REFUNDED]
+                )
+            ).limit(1)
         )
 
         return await self.db.scalar(stmt) is not None
@@ -90,7 +103,11 @@ class OrderRepository(BaseRepository):
     ) -> tuple[list[OrderModel], int]:
         filters = transaction_filters(OrderModel, query, user_id)
 
-        total = await self.db.scalar(select(func.count()).select_from(OrderModel).where(*filters)) or 0
+        total = await self.db.scalar(
+            select(func.count())
+            .select_from(OrderModel)
+            .where(*filters)
+        ) or 0
         stmt = (
             select(OrderModel).where(*filters)
             .options(selectinload(OrderModel.items).selectinload(OrderItemModel.movie))

@@ -6,8 +6,9 @@ from src.api.dependencies import get_movie_service
 from src.schemas.common import ErrorResponseSchema
 from src.schemas.movies import MovieListQuerySchema, MovieListResponseSchema
 from src.schemas.movies import (
-    MovieCreateRequestSchema, MovieDetailResponseSchema,
-    MovieUpdateRequestSchema,
+    MovieCreateRequestSchema,
+    MovieDetailResponseSchema,
+    MovieUpdateRequestSchema
 )
 from src.security.dependencies import get_current_moderator
 from src.services.movies import MovieService
@@ -35,40 +36,47 @@ router = APIRouter()
             " average_rating is the arithmetic mean of all user scores (1–10), "
             "or null if none exist. It is independent of IMDb."
     ),
-    responses={503: {
-        "model": ErrorResponseSchema, "description": "Database unavailable.",
-    }},
+    responses={
+        503: {
+            "model": ErrorResponseSchema,
+            "description": "Database unavailable"
+        }
+    }
 )
 async def list_movies(
         query: Annotated[MovieListQuerySchema, Query()],
-        service: MovieService = Depends(get_movie_service),
+        service: MovieService = Depends(get_movie_service)
 ) -> MovieListResponseSchema:
     return await service.list_movies(query)
 
 
 @router.get(
-    "/{movie_id}/", response_model=MovieDetailResponseSchema,
+    "/{movie_id}/",
+    response_model=MovieDetailResponseSchema,
     summary="Get movie details",
-    description="Public movie details with all related catalog records.",
+    description="Public movie details with all related catalog records",
     responses={
         404: {
-            "description": "Movie missing or deleted."
+            "description": "Movie missing or deleted"
         },
         503: {
-            "description": "Database unavailable."
+            "description": "Database unavailable"
         }
     }
 )
 async def get_movie(
         movie_id: int = Path(gt=0, le=2**31 - 1),
-        service: MovieService = Depends(get_movie_service),
+        service: MovieService = Depends(get_movie_service)
 ):
     return await service.get_movie(movie_id)
 
 
 @router.post(
-    "/", response_model=MovieDetailResponseSchema, status_code=201,
-    dependencies=[Depends(get_current_moderator)], summary="Create a movie",
+    "/",
+    response_model=MovieDetailResponseSchema,
+    status_code=201,
+    dependencies=[Depends(get_current_moderator)],
+    summary="Create a movie",
     description=(
             "ADMIN/MODERATOR only. Supply movie fields and existing "
             "certification, genre, star and director IDs. "
@@ -78,29 +86,31 @@ async def get_movie(
     ),
     responses={
         401: {
-            "description": "Unauthorized."
+            "description": "Unauthorized"
         },
         403: {
-            "description": "Moderator required."
+            "description": "Moderator required"
         },
         409: {
-            "description": "Conflicting movie or related records."
+            "description": "Conflicting movie or related records"
         },
         503: {
-            "description": "Database unavailable."
+            "description": "Database unavailable"
         }
     }
 )
 async def create_movie(
         data: MovieCreateRequestSchema,
-        service: MovieService = Depends(get_movie_service),
+        service: MovieService = Depends(get_movie_service)
 ):
     return await service.save_movie(data)
 
 
 @router.put(
-    "/{movie_id}/", response_model=MovieDetailResponseSchema,
-    dependencies=[Depends(get_current_moderator)], summary="Replace a movie",
+    "/{movie_id}/",
+    response_model=MovieDetailResponseSchema,
+    dependencies=[Depends(get_current_moderator)],
+    summary="Replace a movie",
     description=(
             "ADMIN/MODERATOR only. Full replacement using the creation fields. "
             "Omitted relation lists become empty; omitted meta_score/gross become "
@@ -109,33 +119,35 @@ async def create_movie(
     ),
     responses={
         401: {
-            "description": "Unauthorized."
+            "description": "Unauthorized"
         },
         403: {
-            "description": "Moderator required."
+            "description": "Moderator required"
         },
         404: {
-            "description": "Movie missing or deleted."
+            "description": "Movie missing or deleted"
         },
         409: {
-            "description": "Conflicting movie or related records."
+            "description": "Conflicting movie or related records"
         },
         503: {
-            "description": "Database unavailable."
+            "description": "Database unavailable"
         }
     }
 )
 async def update_movie(
         data: MovieUpdateRequestSchema,
         movie_id: int = Path(gt=0, le=2**31 - 1),
-        service: MovieService = Depends(get_movie_service),
+        service: MovieService = Depends(get_movie_service)
 ):
     return await service.save_movie(data, movie_id)
 
 
 @router.delete(
-    "/{movie_id}/", status_code=204,
-    dependencies=[Depends(get_current_moderator)], summary="Delete a movie",
+    "/{movie_id}/",
+    status_code=204,
+    dependencies=[Depends(get_current_moderator)],
+    summary="Delete a movie",
     description=(
             "ADMIN/MODERATOR only. Soft deletion, preserving history. Paid orders "
             "or successful/refunded payments block deletion, even with confirm. "
@@ -144,26 +156,26 @@ async def update_movie(
     ),
     responses={
         401: {
-            "description": "Unauthorized."
+            "description": "Unauthorized"
         },
         403: {
-            "description": "Moderator required."
+            "description": "Moderator required"
         },
         404: {
-            "description": "Movie missing or deleted."
+            "description": "Movie missing or deleted"
         },
         409: {
-            "description": "Purchased movie or cart warning."
+            "description": "Purchased movie or cart warning"
         },
         503: {
-            "description": "Database unavailable."
+            "description": "Database unavailable"
         }
     }
 )
 async def delete_movie(
         movie_id: int = Path(gt=0, le=2**31 - 1),
-        confirm: bool = Query(False, description="Confirm removal from carts."),
-        service: MovieService = Depends(get_movie_service),
+        confirm: bool = Query(False, description="Confirm removal from carts"),
+        service: MovieService = Depends(get_movie_service)
 ):
     await service.delete_movie(movie_id, confirm)
 

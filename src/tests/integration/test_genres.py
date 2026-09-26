@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.api.dependencies import get_genre_service
 from src.database.models import (
     CertificationModel, GenreModel, MovieModel, UserGroupEnum,
-    UserGroupModel, UserModel,
+    UserGroupModel, UserModel
 )
 from src.database.models.movies import MoviesGenresModel
 from src.main import app
@@ -30,7 +30,7 @@ async def genres_api(login_api):
                     GenreModel(id=2, name="Comedy")])
         await db.commit()
     headers = {
-        "Authorization": f"Bearer {manager.create_access_token(user_id)}",
+        "Authorization": f"Bearer {manager.create_access_token(user_id)}"
     }
     return client, sessions, user_id, headers
 
@@ -42,10 +42,10 @@ async def test_genre_crud(genres_api):
     assert listing.status_code == 200
     assert listing.json() == [
         {"id": 1, "name": "Drama", "movie_count": 0},
-        {"id": 2, "name": "Comedy", "movie_count": 0},
+        {"id": 2, "name": "Comedy", "movie_count": 0}
     ]
     created = await client.post(
-        URL, headers=headers, json={"name": " Fantasy "},
+        URL, headers=headers, json={"name": " Fantasy "}
     )
     assert created.status_code == 201
     genre = created.json()
@@ -74,12 +74,12 @@ async def test_movie_counts_and_delete_preserve_movies(genres_api):
                 id=movie_id, name=f"Movie {movie_id}", year=2020, time=90,
                 imdb=8, votes=100, description="Story", price=Decimal("5"),
                 certification=certification, genres=[genre],
-                is_deleted=deleted,
+                is_deleted=deleted
             ))
         await db.commit()
     assert (await client.get(URL)).json()[0]["movie_count"] == 1
     response = await client.patch(
-        URL + "1/", headers=headers, json={"name": "Renamed"},
+        URL + "1/", headers=headers, json={"name": "Renamed"}
     )
     assert response.status_code == 200
     assert (await client.get(URL)).json()[0]["movie_count"] == 1
@@ -108,7 +108,7 @@ async def test_write_permissions(genres_api, method, role):
     path = URL if method == "POST" else URL + "1/"
     response = await client.request(
         method, path, headers=headers,
-        **({"json": {"name": "New"}} if method != "DELETE" else {}),
+        **({"json": {"name": "New"}} if method != "DELETE" else {})
     )
     if role is None:
         assert response.status_code == 401
@@ -126,13 +126,13 @@ async def test_write_permissions(genres_api, method, role):
     {"name": None}, {"name": 123}, {"name": "New", "extra": "bad"},
     {"name": "123"}, {"name": "Drama2"}, {"name": "!"},
     {"name": "Sci-Fi"},
-    {"name": "Драма"}, {"name": "Comédie"}, {"name": "Dra\nma"},
+    {"name": "Драма"}, {"name": "Comédie"}, {"name": "Dra\nma"}
 ])
 async def test_invalid_names(genres_api, method, body):
     client, _, _, headers = genres_api
     response = await client.request(
         method, URL if method == "POST" else URL + "1/",
-        headers=headers, json=body,
+        headers=headers, json=body
     )
     assert response.status_code == 422
     assert (await client.get(URL + "1/")).json()["name"] == "Drama"
@@ -145,7 +145,7 @@ async def test_duplicate_name_rolls_back(genres_api, method):
     client, _, _, headers = genres_api
     response = await client.request(
         method, URL if method == "POST" else URL + "2/",
-        headers=headers, json={"name": " Drama "},
+        headers=headers, json={"name": " Drama "}
     )
     assert response.status_code == 409
     assert (await client.get(URL + "2/")).json()["name"] == "Comedy"
@@ -154,13 +154,13 @@ async def test_duplicate_name_rolls_back(genres_api, method):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method", ["GET", "PATCH", "DELETE"])
 @pytest.mark.parametrize("genre_id, expected", [
-    (999, 404), (0, 422), (-1, 422), (2**31, 422), ("abc", 422),
+    (999, 404), (0, 422), (-1, 422), (2**31, 422), ("abc", 422)
 ])
 async def test_missing_or_invalid_id(genres_api, method, genre_id, expected):
     client, _, _, headers = genres_api
     response = await client.request(
         method, f"{URL}{genre_id}/", headers=headers,
-        **({"json": {"name": "New"}} if method == "PATCH" else {}),
+        **({"json": {"name": "New"}} if method == "PATCH" else {})
     )
     assert response.status_code == expected
 
@@ -168,7 +168,7 @@ async def test_missing_or_invalid_id(genres_api, method, genre_id, expected):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method, path, failing_method", [
     ("GET", URL, "list_genres"), ("GET", URL + "1/", "get_genre"),
-    ("POST", URL, "save"), ("DELETE", URL + "1/", "delete"),
+    ("POST", URL, "save"), ("DELETE", URL + "1/", "delete")
 ])
 async def test_database_errors(genres_api, monkeypatch, method, path,
                                failing_method):
@@ -177,11 +177,11 @@ async def test_database_errors(genres_api, monkeypatch, method, path,
     getattr(repository, failing_method).side_effect = SQLAlchemyError("secret")
     monkeypatch.setitem(
         app.dependency_overrides, get_genre_service,
-        lambda: GenreService(repository),
+        lambda: GenreService(repository)
     )
     response = await client.request(
         method, path, headers=headers,
-        **({"json": {"name": "New"}} if method == "POST" else {}),
+        **({"json": {"name": "New"}} if method == "POST" else {})
     )
     assert response.status_code == 503
     assert "secret" not in response.text
@@ -202,7 +202,7 @@ async def test_multiword_genre_names(genres_api, method):
     client, _, _, headers = genres_api
     response = await client.request(
         method, URL if method == "POST" else URL + "1/",
-        headers=headers, json={"name": " Science Fiction "},
+        headers=headers, json={"name": " Science Fiction "}
     )
     assert response.status_code == (201 if method == "POST" else 200)
     assert response.json()["name"] == "Science Fiction"

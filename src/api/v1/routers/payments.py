@@ -1,6 +1,15 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    status
+)
 from fastapi.responses import HTMLResponse
 
 from src.api.dependencies import get_payment_service
@@ -26,27 +35,28 @@ router = APIRouter(
     responses={
         401: {
             "model": ErrorResponseSchema,
-            "description": "Access token required."
+            "description": "Access token required"
         },
         402: {
             "model": ErrorResponseSchema,
-            "description": "Card declined; try another card or contact your bank."
+            "description": "Card declined; try another card or contact your bank"
         },
         403: {
             "model": ErrorResponseSchema,
-            "description": "Inactive account or insufficient permissions."
+            "description": "Inactive account or insufficient permissions"
         },
         404: {
             "model": ErrorResponseSchema,
-            "description": "Resource not found or belongs to another user."
+            "description": "Resource not found or belongs to another user"
         },
         409: {
             "model": ErrorResponseSchema,
-            "description": "Order/payment cannot be processed in its current state."
+            "description": "Order/payment cannot be processed in its current state"
         },
         503: {
             "model": ErrorResponseSchema,
-            "description": "Provider, database or email queue unavailable. Retry safely."
+            "description": "Provider, database or email queue unavailable. "
+                           "Retry safely."
         }
     }
 )
@@ -56,12 +66,18 @@ router = APIRouter(
     "/checkout/",
     response_model=PaymentCheckoutResponseSchema,
     summary="Pay for your order with Stripe",
-    description="Send order_id of your pending order. Prices and total are checked on the server. "
-                "Returns a Stripe URL for card payment (card must be enabled in Stripe). Repeated requests "
-                "reuse the same session. Currency is configured on the server (USD/EUR). Nonzero totals must "
-                "be 0.50–999999.99. Checkout expires after one hour. Card declines are displayed by Stripe "
-                "with an option to try another card. A verified webhook confirms the purchase. Retrying checkout also "
-                "reconciles completed/expired sessions directly with Stripe if a webhook was missed."
+    description="Send order_id of your pending order. "
+                "Prices and total are checked on the server. "
+                "Returns a Stripe URL for card payment "
+                "(card must be enabled in Stripe). Repeated requests "
+                "reuse the same session. Currency is configured on the server "
+                "(USD/EUR). Nonzero totals must be 0.50–999999.99. "
+                "Checkout expires after one hour. "
+                "Card declines are displayed by Stripe with an option to try "
+                "another card. A verified webhook confirms the purchase. "
+                "Retrying checkout also "
+                "reconciles completed/expired sessions directly "
+                "with Stripe if a webhook was missed."
 )
 async def create_checkout(
         data: PaymentCreateRequestSchema,
@@ -75,8 +91,10 @@ async def create_checkout(
     "/checkout/{order_id}/cancel/",
     response_model=MessageResponseSchema,
     summary="Cancel an unpaid checkout",
-    description="Expires the Stripe session before canceling your order. Cart movies are preserved. "
-                "Cannot cancel a payment already processing or completed; use refund instead. No body required."
+    description="Expires the Stripe session before canceling your order. "
+                "Cart movies are preserved. "
+                "Cannot cancel a payment already processing or completed; "
+                "use refund instead. No body required."
 )
 async def cancel_checkout(
         order_id: int = Path(gt=0, le=2**31 - 1),
@@ -92,8 +110,10 @@ async def cancel_checkout(
     "/",
     response_model=PaymentListResponseSchema,
     summary="View your payment history",
-    description="Your payments, newest first: dates, totals, items and successful/canceled/refunded status. "
-                "Open checkouts are not completed payments. page starts at 1; per_page is 1–100."
+    description="Your payments, newest first: dates, totals, items and "
+                "successful/canceled/refunded status. "
+                "Open checkouts are not completed payments. "
+                "page starts at 1; per_page is 1–100."
 )
 async def list_payments(
         query: Annotated[PaymentListQuerySchema, Query()],
@@ -108,8 +128,9 @@ async def list_payments(
     response_model=PaymentListResponseSchema,
     dependencies=[Depends(get_current_admin)],
     summary="Filter all payments as an administrator",
-    description="ADMIN only. Filter by user_id, status, date_from/date_to (YYYY-MM-DD, inclusive UTC). "
-                "Filters combine with AND. Supports page and per_page; newest first."
+    description="ADMIN only. Filter by user_id, status, date_from/date_to "
+                "(YYYY-MM-DD, inclusive UTC). Filters combine with AND. "
+                "Supports page and per_page; newest first."
 )
 async def admin_payments(
         query: Annotated[AdminPaymentListQuerySchema, Query()],
@@ -122,7 +143,8 @@ async def admin_payments(
     "/purchased/",
     response_model=PurchasedMovieListResponseSchema,
     summary="List your purchased movies",
-    description="Paginated movies from successful payments only. Fully refunded purchases no longer grant access."
+    description="Paginated movies from successful payments only. "
+                "Fully refunded purchases no longer grant access."
 )
 async def purchased(
         query: Annotated[PaymentListQuerySchema, Query()],
@@ -136,9 +158,11 @@ async def purchased(
     "/refund/",
     response_model=PaymentRefundResponseSchema,
     summary="Request a full refund",
-    description="Send payment_id of your successful payment. Returns the entire amount to the original card. "
-                "Repeating the request does not create another refund. Pending provider refunds remain successful "
-                "locally until confirmed; a confirmed refund cancels the order and revokes Purchased access. "
+    description="Send payment_id of your successful payment. "
+                "Returns the entire amount to the original card. "
+                "Repeating the request does not create another refund. "
+                "Pending provider refunds remain successful locally until confirmed; "
+                "a confirmed refund cancels the order and revokes Purchased access. "
                 "Partial refunds are not supported."
 )
 async def refund(
@@ -153,9 +177,12 @@ async def refund(
     "/webhook/",
     response_model=MessageResponseSchema,
     summary="Receive signed Stripe events",
-    description="Stripe only, no JWT. Raw JSON body and Stripe-Signature header are required. Subscribe to "
-                "checkout.session.completed, checkout.session.expired, checkout.session.async_payment_succeeded, "
-                "refund.created, refund.updated, refund.failed. Duplicate events are safe; retry non-2xx responses."
+    description="Stripe only, no JWT. Raw JSON body and "
+                "Stripe-Signature header are required. Subscribe to "
+                "checkout.session.completed, checkout.session.expired, "
+                "checkout.session.async_payment_succeeded, "
+                "refund.created, refund.updated, refund.failed. "
+                "Duplicate events are safe; retry non-2xx responses."
 )
 async def webhook(
         request: Request,
@@ -184,8 +211,10 @@ async def webhook(
     "/return/",
     response_class=HTMLResponse,
     summary="Show checkout result",
-    description="Stripe browser redirect. Shows confirmation only after the webhook has saved the payment. "
-                "This page never changes payment status and exposes no personal or order details."
+    description="Stripe browser redirect. Shows confirmation only after "
+                "the webhook has saved the payment. "
+                "This page never changes payment status and "
+                "exposes no personal or order details."
 )
 async def payment_return(
         session_id: str | None = Query(default=None, max_length=255),
@@ -204,7 +233,8 @@ async def payment_return(
     "/{payment_id}/",
     response_model=PaymentResponseSchema,
     summary="View your payment",
-    description="Returns only your own payment, including purchased items and their historical prices."
+    description="Returns only your own payment, "
+                "including purchased items and their historical prices."
 )
 async def get_payment(
         payment_id: int = Path(gt=0, le=2**31 - 1),

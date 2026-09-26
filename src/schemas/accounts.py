@@ -6,7 +6,9 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from src.database.models.accounts import GenderEnum, UserGroupEnum
 from src.database.validators import accounts as accounts_validators
 from src.schemas.common import (
-    MessageResponseSchema, PaginationQuerySchema, PaginationResponseSchema,
+    MessageResponseSchema,
+    PaginationQuerySchema,
+    PaginationResponseSchema
 )
 from src.security.passwords import validate_password_for_bcrypt
 
@@ -27,12 +29,15 @@ class BaseEmailSchema(BaseModel):
 
 class BaseEmailPasswordSchema(BaseEmailSchema):
     password: str = Field(
-        min_length=8, max_length=72, repr=False, exclude=True,
-        description="Strong password; at most 72 bytes in UTF-8.",
+        min_length=8,
+        max_length=72,
+        repr=False,
+        exclude=True,
+        description="Strong password; at most 72 bytes in UTF-8",
         json_schema_extra={
             "format": "password",
             "writeOnly": True
-        },
+        }
     )
 
     @field_validator("password")
@@ -47,11 +52,14 @@ class UserRegistrationRequestSchema(BaseEmailPasswordSchema):
 
 class UserLoginRequestSchema(BaseEmailSchema):
     password: str = Field(
-        min_length=1, max_length=72, repr=False, exclude=True,
+        min_length=1,
+        max_length=72,
+        repr=False,
+        exclude=True,
         json_schema_extra={
             "format": "password",
             "writeOnly": True
-        },
+        }
     )
 
     @field_validator("password")
@@ -62,8 +70,11 @@ class UserLoginRequestSchema(BaseEmailSchema):
 
 class AccountActivationRequestSchema(BaseModel):
     token: str = Field(
-        min_length=1, max_length=255, pattern=r"^\S+$", repr=False,
-        json_schema_extra={"writeOnly": True},
+        min_length=1,
+        max_length=255,
+        pattern=r"^\S+$",
+        repr=False,
+        json_schema_extra={"writeOnly": True}
     )
 
     model_config = {
@@ -78,8 +89,11 @@ class ActivationResendRequestSchema(BaseEmailSchema):
 
 class TokenRefreshRequestSchema(BaseModel):
     refresh_token: str = Field(
-        min_length=1, max_length=255, pattern=r"^\S+$", repr=False,
-        json_schema_extra={"writeOnly": True},
+        min_length=1,
+        max_length=255,
+        pattern=r"^\S+$",
+        repr=False,
+        json_schema_extra={"writeOnly": True}
     )
 
     model_config = {
@@ -94,13 +108,25 @@ class LogoutRequestSchema(TokenRefreshRequestSchema):
 
 class PasswordChangeRequestSchema(BaseModel):
     old_password: str = Field(
-        min_length=1, max_length=72, repr=False, exclude=True,
-        json_schema_extra={"format": "password", "writeOnly": True},
+        min_length=1,
+        max_length=72,
+        repr=False,
+        exclude=True,
+        json_schema_extra={
+            "format": "password",
+            "writeOnly": True
+        }
     )
     new_password: str = Field(
-        min_length=8, max_length=72, repr=False, exclude=True,
-        description="Strong password; at most 72 bytes in UTF-8.",
-        json_schema_extra={"format": "password", "writeOnly": True},
+        min_length=8,
+        max_length=72,
+        repr=False,
+        exclude=True,
+        description="Strong password; at most 72 bytes in UTF-8",
+        json_schema_extra={
+            "format": "password",
+            "writeOnly": True
+        }
     )
 
     model_config = {
@@ -125,13 +151,22 @@ class PasswordResetRequestSchema(BaseEmailSchema):
 
 class PasswordResetConfirmRequestSchema(BaseModel):
     token: str = Field(
-        min_length=1, max_length=255, pattern=r"^\S+$", repr=False,
-        json_schema_extra={"writeOnly": True},
+        min_length=1,
+        max_length=255,
+        pattern=r"^\S+$",
+        repr=False,
+        json_schema_extra={"writeOnly": True}
     )
     new_password: str = Field(
-        min_length=8, max_length=72, repr=False, exclude=True,
-        description="Strong password; at most 72 bytes in UTF-8.",
-        json_schema_extra={"format": "password", "writeOnly": True},
+        min_length=8,
+        max_length=72,
+        repr=False,
+        exclude=True,
+        description="Strong password; at most 72 bytes in UTF-8",
+        json_schema_extra={
+            "format": "password",
+            "writeOnly": True
+        }
     )
 
     model_config = {
@@ -154,7 +189,10 @@ class AccessTokenResponseSchema(BaseModel):
 
 class TokenPairResponseSchema(AccessTokenResponseSchema):
     refresh_token: str = Field(
-        min_length=1, max_length=255, pattern=r"^\S+$", repr=False,
+        min_length=1,
+        max_length=255,
+        pattern=r"^\S+$",
+        repr=False
     )
 
 
@@ -205,8 +243,9 @@ class UserProfileUpdateRequestSchema(BaseModel):
 
 class BaseUserProfileSchema(UserProfileUpdateRequestSchema):
     avatar: str | None = Field(
-        default=None, max_length=255,
-        description="Avatar URL or storage object key.",
+        default=None,
+        max_length=255,
+        description="Avatar URL or storage object key"
     )
 
 
@@ -216,7 +255,8 @@ class UserProfileCreateRequestSchema(BaseUserProfileSchema):
 
 class UserProfileResponseSchema(BaseUserProfileSchema):
     avatar: str | None = Field(
-        default=None, description="Temporary signed URL to view the avatar.",
+        default=None,
+        description="Temporary signed URL to view the avatar"
     )
     id: int = Field(gt=0)
     user_id: int = Field(gt=0)

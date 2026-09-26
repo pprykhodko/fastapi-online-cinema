@@ -109,7 +109,10 @@ class BaseMovieSchema(BaseModel):
     description: str
     price: Decimal | None = Field(ge=0, max_digits=10, decimal_places=2)
     meta_score: float | None = Field(
-        default=None, ge=0, le=100, allow_inf_nan=False,
+        default=None,
+        ge=0,
+        le=100,
+        allow_inf_nan=False
     )
     gross: float | None = Field(default=None, ge=0, allow_inf_nan=False)
 
@@ -143,14 +146,18 @@ class MovieCreateRequestSchema(BaseMovieSchema):
     @classmethod
     def validate_related_ids(cls, values: list[int]) -> list[int]:
         if not isinstance(values, list):
-            raise ValueError("Related IDs must be a list.")
+            raise ValueError("Related IDs must be a list")
+
         for value in values:
             if isinstance(value, bool) or not isinstance(value, int):
-                raise ValueError("Related IDs must be integers.")
+                raise ValueError("Related IDs must be integers")
+
             if value <= 0:
-                raise ValueError("Related IDs must be positive.")
+                raise ValueError("Related IDs must be positive")
+
         if len(values) != len(set(values)):
-            raise ValueError("Related IDs must not contain duplicates.")
+            raise ValueError("Related IDs must not contain duplicates")
+
         return values
 
 
@@ -201,7 +208,10 @@ class MovieListQuerySchema(PaginationQuerySchema):
     page: int = Field(default=1, ge=1, le=1_000_000)
     year: int | None = Field(default=None, ge=-(2**31), le=2**31 - 1)
     min_imdb: float | None = Field(
-        default=None, ge=0, le=10, allow_inf_nan=False,
+        default=None,
+        ge=0,
+        le=10,
+        allow_inf_nan=False
     )
     genre_id: int | None = Field(default=None, gt=0, le=2**31 - 1)
     search: str | None = Field(default=None, min_length=1, max_length=250)
@@ -213,6 +223,7 @@ class MovieListQuerySchema(PaginationQuerySchema):
     def validate_search(cls, value: str | None) -> str | None:
         if value is None:
             return None
+
         return movies_validators.validate_name(value)
 
 

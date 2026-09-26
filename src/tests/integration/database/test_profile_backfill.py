@@ -6,12 +6,12 @@ from alembic.operations import Operations
 from sqlalchemy import create_engine, insert, select
 
 from src.database.models import (
-    Base, UserGroupEnum, UserGroupModel, UserModel, UserProfileModel,
+    Base, UserGroupEnum, UserGroupModel, UserModel, UserProfileModel
 )
 
 
 migration = import_module(
-    "src.database.alembic.versions.7a92c1d4e608_backfill_user_profiles",
+    "src.database.alembic.versions.7a92c1d4e608_backfill_user_profiles"
 )
 
 
@@ -23,25 +23,25 @@ def test_profile_backfill_preserves_existing_data(with_users):
         with engine.begin() as connection:
             if with_users:
                 connection.execute(insert(UserGroupModel), {
-                    "id": 1, "name": UserGroupEnum.USER,
+                    "id": 1, "name": UserGroupEnum.USER
                 })
                 connection.execute(insert(UserModel), [
                     {
                         "id": user_id, "email": f"user{user_id}@example.com",
                         "hashed_password": "unused-test-hash", "group_id": 1,
-                        "is_active": user_id != 2,
+                        "is_active": user_id != 2
                     }
                     for user_id in (1, 2, 3)
                 ])
                 connection.execute(insert(UserProfileModel), {
-                    "user_id": 1, "first_name": "Alice", "info": "Keep me",
+                    "user_id": 1, "first_name": "Alice", "info": "Keep me"
                 })
 
             with Operations.context(MigrationContext.configure(connection)):
                 migration.upgrade()
                 profiles = connection.execute(
                     select(UserProfileModel.__table__)
-                    .order_by(UserProfileModel.user_id),
+                    .order_by(UserProfileModel.user_id)
                 ).mappings().all()
                 assert len(profiles) == (3 if with_users else 0)
                 if with_users:
@@ -49,8 +49,8 @@ def test_profile_backfill_preserves_existing_data(with_users):
                     assert profiles[0]["info"] == "Keep me"
                     for profile in profiles[1:]:
                         for field in (
-                            "first_name", "last_name", "avatar", "gender",
-                            "date_of_birth", "info",
+                                "first_name", "last_name", "avatar", "gender",
+                                "date_of_birth", "info"
                         ):
                             assert profile[field] is None
 
@@ -58,7 +58,7 @@ def test_profile_backfill_preserves_existing_data(with_users):
                 migration.downgrade()
                 remaining = connection.execute(
                     select(UserProfileModel.__table__)
-                    .order_by(UserProfileModel.user_id),
+                    .order_by(UserProfileModel.user_id)
                 ).mappings().all()
                 assert remaining == profiles
     finally:

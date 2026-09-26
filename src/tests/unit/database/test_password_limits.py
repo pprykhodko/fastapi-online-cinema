@@ -15,14 +15,14 @@ def test_password_module_can_be_imported_before_database_models() -> None:
         cwd=Path(__file__).resolve().parents[4],
         check=True,
         capture_output=True,
-        text=True,
+        text=True
     )
 
 
 @pytest.mark.parametrize("password", [
     "Aa1!" + "a" * 68,
     "Aa1!" + "\u044f" * 34,
-    "Aa1!" + "\U0001f600" * 17,
+    "Aa1!" + "\U0001f600" * 17
 ])
 def test_passwords_at_utf8_byte_limit_can_be_hashed(password: str) -> None:
     assert len(password.encode("utf-8")) == 72
@@ -35,7 +35,7 @@ def test_passwords_at_utf8_byte_limit_can_be_hashed(password: str) -> None:
 @pytest.mark.parametrize("password", [
     "Aa1!" + "a" * 69,
     "Aa1!" + "\u044f" * 35,
-    "Aa1!" + "\U0001f600" * 18,
+    "Aa1!" + "\U0001f600" * 18
 ])
 def test_passwords_above_utf8_byte_limit_are_rejected(password: str) -> None:
     assert len(password.encode("utf-8")) > 72

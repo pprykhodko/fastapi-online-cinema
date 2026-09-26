@@ -5,9 +5,11 @@ from src.repositories.movies import MovieRepository
 from src.services.movie_checks import get_movie_or_404
 from src.database.models import MovieModel
 from src.schemas.movies import (
-    MovieListQuerySchema, MovieListResponseSchema,
-    MovieCreateRequestSchema, MovieDetailResponseSchema,
-    MovieCatalogItemResponseSchema,
+    MovieListQuerySchema,
+    MovieListResponseSchema,
+    MovieCreateRequestSchema,
+    MovieDetailResponseSchema,
+    MovieCatalogItemResponseSchema
 )
 
 
@@ -16,8 +18,15 @@ class MovieService:
         self.repository = repository
 
     async def get_movie(self, movie_id: int) -> MovieDetailResponseSchema:
-        async with database_errors(self.repository, detail="The movie is temporarily unavailable"):
-            movie = await get_movie_or_404(self.repository, movie_id, with_relations=True)
+        async with database_errors(
+                self.repository,
+                detail="The movie is temporarily unavailable"
+        ):
+            movie = await get_movie_or_404(
+                self.repository,
+                movie_id,
+                with_relations=True
+            )
 
         return MovieDetailResponseSchema.model_validate(movie)
 
@@ -29,15 +38,23 @@ class MovieService:
         async with database_errors(
                 self.repository,
                 detail="The movie could not be saved",
-                conflict_detail="Movie conflicts with existing data. Check name, year, duration and referenced records."
+                conflict_detail="Movie conflicts with existing data. "
+                                "Check name, year, duration and referenced records."
         ):
             if movie_id is None:
                 movie = MovieModel()
 
             else:
-                movie = await get_movie_or_404(self.repository, movie_id, lock=True, with_relations=True)
+                movie = await get_movie_or_404(
+                    self.repository,
+                    movie_id,
+                    lock=True,
+                    with_relations=True
+                )
 
-            certification, genres, stars, directors = await self.repository.get_relations(data)
+            certification, genres, stars, directors = (
+                await self.repository.get_relations(data)
+            )
 
             if certification is None:
                 raise HTTPException(
@@ -56,7 +73,14 @@ class MovieService:
                         detail=f"Unknown IDs in {field}"
                     )
 
-            values = data.model_dump(exclude={"certification_id", "genre_ids", "star_ids", "director_ids"})
+            values = data.model_dump(
+                exclude={
+                    "certification_id",
+                    "genre_ids",
+                    "star_ids",
+                    "director_ids"
+                }
+            )
 
             for field, value in values.items():
                 setattr(movie, field, value)
@@ -72,8 +96,15 @@ class MovieService:
             return response
 
     async def delete_movie(self, movie_id: int, confirm: bool) -> None:
-        async with database_errors(self.repository, detail="The movie could not be deleted"):
-            movie = await get_movie_or_404(self.repository, movie_id, lock=True, with_relations=True)
+        async with database_errors(
+                self.repository,
+                detail="The movie could not be deleted"
+        ):
+            movie = await get_movie_or_404(
+                self.repository, movie_id,
+                lock=True,
+                with_relations=True
+            )
 
             if await self.repository.has_purchases(movie_id):
                 raise HTTPException(
@@ -86,7 +117,9 @@ class MovieService:
             if count and not confirm:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Movie exists in {count} cart(s). Repeat with confirm=true to remove it from carts and the catalog."
+                    detail=f"Movie exists in {count} cart(s). "
+                           "Repeat with confirm=true to remove it "
+                           "from carts and the catalog."
                 )
 
             await self.repository.remove_from_carts(movie_id)
@@ -94,10 +127,17 @@ class MovieService:
             await self.repository.commit()
 
     async def list_movies(self, query: MovieListQuerySchema) -> MovieListResponseSchema:
-        async with database_errors(self.repository, detail="The movie catalog is temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="The movie catalog is temporarily unavailable"
+        ):
             movies, total = await self.repository.list_movies(query)
-            counts = await self.repository.reaction_counts([movie.id for movie in movies])
-            averages = await self.repository.average_ratings([movie.id for movie in movies])
+            counts = await self.repository.reaction_counts(
+                [movie.id for movie in movies]
+            )
+            averages = await self.repository.average_ratings(
+                [movie.id for movie in movies]
+            )
 
         items = []
 
@@ -109,4 +149,9 @@ class MovieService:
             item.average_rating = averages.get(movie.id)
             items.append(item)
 
-        return MovieListResponseSchema(items=items, total=total, page=query.page, per_page=query.per_page)
+        return MovieListResponseSchema(
+            items=items,
+            total=total,
+            page=query.page,
+            per_page=query.per_page
+        )

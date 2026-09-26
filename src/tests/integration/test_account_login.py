@@ -18,7 +18,7 @@ PASSWORD = "StrongPassword1!"
 async def test_login_returns_jwts_and_saves_refresh_token(login_api):
     client, sessions, manager, user_id = login_api
     response = await client.post(LOGIN_URL, json={
-        "email": "USER@EXAMPLE.COM", "password": PASSWORD,
+        "email": "USER@EXAMPLE.COM", "password": PASSWORD
     })
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
@@ -47,7 +47,7 @@ async def test_login_returns_jwts_and_saves_refresh_token(login_api):
 async def test_repeated_login_creates_independent_sessions(login_api):
     client, sessions, manager, _ = login_api
     responses = [await client.post(LOGIN_URL, json={
-        "email": "user@example.com", "password": PASSWORD,
+        "email": "user@example.com", "password": PASSWORD
     }) for _ in range(2)]
     assert all(response.status_code == 200 for response in responses)
     bodies = [response.json() for response in responses]
@@ -68,10 +68,10 @@ async def test_repeated_login_creates_independent_sessions(login_api):
     ("user@example.com", "WrongPassword1!", True, 401),
     ("user@example.com", "x", True, 401),
     ("user@example.com", "WrongPassword1!", False, 401),
-    ("user@example.com", PASSWORD, False, 403),
+    ("user@example.com", PASSWORD, False, 403)
 ])
 async def test_login_rejects_invalid_credentials_or_inactive_account(
-    login_api, email, password, active, expected_status,
+        login_api, email, password, active, expected_status
 ):
     client, sessions, _, user_id = login_api
     async with sessions() as db:
@@ -80,7 +80,7 @@ async def test_login_rejects_invalid_credentials_or_inactive_account(
         await db.commit()
 
     response = await client.post(LOGIN_URL, json={
-        "email": email, "password": password,
+        "email": email, "password": password
     })
     assert response.status_code == expected_status
     if expected_status == 401:
@@ -88,7 +88,7 @@ async def test_login_rejects_invalid_credentials_or_inactive_account(
         assert response.headers["www-authenticate"] == "Bearer"
     else:
         assert response.json() == {
-            "detail": "Activate your account before logging in",
+            "detail": "Activate your account before logging in"
         }
     async with sessions() as db:
         assert await db.scalar(select(RefreshTokenModel)) is None
@@ -105,7 +105,7 @@ async def test_login_rejects_invalid_credentials_or_inactive_account(
     {"email": "user@example.com", "password": "я" * 37},
     {"email": "user@example.com", "password": "null\u0000byte"},
     {"email": "user@example.com", "password": None},
-    {"email": "user@example.com", "password": PASSWORD, "is_active": True},
+    {"email": "user@example.com", "password": PASSWORD, "is_active": True}
 ])
 async def test_login_validates_request(login_api, payload):
     client, sessions, _, _ = login_api
@@ -118,7 +118,7 @@ async def test_login_validates_request(login_api, payload):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failure_point", ["query", "commit"])
 async def test_login_database_failure_does_not_save_token(
-    login_api, monkeypatch, failure_point,
+        login_api, monkeypatch, failure_point
 ):
     client, sessions, _, _ = login_api
     error = OperationalError("private database details", {}, Exception())
@@ -131,17 +131,17 @@ async def test_login_database_failure_does_not_save_token(
     with monkeypatch.context() as patch:
         if failure_point == "query":
             patch.setattr(
-                AsyncSession, "execute", AsyncMock(side_effect=error),
+                AsyncSession, "execute", AsyncMock(side_effect=error)
             )
         else:
             patch.setattr(AsyncSession, "commit", fail_commit)
         response = await client.post(LOGIN_URL, json={
-            "email": "user@example.com", "password": PASSWORD,
+            "email": "user@example.com", "password": PASSWORD
         })
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Login is temporarily unavailable. Please try again later.",
+        "detail": "Login is temporarily unavailable. Please try again later."
     }
     async with sessions() as db:
         assert await db.scalar(select(RefreshTokenModel)) is None

@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.api.dependencies import get_reaction_service
 from src.database.models import (
-    CertificationModel, MovieModel, MovieReactionModel, UserModel,
+    CertificationModel, MovieModel, MovieReactionModel, UserModel
 )
 from src.main import app
 from src.repositories.reactions import ReactionRepository
@@ -26,22 +26,22 @@ async def reactions_api(login_api):
         user = await db.get(UserModel, user_id)
         other = UserModel(
             email="other@example.com", group_id=user.group_id,
-            _hashed_password="unused", is_active=True,
+            _hashed_password="unused", is_active=True
         )
         movie = MovieModel(
             id=1, name="Movie", year=2020, time=90, imdb=8, votes=5,
             description="Story", price=Decimal("5"),
-            certification=CertificationModel(name="PG"),
+            certification=CertificationModel(name="PG")
         )
         db.add_all([other, movie])
         await db.flush()
         other_id = other.id
         db.add(MovieReactionModel(
-            user_id=other_id, movie_id=1, reaction="dislike",
+            user_id=other_id, movie_id=1, reaction="dislike"
         ))
         await db.commit()
     headers = {
-        "Authorization": f"Bearer {manager.create_access_token(user_id)}",
+        "Authorization": f"Bearer {manager.create_access_token(user_id)}"
     }
     return client, sessions, user_id, other_id, headers
 
@@ -52,7 +52,7 @@ async def test_reaction_lifecycle_and_user_isolation(reactions_api):
     assert (await client.get(PATH, headers=headers)).status_code == 404
     assert (await client.delete(PATH, headers=headers)).status_code == 404
     created = await client.put(
-        PATH, headers=headers, json={"reaction": "like"},
+        PATH, headers=headers, json={"reaction": "like"}
     )
     assert created.status_code == 201
     first = created.json()
@@ -61,7 +61,7 @@ async def test_reaction_lifecycle_and_user_isolation(reactions_api):
     assert first["reaction"] == "like"
     assert first["created_at"] and first["updated_at"]
     repeated = await client.put(
-        PATH, headers=headers, json={"reaction": "like"},
+        PATH, headers=headers, json={"reaction": "like"}
     )
     assert repeated.status_code == 200
     assert repeated.json() == first
@@ -70,7 +70,7 @@ async def test_reaction_lifecycle_and_user_isolation(reactions_api):
         reaction.updated_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
         await db.commit()
     changed = await client.put(
-        PATH, headers=headers, json={"reaction": "dislike"},
+        PATH, headers=headers, json={"reaction": "dislike"}
     )
     assert changed.status_code == 200
     assert changed.json()["id"] == first["id"]
@@ -80,7 +80,7 @@ async def test_reaction_lifecycle_and_user_isolation(reactions_api):
     assert (await client.get(PATH, headers=headers)).json() == changed.json()
     async with sessions() as db:
         assert await db.scalar(select(func.count()).select_from(
-            MovieReactionModel,
+            MovieReactionModel
         )) == 2
     removed = await client.delete(PATH, headers=headers)
     assert removed.status_code == 204
@@ -88,7 +88,7 @@ async def test_reaction_lifecycle_and_user_isolation(reactions_api):
     assert (await client.delete(PATH, headers=headers)).status_code == 404
     async with sessions() as db:
         other = await db.scalar(select(MovieReactionModel).where(
-            MovieReactionModel.user_id == other_id,
+            MovieReactionModel.user_id == other_id
         ))
         assert other.reaction == "dislike"
         assert await db.get(MovieModel, 1) is not None
@@ -108,7 +108,7 @@ async def test_authentication(reactions_api, method, auth):
         headers = {} if auth == "missing" else {"Authorization": "Bearer bad"}
     response = await client.request(
         method, PATH, headers=headers,
-        **({"json": {"reaction": "like"}} if method == "PUT" else {}),
+        **({"json": {"reaction": "like"}} if method == "PUT" else {})
     )
     assert response.status_code == (403 if auth == "inactive" else 401)
 
@@ -117,7 +117,7 @@ async def test_authentication(reactions_api, method, auth):
 @pytest.mark.parametrize("body", [
     {}, {"reaction": "love"}, {"reaction": "LIKE"}, {"reaction": ""},
     {"reaction": None}, {"reaction": 1}, {"reaction": True},
-    {"reaction": "like", "user_id": 2}, {"reaction": "like", "movie_id": 2},
+    {"reaction": "like", "user_id": 2}, {"reaction": "like", "movie_id": 2}
 ])
 async def test_invalid_reaction_body(reactions_api, body):
     client, _, _, _, headers = reactions_api
@@ -129,15 +129,15 @@ async def test_invalid_reaction_body(reactions_api, body):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method", ["GET", "PUT", "DELETE"])
 @pytest.mark.parametrize("movie_id, expected", [
-    (999, 404), (0, 422), (-1, 422), (2**31, 422), ("abc", 422),
+    (999, 404), (0, 422), (-1, 422), (2**31, 422), ("abc", 422)
 ])
 async def test_missing_or_invalid_movie(
-    reactions_api, method, movie_id, expected,
+        reactions_api, method, movie_id, expected
 ):
     client, _, _, _, headers = reactions_api
     response = await client.request(
         method, f"/api/v1/movies/{movie_id}/reaction/", headers=headers,
-        **({"json": {"reaction": "like"}} if method == "PUT" else {}),
+        **({"json": {"reaction": "like"}} if method == "PUT" else {})
     )
     assert response.status_code == expected
 
@@ -146,7 +146,7 @@ async def test_missing_or_invalid_movie(
 async def test_deleted_movie_reaction_can_only_be_removed(reactions_api):
     client, sessions, _, _, headers = reactions_api
     response = await client.put(
-        PATH, headers=headers, json={"reaction": "like"},
+        PATH, headers=headers, json={"reaction": "like"}
     )
     assert response.status_code == 201
     async with sessions() as db:
@@ -155,7 +155,7 @@ async def test_deleted_movie_reaction_can_only_be_removed(reactions_api):
         await db.commit()
     assert (await client.get(PATH, headers=headers)).status_code == 404
     response = await client.put(
-        PATH, headers=headers, json={"reaction": "dislike"},
+        PATH, headers=headers, json={"reaction": "dislike"}
     )
     assert response.status_code == 404
     assert (await client.delete(PATH, headers=headers)).status_code == 204
@@ -164,7 +164,7 @@ async def test_deleted_movie_reaction_can_only_be_removed(reactions_api):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method, failure", [
     ("GET", "get_movie"), ("GET", "get_reaction"),
-    ("PUT", "get_movie"), ("DELETE", "delete"),
+    ("PUT", "get_movie"), ("DELETE", "delete")
 ])
 async def test_database_failure(reactions_api, monkeypatch, method, failure):
     client, _, _, _, headers = reactions_api
@@ -176,7 +176,7 @@ async def test_database_failure(reactions_api, monkeypatch, method, failure):
                         lambda: ReactionService(repository, movie_repository))
     response = await client.request(
         method, PATH, headers=headers,
-        **({"json": {"reaction": "like"}} if method == "PUT" else {}),
+        **({"json": {"reaction": "like"}} if method == "PUT" else {})
     )
     assert response.status_code == 503
     assert "secret" not in response.text
@@ -196,12 +196,12 @@ async def test_failed_commit_rolls_back(reactions_api, monkeypatch, operation):
     monkeypatch.setattr(ReactionRepository, "commit", fail_commit)
     response = await client.request(
         "DELETE" if operation == "delete" else "PUT", PATH, headers=headers,
-        **({"json": {"reaction": "dislike"}} if operation != "delete" else {}),
+        **({"json": {"reaction": "dislike"}} if operation != "delete" else {})
     )
     assert response.status_code == 503
     async with sessions() as db:
         reaction = await db.scalar(select(MovieReactionModel).where(
-            MovieReactionModel.user_id == user_id,
+            MovieReactionModel.user_id == user_id
         ))
         if operation == "create":
             assert reaction is None
@@ -218,7 +218,7 @@ async def test_integrity_conflict_returns_409(reactions_api, monkeypatch):
 
     monkeypatch.setattr(ReactionRepository, "save", fail_save)
     response = await client.put(
-        PATH, headers=headers, json={"reaction": "like"},
+        PATH, headers=headers, json={"reaction": "like"}
     )
     assert response.status_code == 409
     assert "private" not in response.text

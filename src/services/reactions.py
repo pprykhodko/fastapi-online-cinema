@@ -6,17 +6,29 @@ from src.repositories.reactions import ReactionRepository
 from src.repositories.movies import MovieRepository
 from src.services.movie_checks import get_movie_or_404
 from src.schemas.interactions import (
-    MovieReactionRequestSchema, MovieReactionResponseSchema,
+    MovieReactionRequestSchema,
+    MovieReactionResponseSchema
 )
 
 
 class ReactionService:
-    def __init__(self, repository: ReactionRepository, movie_repository: MovieRepository):
+    def __init__(
+            self,
+            repository: ReactionRepository,
+            movie_repository: MovieRepository
+    ):
         self.repository = repository
         self.movie_repository = movie_repository
 
-    async def get_reaction(self, user_id: int, movie_id: int) -> MovieReactionResponseSchema:
-        async with database_errors(self.repository, detail="Reactions are temporarily unavailable"):
+    async def get_reaction(
+            self,
+            user_id: int,
+            movie_id: int
+    ) -> MovieReactionResponseSchema:
+        async with database_errors(
+                self.repository,
+                detail="Reactions are temporarily unavailable"
+        ):
             await get_movie_or_404(self.movie_repository, movie_id)
 
             reaction = await self.repository.get_reaction(user_id, movie_id)
@@ -46,7 +58,11 @@ class ReactionService:
             created = reaction is None
 
             if reaction is None:
-                reaction = MovieReactionModel(user_id=user_id, movie_id=movie_id, reaction=data.reaction)
+                reaction = MovieReactionModel(
+                    user_id=user_id,
+                    movie_id=movie_id,
+                    reaction=data.reaction
+                )
 
             else:
                 reaction.reaction = data.reaction

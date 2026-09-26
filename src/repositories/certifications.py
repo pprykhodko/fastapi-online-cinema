@@ -15,5 +15,8 @@ class CertificationRepository(NamedEntityRepository[CertificationModel]):
 
         return list(certifications.all())
 
-    async def get_certification(self, certification_id: int) -> CertificationModel | None:
+    async def get_certification(
+            self,
+            certification_id: int
+    ) -> CertificationModel | None:
         return await self.get_by_id(certification_id)

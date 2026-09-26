@@ -14,7 +14,7 @@ from src.schemas.movies import (
     MovieListResponseSchema,
     MovieUpdateRequestSchema,
     StarCreateRequestSchema,
-    StarUpdateRequestSchema,
+    StarUpdateRequestSchema
 )
 
 
@@ -25,15 +25,15 @@ def movie_data() -> dict[str, Any]:
         "imdb": 8.7, "votes": 2_000_000,
         "description": "A hacker discovers the nature of reality.",
         "price": "9.99", "certification_id": 1,
-        "genre_ids": [1, 2], "star_ids": [3], "director_ids": [4],
+        "genre_ids": [1, 2], "star_ids": [3], "director_ids": [4]
     }
 
 
 @pytest.mark.parametrize("schema", [
-    MovieCreateRequestSchema, MovieUpdateRequestSchema,
+    MovieCreateRequestSchema, MovieUpdateRequestSchema
 ])
 def test_movie_requests_normalize_names_and_parse_decimal_prices(
-    schema: type[BaseModel], movie_data: dict[str, Any],
+        schema: type[BaseModel], movie_data: dict[str, Any]
 ) -> None:
     data = schema.model_validate(movie_data).model_dump()
     assert data["name"] == "The Matrix"
@@ -45,7 +45,7 @@ def test_movie_requests_normalize_names_and_parse_decimal_prices(
 
 
 @pytest.mark.parametrize("schema", [
-    MovieCreateRequestSchema, MovieUpdateRequestSchema,
+    MovieCreateRequestSchema, MovieUpdateRequestSchema
 ])
 @pytest.mark.parametrize(("field", "value"), [
     ("name", ""), ("name", "   "), ("name", "a" * 251),
@@ -57,11 +57,11 @@ def test_movie_requests_normalize_names_and_parse_decimal_prices(
     ("price", "-0.01"), ("price", "100000000"), ("price", "9.999"),
     ("price", "NaN"), ("price", "Infinity"),
     ("certification_id", 0), ("certification_id", True),
-    ("id", 1), ("uuid", "client-selected-uuid"), ("user_id", 1),
+    ("id", 1), ("uuid", "client-selected-uuid"), ("user_id", 1)
 ])
 def test_movie_requests_reject_invalid_fields(
-    schema: type[BaseModel], movie_data: dict[str, Any],
-    field: str, value: Any,
+        schema: type[BaseModel], movie_data: dict[str, Any],
+        field: str, value: Any
 ) -> None:
     with pytest.raises(ValidationError):
         schema.model_validate({**movie_data, field: value})
@@ -69,10 +69,10 @@ def test_movie_requests_reject_invalid_fields(
 
 @pytest.mark.parametrize("field", [
     "name", "year", "time", "imdb", "votes", "description",
-    "certification_id", "genre_ids", "star_ids", "director_ids",
+    "certification_id", "genre_ids", "star_ids", "director_ids"
 ])
 def test_movie_update_does_not_allow_null_for_required_columns_or_lists(
-    movie_data: dict[str, Any], field: str,
+        movie_data: dict[str, Any], field: str
 ) -> None:
     with pytest.raises(ValidationError):
         MovieUpdateRequestSchema.model_validate({**movie_data, field: None})
@@ -81,20 +81,20 @@ def test_movie_update_does_not_allow_null_for_required_columns_or_lists(
 @pytest.mark.parametrize("field", ["genre_ids", "star_ids", "director_ids"])
 @pytest.mark.parametrize("ids", [[0], [-1], [1, 1], [True], [1.5], ["1"], "1"])
 def test_movie_related_ids_must_be_unique_positive_integer_lists(
-    movie_data: dict[str, Any], field: str, ids: Any,
+        movie_data: dict[str, Any], field: str, ids: Any
 ) -> None:
     with pytest.raises(ValidationError):
         MovieCreateRequestSchema.model_validate({**movie_data, field: ids})
 
 
 def test_movie_update_uses_full_replacement(
-    movie_data: dict[str, Any],
+        movie_data: dict[str, Any]
 ) -> None:
     with pytest.raises(ValidationError):
         MovieUpdateRequestSchema.model_validate({"price": "4.99"})
     updated = MovieUpdateRequestSchema.model_validate({
         **movie_data, "meta_score": None, "gross": None,
-        "genre_ids": [], "star_ids": [], "director_ids": [],
+        "genre_ids": [], "star_ids": [], "director_ids": []
     })
     assert updated.meta_score is None
     assert updated.gross is None
@@ -102,7 +102,7 @@ def test_movie_update_uses_full_replacement(
 
 
 def test_optional_movie_lists_are_not_shared(
-    movie_data: dict[str, Any],
+        movie_data: dict[str, Any]
 ) -> None:
     for field in ("genre_ids", "star_ids", "director_ids"):
         movie_data.pop(field)
@@ -116,43 +116,43 @@ def test_optional_movie_lists_are_not_shared(
 
 @pytest.mark.parametrize("price", ["0", "0.01", "99999999.99", "9.9900"])
 def test_movie_prices_accept_valid_boundaries(
-    movie_data: dict[str, Any], price: str,
+        movie_data: dict[str, Any], price: str
 ) -> None:
     request = MovieCreateRequestSchema.model_validate({
-        **movie_data, "price": price,
+        **movie_data, "price": price
     })
     assert request.price == Decimal(price)
 
 
 @pytest.mark.parametrize("schema", [
     GenreCreateRequestSchema, GenreUpdateRequestSchema,
-    StarCreateRequestSchema, StarUpdateRequestSchema,
+    StarCreateRequestSchema, StarUpdateRequestSchema
 ])
 def test_named_entity_requests_validate_and_normalize(
-    schema: type[BaseModel],
+        schema: type[BaseModel]
 ) -> None:
     assert schema.model_validate({"name": "  Action  "}).model_dump() == {
-        "name": "Action",
+        "name": "Action"
     }
     data = schema.model_validate({"name": "a" * 100}).model_dump()
     assert len(data["name"]) == 100
     for data in (
-        {"name": "   "}, {"name": "a" * 101}, {"name": "A", "id": 1},
+            {"name": "   "}, {"name": "a" * 101}, {"name": "A", "id": 1}
     ):
         with pytest.raises(ValidationError):
             schema.model_validate(data)
 
 
 @pytest.mark.parametrize("schema", [
-    MovieListQuerySchema, MovieFavoriteListQuerySchema,
+    MovieListQuerySchema, MovieFavoriteListQuerySchema
 ])
 def test_catalog_and_favorites_share_query_parameters(
-    schema: type[BaseModel],
+        schema: type[BaseModel]
 ) -> None:
     query = schema.model_validate({
         "page": "2", "per_page": "20", "year": "1999", "min_imdb": "8.0",
         "genre_id": "1", "search": "  Keanu Reeves  ",
-        "sort_by": "popularity", "sort_order": "desc",
+        "sort_by": "popularity", "sort_order": "desc"
     }).model_dump()
     assert query["page"] == 2
     assert query["year"] == 1999
@@ -165,16 +165,16 @@ def test_catalog_and_favorites_share_query_parameters(
 
 
 @pytest.mark.parametrize("schema", [
-    MovieListQuerySchema, MovieFavoriteListQuerySchema,
+    MovieListQuerySchema, MovieFavoriteListQuerySchema
 ])
 @pytest.mark.parametrize(("field", "value"), [
     ("page", 0), ("per_page", 0), ("per_page", 101), ("genre_id", -1),
     ("min_imdb", -1), ("min_imdb", 11), ("min_imdb", "NaN"),
     ("search", "   "), ("sort_by", "id; DROP TABLE movies"),
-    ("sort_order", "random"), ("user_id", 1),
+    ("sort_order", "random"), ("user_id", 1)
 ])
 def test_catalog_query_rejects_invalid_values(
-    schema: type[BaseModel], field: str, value: Any,
+        schema: type[BaseModel], field: str, value: Any
 ) -> None:
     with pytest.raises(ValidationError):
         schema.model_validate({field: value})
@@ -184,12 +184,12 @@ def test_movie_list_and_genre_count_responses() -> None:
     response = MovieListResponseSchema(items=[], total=0, page=1, per_page=10)
     assert response.model_dump()["items"] == []
     genre = GenreWithMovieCountResponseSchema(
-        id=1, name="Action", movie_count=2,
+        id=1, name="Action", movie_count=2
     )
     assert genre.movie_count == 2
     with pytest.raises(ValidationError):
         GenreWithMovieCountResponseSchema.model_validate({
-            "id": 1, "name": "A",
+            "id": 1, "name": "A"
         })
     with pytest.raises(ValidationError):
         MovieListResponseSchema(items=[], total=-1, page=1, per_page=10)
@@ -204,10 +204,10 @@ def test_movie_request_json_schema_contains_constraints() -> None:
 
 
 @pytest.mark.parametrize("schema", [
-    MovieCreateRequestSchema, MovieUpdateRequestSchema,
+    MovieCreateRequestSchema, MovieUpdateRequestSchema
 ])
 def test_movie_requests_allow_explicit_null_price(
-    schema: type[BaseModel], movie_data: dict[str, Any],
+        schema: type[BaseModel], movie_data: dict[str, Any]
 ) -> None:
     response = schema.model_validate({**movie_data, "price": None})
     assert response.model_dump()["price"] is None
@@ -215,7 +215,7 @@ def test_movie_requests_allow_explicit_null_price(
 
 @pytest.mark.parametrize("field", ["is_deleted", "is_available_for_purchase"])
 def test_movie_request_cannot_bypass_deletion_workflow(
-    movie_data: dict[str, Any], field: str,
+        movie_data: dict[str, Any], field: str
 ) -> None:
     with pytest.raises(ValidationError) as error:
         MovieUpdateRequestSchema.model_validate({**movie_data, field: True})
@@ -223,7 +223,7 @@ def test_movie_request_cannot_bypass_deletion_workflow(
 
 
 def test_movie_price_is_nullable_but_not_silently_defaulted(
-    movie_data: dict[str, Any],
+        movie_data: dict[str, Any]
 ) -> None:
     schema = MovieCreateRequestSchema.model_json_schema()
     assert {"type": "null"} in schema["properties"]["price"]["anyOf"]

@@ -9,7 +9,7 @@ from src.database import (
     OrderItemModel,
     OrderModel,
     PaymentItemModel,
-    PaymentModel,
+    PaymentModel
 )
 
 
@@ -18,7 +18,7 @@ MONEY_FIELDS = [
     (OrderModel, "total_amount"),
     (OrderItemModel, "price_at_order"),
     (PaymentModel, "amount"),
-    (PaymentItemModel, "price_at_payment"),
+    (PaymentItemModel, "price_at_payment")
 ]
 
 
@@ -28,10 +28,10 @@ MONEY_FIELDS = [
     Decimal("Infinity"), Decimal("-Infinity"),
     Decimal("-0.01"), Decimal("100000000.00"),
     Decimal("0.001"), Decimal("9.999"), Decimal("1E-1000"),
-    9.99, "9.99", True,
+    9.99, "9.99", True
 ])
 def test_money_fields_reject_invalid_values_on_create_and_update(
-    model: type[Base], field: str, amount: Any,
+        model: type[Base], field: str, amount: Any
 ) -> None:
     with pytest.raises(ValueError):
         model(**{field: amount})
@@ -44,10 +44,10 @@ def test_money_fields_reject_invalid_values_on_create_and_update(
 @pytest.mark.parametrize(("model", "field"), MONEY_FIELDS)
 @pytest.mark.parametrize("amount", [
     Decimal("0"), Decimal("0.01"), Decimal("99999999.99"),
-    Decimal("1E+2"), Decimal("9.9900"), Decimal("0E-1000"),
+    Decimal("1E+2"), Decimal("9.9900"), Decimal("0E-1000")
 ])
 def test_money_fields_preserve_valid_values_without_rounding(
-    model: type[Base], field: str, amount: Decimal,
+        model: type[Base], field: str, amount: Decimal
 ) -> None:
     instance = model(**{field: amount})
     assert getattr(instance, field) == amount
@@ -55,7 +55,7 @@ def test_money_fields_preserve_valid_values_without_rounding(
 
 @pytest.mark.parametrize(("model", "field"), MONEY_FIELDS)
 def test_money_fields_do_not_depend_on_decimal_context(
-    model: type[Base], field: str,
+        model: type[Base], field: str
 ) -> None:
     with localcontext() as context:
         context.prec = 2
@@ -67,7 +67,7 @@ def test_money_fields_do_not_depend_on_decimal_context(
 
 @pytest.mark.parametrize(("model", "field"), MONEY_FIELDS)
 def test_money_nullability_matches_assignment(
-    model: type[Base], field: str,
+        model: type[Base], field: str
 ) -> None:
     if model in (MovieModel, OrderModel):
         assert getattr(model(**{field: None}), field) is None

@@ -15,7 +15,7 @@ from src.storages.s3 import S3Storage
 def test_alembic_selects_database_without_connecting(monkeypatch, database):
     settings = Settings(
         _env_file=None, DATABASE_TYPE=database,
-        POSTGRES_PASSWORD="test%pass@word", POSTGRES_HOST="postgres",
+        POSTGRES_PASSWORD="test%pass@word", POSTGRES_HOST="postgres"
     )
     config = Config()
     config.set_main_option("sqlalchemy.url", "sqlite:///test-only.sqlite3")
@@ -45,7 +45,7 @@ def test_signed_urls_use_public_endpoint_not_docker_hostname(monkeypatch):
     storage = S3Storage(Settings(
         _env_file=None, S3_ENDPOINT_URL="http://minio:9000",
         S3_PUBLIC_ENDPOINT_URL="http://localhost:9000",
-        S3_ACCESS_KEY="test-access", S3_SECRET_KEY="test-secret",
+        S3_ACCESS_KEY="test-access", S3_SECRET_KEY="test-secret"
     ))
     storage.upload_file(b"test", "key", "image/png")
     assert factory.call_args.kwargs["endpoint_url"] == "http://minio:9000/"

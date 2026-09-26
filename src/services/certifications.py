@@ -19,15 +19,22 @@ class CertificationService(NamedEntityService[CertificationResponseSchema]):
         super().__init__(repository)
 
     async def list_certifications(self) -> list[CertificationResponseSchema]:
-        async with database_errors(self.repository, detail="Certifications are temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Certifications are temporarily unavailable"
+        ):
             certifications = await self.repository.list_certifications()
 
         return [
-            CertificationResponseSchema.model_validate(certification) for certification in certifications
+            CertificationResponseSchema.model_validate(certification)
+            for certification in certifications
         ]
 
     async def get_certification(self, certification_id: int) -> CertificationModel:
-        async with database_errors(self.repository, detail="Certifications are temporarily unavailable"):
+        async with database_errors(
+                self.repository,
+                detail="Certifications are temporarily unavailable"
+        ):
             certification = await self.repository.get_certification(certification_id)
 
         if certification is None:
@@ -38,7 +45,10 @@ class CertificationService(NamedEntityService[CertificationResponseSchema]):
 
         return certification
 
-    async def create_certification(self, data: CertificationCreateRequestSchema) -> CertificationResponseSchema:
+    async def create_certification(
+            self,
+            data: CertificationCreateRequestSchema
+    ) -> CertificationResponseSchema:
         return await self.save(CertificationModel(name=data.name))
 
     async def update_certification(

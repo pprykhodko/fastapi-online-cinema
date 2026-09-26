@@ -8,7 +8,7 @@ from sqlalchemy import (
     Table,
     UniqueConstraint,
     create_engine,
-    inspect,
+    inspect
 )
 
 from src.database import Base
@@ -20,7 +20,7 @@ from src.database.models.movies import (
     MoviesDirectorsModel,
     MoviesGenresModel,
     MoviesStarsModel,
-    StarModel,
+    StarModel
 )
 from src.database.validators.movies import (
     validate_duration,
@@ -29,7 +29,7 @@ from src.database.validators.movies import (
     validate_name,
     validate_non_negative_decimal,
     validate_non_negative_float,
-    validate_votes,
+    validate_votes
 )
 
 
@@ -45,7 +45,7 @@ def test_validate_name_strips_whitespace() -> None:
 
 @pytest.mark.parametrize("duration", [0, -1])
 def test_validate_duration_rejects_non_positive_values(
-    duration: int,
+        duration: int
 ) -> None:
     with pytest.raises(ValueError):
         validate_duration(duration)
@@ -53,7 +53,7 @@ def test_validate_duration_rejects_non_positive_values(
 
 @pytest.mark.parametrize("rating", [-0.1, 10.1])
 def test_validate_imdb_rating_rejects_out_of_range_values(
-    rating: float,
+        rating: float
 ) -> None:
     with pytest.raises(ValueError):
         validate_imdb_rating(rating)
@@ -66,7 +66,7 @@ def test_validate_votes_rejects_negative_value() -> None:
 
 @pytest.mark.parametrize("score", [-0.1, 100.1])
 def test_validate_meta_score_rejects_out_of_range_values(
-    score: float,
+        score: float
 ) -> None:
     with pytest.raises(ValueError):
         validate_meta_score(score)
@@ -87,14 +87,14 @@ def test_named_models_normalize_names() -> None:
         GenreModel(name="  Action ").name,
         StarModel(name="  Keanu Reeves ").name,
         DirectorModel(name="  Lana Wachowski ").name,
-        CertificationModel(name="  R ").name,
+        CertificationModel(name="  R ").name
     ]
 
     assert names == [
         "Action",
         "Keanu Reeves",
         "Lana Wachowski",
-        "R",
+        "R"
     ]
 
 
@@ -109,7 +109,7 @@ def test_movie_model_validates_and_normalizes_values() -> None:
         gross=467_200_000.0,
         description="A hacker discovers the nature of reality.",
         price=Decimal("9.99"),
-        certification_id=1,
+        certification_id=1
     )
 
     assert movie.name == "The Matrix"
@@ -150,12 +150,12 @@ def test_movie_identity_has_unique_constraint() -> None:
     [
         (MoviesGenresModel, {"movie_id", "genre_id"}),
         (MoviesDirectorsModel, {"movie_id", "director_id"}),
-        (MoviesStarsModel, {"movie_id", "star_id"}),
-    ],
+        (MoviesStarsModel, {"movie_id", "star_id"})
+    ]
 )
 def test_association_tables_use_composite_primary_keys(
-    table,
-    expected_columns: set[str],
+        table,
+        expected_columns: set[str]
 ) -> None:
     assert {column.name for column in table.primary_key.columns} == (
         expected_columns
@@ -176,17 +176,17 @@ def test_metadata_creates_complete_schema_in_sqlite() -> None:
         "movie_genres",
         "movie_stars",
         "movies",
-        "stars",
+        "stars"
     }.issubset(table_names)
 
 
 @pytest.mark.parametrize(("price", "deleted", "available"), [
     (None, False, False), (Decimal("0"), False, True),
     (Decimal("9.99"), False, True), (None, True, False),
-    (Decimal("0"), True, False), (Decimal("9.99"), True, False),
+    (Decimal("0"), True, False), (Decimal("9.99"), True, False)
 ])
 def test_purchase_availability_uses_price_and_deletion_flag(
-    price: Decimal | None, deleted: bool, available: bool,
+        price: Decimal | None, deleted: bool, available: bool
 ) -> None:
     movie = MovieModel(price=price, is_deleted=deleted)
     assert movie.is_available_for_purchase is available

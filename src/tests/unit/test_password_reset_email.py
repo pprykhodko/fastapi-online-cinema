@@ -25,7 +25,7 @@ async def test_password_reset_email_content(monkeypatch, aware):
     monkeypatch.setattr(emails.aiosmtplib, "send", send)
     await sender.send_password_reset_email(
         "user@example.com", "token+with/symbols",
-        datetime(2030, 1, 2, 12, tzinfo=timezone.utc if aware else None),
+        datetime(2030, 1, 2, 12, tzinfo=timezone.utc if aware else None)
     )
     message = send.call_args.args[0]
     assert message["To"] == "user@example.com"
@@ -49,7 +49,7 @@ async def test_password_reset_email_escapes_values(monkeypatch):
     monkeypatch.setattr(sender, "_send_email", send)
     await sender.send_password_reset_email(
         "<script>alert(1)</script>@example.com", "<token>",
-        datetime.now(timezone.utc),
+        datetime.now(timezone.utc)
     )
     html = send.call_args.args[2]
     assert "<script>" not in html
