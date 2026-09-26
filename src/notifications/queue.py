@@ -36,7 +36,8 @@ class EmailQueue:
 
     async def _enqueue(self, kind: str, email: str, data: dict) -> None:
         try:
-            publish = partial(
+            # celery-types omits argsrepr, which Celery supports via **options.
+            publish = partial(  # type: ignore[call-arg]
                 send_email.apply_async,
                 args=(kind, email, data),
                 argsrepr="<email arguments hidden>",
