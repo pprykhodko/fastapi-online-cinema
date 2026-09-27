@@ -84,6 +84,17 @@ async def create_checkout(
         user: UserModel = Depends(get_current_user),
         service: PaymentService = Depends(get_payment_service)
 ) -> PaymentCheckoutResponseSchema:
+    """
+    Create or reuse a Stripe checkout for an owned pending order.
+
+    Args:
+        data (PaymentCreateRequestSchema): ID of the pending order to pay.
+        user (UserModel): Authenticated account supplied by the access-token dependency.
+        service (PaymentService): Injected service that performs the operation.
+
+    Returns:
+        PaymentCheckoutResponseSchema: Order ID and Stripe-hosted payment URL.
+    """
     return await service.create_checkout(user.id, data.order_id)
 
 
@@ -101,6 +112,17 @@ async def cancel_checkout(
         user: UserModel = Depends(get_current_user),
         service: PaymentService = Depends(get_payment_service)
 ) -> MessageResponseSchema:
+    """
+    Expire an unpaid Stripe checkout before marking the checkout and order canceled.
+
+    Args:
+        order_id (int): ID of the order.
+        user (UserModel): Authenticated account supplied by the access-token dependency.
+        service (PaymentService): Injected service that performs the operation.
+
+    Returns:
+        MessageResponseSchema: Confirmation message for the completed request.
+    """
     await service.cancel_checkout(user.id, order_id)
 
     return MessageResponseSchema(message="Checkout canceled")
@@ -120,6 +142,18 @@ async def list_payments(
         user: UserModel = Depends(get_current_user),
         service: PaymentService = Depends(get_payment_service)
 ) -> PaymentListResponseSchema:
+    """
+    Return paginated payment history, optionally restricted to an owner.
+
+    Args:
+        query (PaymentListQuerySchema): Validated pagination and any supported search,
+            sort or filter options.
+        user (UserModel): Authenticated account supplied by the access-token dependency.
+        service (PaymentService): Injected service that performs the operation.
+
+    Returns:
+        PaymentListResponseSchema: Payment records and pagination totals.
+    """
     return await service.list_payments(query, user.id)
 
 
@@ -136,6 +170,17 @@ async def admin_payments(
         query: Annotated[AdminPaymentListQuerySchema, Query()],
         service: PaymentService = Depends(get_payment_service)
 ) -> PaymentListResponseSchema:
+    """
+    Return payment history for administrators with user, date and status filters.
+
+    Args:
+        query (AdminPaymentListQuerySchema): Validated pagination and any supported
+            search, sort or filter options.
+        service (PaymentService): Injected service that performs the operation.
+
+    Returns:
+        PaymentListResponseSchema: Payment records and pagination totals.
+    """
     return await service.list_payments(query)
 
 
@@ -151,6 +196,18 @@ async def purchased(
         user: UserModel = Depends(get_current_user),
         service: PaymentService = Depends(get_payment_service)
 ) -> PurchasedMovieListResponseSchema:
+    """
+    Return the current user movies with successful, non-refunded payments.
+
+    Args:
+        query (PaymentListQuerySchema): Validated pagination and any supported search,
+            sort or filter options.
+        user (UserModel): Authenticated account supplied by the access-token dependency.
+        service (PaymentService): Injected service that performs the operation.
+
+    Returns:
+        PurchasedMovieListResponseSchema: Purchased movies and pagination totals.
+    """
     return await service.purchased_movies(user.id, query)
 
 
@@ -170,6 +227,18 @@ async def refund(
         user: UserModel = Depends(get_current_user),
         service: PaymentService = Depends(get_payment_service)
 ) -> PaymentRefundResponseSchema:
+    """
+    Request or reconcile a full refund for an owned successful payment.
+
+    Args:
+        data (PaymentRefundRequestSchema): ID of the successful payment to refund.
+        user (UserModel): Authenticated account supplied by the access-token dependency.
+        service (PaymentService): Injected service that performs the operation.
+
+    Returns:
+        PaymentRefundResponseSchema: Payment ID and refund completion or processing
+            message.
+    """
     return await service.refund(user.id, data.payment_id)
 
 
@@ -190,6 +259,19 @@ async def webhook(
         gateway: StripeGateway = Depends(get_stripe_gateway),
         service: PaymentService = Depends(get_payment_service)
 ) -> MessageResponseSchema:
+    """
+    Verify the Stripe signature and apply the supported payment or refund event.
+
+    Args:
+        request (Request): Incoming HTTP request.
+        signature (str): Stripe-Signature header supplied with the webhook.
+        gateway (StripeGateway): Stripe adapter used for checkout, webhook and refund
+            operations.
+        service (PaymentService): Injected service that performs the operation.
+
+    Returns:
+        MessageResponseSchema: Confirmation message for the completed request.
+    """
     payload = bytearray()
 
     async for chunk in request.stream():
@@ -220,6 +302,16 @@ async def payment_return(
         session_id: str | None = Query(default=None, max_length=255),
         service: PaymentService = Depends(get_payment_service)
 ) -> HTMLResponse:
+    """
+    Render the stored payment outcome without changing payment state.
+
+    Args:
+        session_id (str | None): Stripe Checkout session ID.
+        service (PaymentService): Injected service that performs the operation.
+
+    Returns:
+        HTMLResponse: HTTP response for the requested operation.
+    """
     message = await service.return_message(session_id)
 
     return HTMLResponse(
@@ -241,4 +333,15 @@ async def get_payment(
         user: UserModel = Depends(get_current_user),
         service: PaymentService = Depends(get_payment_service)
 ) -> PaymentResponseSchema:
+    """
+    Return payment details and the saved item prices.
+
+    Args:
+        payment_id (int): ID of the stored payment.
+        user (UserModel): Authenticated account supplied by the access-token dependency.
+        service (PaymentService): Injected service that performs the operation.
+
+    Returns:
+        PaymentResponseSchema: Saved payment state, amount, currency and item prices.
+    """
     return await service.get_payment(user.id, payment_id)

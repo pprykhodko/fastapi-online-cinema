@@ -56,6 +56,18 @@ async def list_comments(
         movie_id: int = Path(gt=0, le=2**31 - 1),
         service: CommentService = Depends(get_comment_service)
 ):
+    """
+    Return paginated comments and replies for a non-deleted movie.
+
+    Args:
+        query (MovieCommentListQuerySchema): Validated pagination and any supported
+            search, sort or filter options.
+        movie_id (int): ID of the movie, not the cart or order item.
+        service (CommentService): Injected service that performs the operation.
+
+    Returns:
+        MovieCommentListResponseSchema: Comment page and pagination totals.
+    """
     return await service.list_comments(movie_id, query)
 
 
@@ -77,6 +89,21 @@ async def create_comment(
         current_user: UserModel = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
+    """
+    Save a comment or reply and queue a notification for another reply recipient.
+
+    Args:
+        data (MovieCommentCreateRequestSchema): Comment text and optional parent comment
+            ID for replies.
+        movie_id (int): ID of the movie, not the cart or order item.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (CommentService): Injected service that performs the operation.
+
+    Returns:
+        MovieCommentResponseSchema: Comment content, author, movie and optional parent
+            ID.
+    """
     return await service.create_comment(current_user.id, movie_id, data)
 
 
@@ -101,6 +128,20 @@ async def like_comment(
         current_user: UserModel = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
+    """
+    Create a comment like if absent and notify another author only for a new like.
+
+    Args:
+        response (Response): HTTP response used to set status codes or cache-control
+            headers.
+        comment_id (int): ID of the comment.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (CommentService): Injected service that performs the operation.
+
+    Returns:
+        CommentLikeResponseSchema: Saved comment like with its author and creation time.
+    """
     like, created = await service.like_comment(current_user.id, comment_id)
     response.status_code = 201 if created else 200
 
@@ -121,6 +162,18 @@ async def delete_like(
         current_user: UserModel = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
+    """
+    Remove the user like from the selected comment.
+
+    Args:
+        comment_id (int): ID of the comment.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (CommentService): Injected service that performs the operation.
+
+    Returns:
+        Response: Empty HTTP 204 response.
+    """
     await service.delete_like(current_user.id, comment_id)
 
     return Response(status_code=204)

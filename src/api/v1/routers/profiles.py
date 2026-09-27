@@ -50,6 +50,17 @@ async def get_profile(
         user_id: int = Path(gt=0, le=2**63 - 1),
         service: ProfileService = Depends(get_profile_service)
 ) -> UserProfileResponseSchema:
+    """
+    Load the profile associated with the specified user.
+
+    Args:
+        user_id (int): ID of the account whose data is being accessed.
+        service (ProfileService): Injected service that performs the operation.
+
+    Returns:
+        UserProfileResponseSchema: Profile fields with a temporary signed avatar URL
+            when present.
+    """
     profile = await service.get_profile(user_id)
 
     return await service.serialize_profile(profile)
@@ -99,4 +110,20 @@ async def update_profile(
         user_id: int = Path(gt=0, le=2**63 - 1),
         service: ProfileService = Depends(get_profile_service)
 ) -> UserProfileResponseSchema:
+    """
+    Update only supplied profile fields and replace the avatar when a new file is
+    provided.
+
+    Args:
+        data (UserProfileUpdateRequestSchema): Only the profile fields supplied for this
+            partial update.
+        avatar (UploadFile | None): Uploaded image; omission leaves the stored avatar
+            unchanged.
+        user_id (int): ID of the account whose data is being accessed.
+        service (ProfileService): Injected service that performs the operation.
+
+    Returns:
+        UserProfileResponseSchema: Profile fields with a temporary signed avatar URL
+            when present.
+    """
     return await service.update_profile(user_id, data, avatar)

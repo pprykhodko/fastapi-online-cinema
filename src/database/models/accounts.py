@@ -68,6 +68,12 @@ class UserGroupModel(Base):
     users: Mapped[List[UserModel]] = relationship(back_populates="group")
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return f"<UserGroupModel(id={self.id}, name={self.name})>"
 
 
@@ -183,30 +189,91 @@ class UserModel(Base):
         raw_password: str,
         group_id: int,
     ) -> UserModel:
+        """
+        Build an account with a validated, hashed password without saving it.
+
+        Args:
+            email (str): Email address of the account or message recipient.
+            raw_password (str): Plaintext password; never log this value.
+            group_id (int): ID of an existing user group.
+
+        Returns:
+            UserModel: Requested database record(s).
+        """
         user = cls(email=email, group_id=group_id)
         user.password = raw_password
         return user
 
     @property
     def password(self) -> NoReturn:
+        """
+        Prevent reading the write-only password property.
+
+        Raises:
+            AttributeError: Password values cannot be read from this property.
+        """
         raise AttributeError("Password is write-only.")
 
     @password.setter
     def password(self, raw_password: str) -> None:
+        """
+        Validate and hash a new plaintext password.
+
+        Args:
+            raw_password (str): Plaintext password; never log this value.
+        """
         validators.validate_password_strength(raw_password)
         self._hashed_password = hash_password(raw_password)
 
     def verify_password(self, raw_password: str) -> bool:
+        """
+        Check a plaintext password against its stored bcrypt hash.
+
+        Args:
+            raw_password (str): Plaintext password; never log this value.
+
+        Returns:
+            bool: Whether the password matches; inputs exceeding bcrypt limits return
+                False.
+        """
         return verify_password(raw_password, self._hashed_password)
 
     def has_group(self, group_name: UserGroupEnum) -> bool:
+        """
+        Check whether the account belongs to the specified group.
+
+        Args:
+            group_name (UserGroupEnum): Required user group.
+
+        Returns:
+            bool: True when the account belongs to the requested group.
+        """
         return self.group.name == group_name
 
     @validates("email")
     def validate_email(self, _key: str, value: str) -> str:
+        """
+        Validate the email syntax and return its normalized lowercase form.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_email(value)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<UserModel(id={self.id}, email={self.email}, "
             f"is_active={self.is_active})>"
@@ -241,6 +308,12 @@ class UserProfileModel(Base):
     user: Mapped[UserModel] = relationship(back_populates="profile")
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<UserProfileModel(id={self.id}, "
             f"first_name={self.first_name}, last_name={self.last_name})>"
@@ -279,6 +352,12 @@ class ActivationTokenModel(TokenBaseModel):
     user: Mapped[UserModel] = relationship(back_populates="activation_token")
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<ActivationTokenModel(id={self.id}, "
             f"expires_at={self.expires_at})>"
@@ -294,6 +373,12 @@ class PasswordResetTokenModel(TokenBaseModel):
     )
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<PasswordResetTokenModel(id={self.id}, "
             f"expires_at={self.expires_at})>"
@@ -317,10 +402,27 @@ class RefreshTokenModel(TokenBaseModel):
         days_valid: int,
         token: str,
     ) -> RefreshTokenModel:
+        """
+        Build a refresh-token record with an expiration date without saving it.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            days_valid (int): Number of days before the refresh record expires.
+            token (str): Plaintext token supplied by the caller; never log this value.
+
+        Returns:
+            RefreshTokenModel: Requested database record(s).
+        """
         expires_at = datetime.now(timezone.utc) + timedelta(days=days_valid)
         return cls(user_id=user_id, expires_at=expires_at, token=token)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<RefreshTokenModel(id={self.id}, "
             f"expires_at={self.expires_at})>"

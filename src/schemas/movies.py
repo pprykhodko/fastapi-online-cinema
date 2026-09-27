@@ -27,6 +27,18 @@ class BaseNameRequestSchema(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, value: str) -> str:
+        """
+        Strip surrounding whitespace and reject an empty name.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return movies_validators.validate_name(value)
 
 
@@ -34,6 +46,18 @@ class GenreCreateRequestSchema(BaseNameRequestSchema):
     @field_validator("name")
     @classmethod
     def validate_name(cls, value: str) -> str:
+        """
+        Allow only English letters and spaces in a nonempty genre name.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return movies_validators.validate_genre_name(value)
 
 
@@ -45,6 +69,18 @@ class StarCreateRequestSchema(BaseNameRequestSchema):
     @field_validator("name")
     @classmethod
     def validate_name(cls, value: str) -> str:
+        """
+        Allow English name parts separated by a single space or hyphen.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return movies_validators.validate_star_name(value)
 
 
@@ -56,6 +92,18 @@ class DirectorCreateRequestSchema(BaseNameRequestSchema):
     @field_validator("name")
     @classmethod
     def validate_name(cls, value: str) -> str:
+        """
+        Allow English letters, spaces and hyphens in a nonempty director name.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return movies_validators.validate_director_name(value)
 
 
@@ -119,11 +167,35 @@ class BaseMovieSchema(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, value: str) -> str:
+        """
+        Strip surrounding whitespace and reject an empty name.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return movies_validators.validate_name(value)
 
     @field_validator("price")
     @classmethod
     def validate_price(cls, value: Decimal | None) -> Decimal | None:
+        """
+        Allow no price or a valid nonnegative monetary Decimal.
+
+        Args:
+            value (Decimal | None): Field value to validate or normalize.
+
+        Returns:
+            Decimal | None: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return movies_validators.validate_non_negative_decimal(value, "price")
 
 
@@ -145,6 +217,18 @@ class MovieCreateRequestSchema(BaseMovieSchema):
     )
     @classmethod
     def validate_related_ids(cls, values: list[int]) -> list[int]:
+        """
+        Require a list of distinct positive integer IDs, rejecting booleans.
+
+        Args:
+            values (list[int]): Related record IDs supplied by the caller.
+
+        Returns:
+            list[int]: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         if not isinstance(values, list):
             raise ValueError("Related IDs must be a list")
 
@@ -221,6 +305,18 @@ class MovieListQuerySchema(PaginationQuerySchema):
     @field_validator("search")
     @classmethod
     def validate_search(cls, value: str | None) -> str | None:
+        """
+        Strip a provided search term and reject a whitespace-only term.
+
+        Args:
+            value (str | None): Field value to validate or normalize.
+
+        Returns:
+            str | None: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         if value is None:
             return None
 

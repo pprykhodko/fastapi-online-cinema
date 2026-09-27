@@ -14,10 +14,38 @@ from src.notifications.emails import EmailDeliveryError, get_email_sender
     max_retries=3
 )
 def send_email(kind: str, recipient: str, data: dict) -> None:
+    """
+    Run async email delivery in a Celery task with retries for delivery failures.
+
+    Args:
+        kind (str): Email type: activation, activation_complete, password_reset, payment
+            or comment.
+        recipient (str): Email address receiving the message.
+        data (dict): Serializable email payload containing the fields required by this
+            message type.
+
+    Raises:
+        EmailDeliveryError: SMTP delivery fails; the Celery task retries it.
+        ValueError: The email kind or expiration payload is invalid.
+    """
     asyncio.run(deliver_email(kind, recipient, data))
 
 
 async def deliver_email(kind: str, recipient: str, data: dict) -> None:
+    """
+    Dispatch an email to its sender, skipping expired activation and reset messages.
+
+    Args:
+        kind (str): Email type: activation, activation_complete, password_reset, payment
+            or comment.
+        recipient (str): Email address receiving the message.
+        data (dict): Serializable email payload containing the fields required by this
+            message type.
+
+    Raises:
+        EmailDeliveryError: SMTP delivery fails; the Celery task retries it.
+        ValueError: The email kind or expiration payload is invalid.
+    """
     sender = get_email_sender()
 
     if kind in {"activation", "password_reset"}:

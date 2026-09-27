@@ -24,6 +24,18 @@ class CommentService:
             movie_repository: MovieRepository,
             account_repository: AccountRepository
     ):
+        """
+        Initialize CommentService with its required dependencies.
+
+        Args:
+            repository (CommentRepository): Repository used for database operations and
+                the shared transaction.
+            email_queue (EmailQueue): Publisher used to send email tasks to Celery.
+            movie_repository (MovieRepository): Repository for movie data using the
+                shared session.
+            account_repository (AccountRepository): Repository for account data using
+                the shared session.
+        """
         self.repository = repository
         self.email_queue = email_queue
         self.movie_repository = movie_repository
@@ -34,6 +46,20 @@ class CommentService:
             movie_id: int,
             query: MovieCommentListQuerySchema
     ) -> MovieCommentListResponseSchema:
+        """
+        Return paginated comments and replies for a non-deleted movie.
+
+        Args:
+            movie_id (int): ID of the movie, not the cart or order item.
+            query (MovieCommentListQuerySchema): Validated pagination and any supported
+                search, sort or filter options.
+
+        Returns:
+            MovieCommentListResponseSchema: Comment page and pagination totals.
+
+        Raises:
+            HTTPException: The movie is missing or comments cannot be loaded.
+        """
         async with database_errors(self.repository, detail="Comments are unavailable"):
             await get_movie_or_404(self.movie_repository, movie_id)
 
@@ -59,6 +85,23 @@ class CommentService:
             movie_id: int,
             data: MovieCommentCreateRequestSchema
     ) -> MovieCommentResponseSchema:
+        """
+        Save a comment or reply and queue a notification for another reply recipient.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            movie_id (int): ID of the movie, not the cart or order item.
+            data (MovieCommentCreateRequestSchema): Comment text and optional parent
+                comment ID for replies.
+
+        Returns:
+            MovieCommentResponseSchema: Comment content, author, movie and optional
+                parent ID.
+
+        Raises:
+            HTTPException: The target record is missing, conflicts with stored data or
+                cannot be saved.
+        """
         async with database_errors(
                 self.repository,
                 detail="Comment could not be saved",
@@ -108,6 +151,21 @@ class CommentService:
             user_id: int,
             comment_id: int
     ) -> tuple[CommentLikeResponseSchema, bool]:
+        """
+        Create a comment like if absent and notify another author only for a new like.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            comment_id (int): ID of the comment.
+
+        Returns:
+            tuple[CommentLikeResponseSchema, bool]: Response data and True if a new
+                record was created.
+
+        Raises:
+            HTTPException: The target record is missing, conflicts with stored data or
+                cannot be saved.
+        """
         async with database_errors(
                 self.repository,
                 detail="Like could not be saved",
@@ -155,6 +213,17 @@ class CommentService:
         return response, created
 
     async def delete_like(self, user_id: int, comment_id: int) -> None:
+        """
+        Remove the user like from the selected comment.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            comment_id (int): ID of the comment.
+
+        Raises:
+            HTTPException: The record is missing or database constraints prevent
+                removal.
+        """
         async with database_errors(self.repository, detail="Like could not be removed"):
             if not await self.repository.delete_like(user_id, comment_id):
                 raise HTTPException(

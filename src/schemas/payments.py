@@ -52,6 +52,18 @@ class PaymentItemResponseSchema(BaseModel):
     @field_validator("price_at_payment")
     @classmethod
     def validate_price_at_payment(cls, value: Decimal) -> Decimal:
+        """
+        Validate the historical payment-item price without rounding it.
+
+        Args:
+            value (Decimal): Field value to validate or normalize.
+
+        Returns:
+            Decimal: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return payments_validators.validate_price_at_payment(value)
 
 
@@ -73,6 +85,18 @@ class PaymentResponseSchema(BaseModel):
     @field_validator("amount")
     @classmethod
     def validate_amount(cls, value: Decimal) -> Decimal:
+        """
+        Validate a payment amount within the supported monetary limits.
+
+        Args:
+            value (Decimal): Field value to validate or normalize.
+
+        Returns:
+            Decimal: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return payments_validators.validate_payment_amount(value)
 
 

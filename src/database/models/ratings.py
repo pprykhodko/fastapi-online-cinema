@@ -55,9 +55,28 @@ class MovieRatingModel(Base):
 
     @validates("score")
     def validate_score(self, _key: str, value: int) -> int:
+        """
+        Require an integer rating from 1 to 10, rejecting booleans.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (int): Field value to validate or normalize.
+
+        Returns:
+            int: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validate_user_rating(value)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<MovieRatingModel(id={self.id}, user_id={self.user_id}, "
             f"movie_id={self.movie_id}, score={self.score})>"

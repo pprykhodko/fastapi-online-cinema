@@ -5,6 +5,19 @@ from PIL import Image, UnidentifiedImageError
 
 
 def validate_avatar(data: bytes, content_type: str) -> tuple[bytes, str]:
+    """
+    Validate a non-animated JPEG or PNG and re-encode it without image metadata.
+
+    Args:
+        data (bytes): Uploaded file contents in bytes.
+        content_type (str): Declared MIME type, such as image/jpeg or image/png.
+
+    Returns:
+        tuple[bytes, str]: Clean image bytes and the jpg or png extension.
+
+    Raises:
+        ValueError: The value does not satisfy the validation rules.
+    """
     formats = {"JPEG": ("image/jpeg", "jpg"), "PNG": ("image/png", "png")}
     try:
         with warnings.catch_warnings():

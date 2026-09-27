@@ -4,7 +4,19 @@ from src.schemas.common import AdminTransactionListQuerySchema
 
 
 def transaction_filters(model, query, user_id: int | None = None) -> list:
-    """Shared filters for order/payment history, including the owner restriction"""
+    """
+    Build owner, status and inclusive UTC date filters for transaction history.
+
+    The caller controls the transaction commit.
+
+    Args:
+        model: Order or payment model whose columns are used in the filters.
+        query: Validated pagination and any supported search, sort or filter options.
+        user_id (int | None): ID of the account whose data is being accessed.
+
+    Returns:
+        list: SQLAlchemy conditions to combine with AND.
+    """
     filters = []
 
     if user_id is not None:

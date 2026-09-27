@@ -17,11 +17,29 @@ DOCS_HEADERS = {
 
 @router.get("/openapi.json", name="protected_openapi")
 async def openapi_schema(request: Request) -> JSONResponse:
+    """
+    Return the OpenAPI schema after the documentation login check.
+
+    Args:
+        request (Request): Incoming HTTP request.
+
+    Returns:
+        JSONResponse: HTTP response for the requested operation.
+    """
     return JSONResponse(request.app.openapi(), headers=DOCS_HEADERS)
 
 
 @router.get("/docs")
 async def swagger_docs(request: Request) -> HTMLResponse:
+    """
+    Render Swagger UI with the protected OpenAPI URL.
+
+    Args:
+        request (Request): Incoming HTTP request.
+
+    Returns:
+        HTMLResponse: HTTP response for the requested operation.
+    """
     response = get_swagger_ui_html(
         openapi_url=request.url_for("protected_openapi").path,
         title=f"{request.app.title} - Swagger UI"
@@ -33,6 +51,15 @@ async def swagger_docs(request: Request) -> HTMLResponse:
 
 @router.get("/redoc")
 async def redoc_docs(request: Request) -> HTMLResponse:
+    """
+    Render ReDoc with the protected OpenAPI URL.
+
+    Args:
+        request (Request): Incoming HTTP request.
+
+    Returns:
+        HTMLResponse: HTTP response for the requested operation.
+    """
     response = get_redoc_html(
         openapi_url=request.url_for("protected_openapi").path,
         title=f"{request.app.title} - ReDoc"

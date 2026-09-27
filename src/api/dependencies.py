@@ -41,6 +41,16 @@ def get_account_service(
         db: AsyncSession = Depends(get_db),
         email_queue: EmailQueue = Depends(get_email_queue)
 ) -> AccountService:
+    """
+    Build AccountService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+        email_queue (EmailQueue): Publisher used to send email tasks to Celery.
+
+    Returns:
+        AccountService: Configured component ready for use.
+    """
     return AccountService(
         repository=AccountRepository(db),
         email_queue=email_queue,
@@ -55,36 +65,110 @@ def get_profile_service(
         storage: S3Storage = Depends(get_s3_storage),
         settings: Settings = Depends(get_settings)
 ) -> ProfileService:
+    """
+    Build ProfileService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+        storage (S3Storage): S3-compatible adapter used to manage avatar files.
+        settings (Settings): Application configuration used by this component.
+
+    Returns:
+        ProfileService: Configured component ready for use.
+    """
     return ProfileService(ProfileRepository(db), storage, settings)
 
 
 def get_genre_service(db: AsyncSession = Depends(get_db)) -> GenreService:
+    """
+    Build GenreService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+
+    Returns:
+        GenreService: Configured component ready for use.
+    """
     return GenreService(GenreRepository(db))
 
 
 def get_star_service(db: AsyncSession = Depends(get_db)) -> StarService:
+    """
+    Build StarService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+
+    Returns:
+        StarService: Configured component ready for use.
+    """
     return StarService(StarRepository(db))
 
 
 def get_director_service(db: AsyncSession = Depends(get_db)) -> DirectorService:
+    """
+    Build DirectorService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+
+    Returns:
+        DirectorService: Configured component ready for use.
+    """
     return DirectorService(DirectorRepository(db))
 
 
 def get_certification_service(
         db: AsyncSession = Depends(get_db)
 ) -> CertificationService:
+    """
+    Build CertificationService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+
+    Returns:
+        CertificationService: Configured component ready for use.
+    """
     return CertificationService(CertificationRepository(db))
 
 
 def get_movie_service(db: AsyncSession = Depends(get_db)) -> MovieService:
+    """
+    Build MovieService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+
+    Returns:
+        MovieService: Configured component ready for use.
+    """
     return MovieService(MovieRepository(db))
 
 
 def get_cart_service(db: AsyncSession = Depends(get_db)) -> CartService:
+    """
+    Build CartService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+
+    Returns:
+        CartService: Configured component ready for use.
+    """
     return CartService(CartRepository(db), MovieRepository(db), OrderRepository(db))
 
 
 def get_order_service(db: AsyncSession = Depends(get_db)) -> OrderService:
+    """
+    Build OrderService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+
+    Returns:
+        OrderService: Configured component ready for use.
+    """
     return OrderService(OrderRepository(db), CartRepository(db), MovieRepository(db))
 
 
@@ -94,18 +178,58 @@ def get_payment_service(
         gateway: StripeGateway = Depends(get_stripe_gateway),
         email_queue: EmailQueue = Depends(get_email_queue)
 ) -> PaymentService:
+    """
+    Build PaymentService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+        orders (OrderService): Order service using the same database session.
+        gateway (StripeGateway): Stripe adapter used for checkout, webhook and refund
+            operations.
+        email_queue (EmailQueue): Publisher used to send email tasks to Celery.
+
+    Returns:
+        PaymentService: Configured component ready for use.
+    """
     return PaymentService(PaymentRepository(db), orders, gateway, email_queue)
 
 
 def get_favorite_service(db: AsyncSession = Depends(get_db)) -> FavoriteService:
+    """
+    Build FavoriteService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+
+    Returns:
+        FavoriteService: Configured component ready for use.
+    """
     return FavoriteService(FavoriteRepository(db), MovieRepository(db))
 
 
 def get_reaction_service(db: AsyncSession = Depends(get_db)) -> ReactionService:
+    """
+    Build ReactionService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+
+    Returns:
+        ReactionService: Configured component ready for use.
+    """
     return ReactionService(ReactionRepository(db), MovieRepository(db))
 
 
 def get_rating_service(db: AsyncSession = Depends(get_db)) -> RatingService:
+    """
+    Build RatingService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+
+    Returns:
+        RatingService: Configured component ready for use.
+    """
     return RatingService(RatingRepository(db), MovieRepository(db))
 
 
@@ -113,6 +237,16 @@ def get_comment_service(
         db: AsyncSession = Depends(get_db),
         email_queue: EmailQueue = Depends(get_email_queue)
 ) -> CommentService:
+    """
+    Build CommentService with repositories sharing the request database session.
+
+    Args:
+        db (AsyncSession): Shared asynchronous database session.
+        email_queue (EmailQueue): Publisher used to send email tasks to Celery.
+
+    Returns:
+        CommentService: Configured component ready for use.
+    """
     return CommentService(
         CommentRepository(db),
         email_queue,

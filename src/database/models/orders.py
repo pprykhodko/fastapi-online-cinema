@@ -87,6 +87,19 @@ class OrderModel(Base):
 
     @validates("status")
     def validate_status(self, _key: str, value: str) -> OrderStatusEnum:
+        """
+        Accept only pending, paid or canceled order states.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            OrderStatusEnum: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return OrderStatusEnum(validators.validate_order_status(value))
 
     @validates("total_amount")
@@ -95,9 +108,28 @@ class OrderModel(Base):
         _key: str,
         value: Optional[Decimal],
     ) -> Optional[Decimal]:
+        """
+        Allow no order total or an amount within the supported monetary limits.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (Optional[Decimal]): Field value to validate or normalize.
+
+        Returns:
+            Optional[Decimal]: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_total_amount(value)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<OrderModel(id={self.id}, user_id={self.user_id}, "
             f"status={self.status})>"
@@ -146,9 +178,28 @@ class OrderItemModel(Base):
         _key: str,
         value: Decimal,
     ) -> Decimal:
+        """
+        Validate the historical order-item price without rounding it.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (Decimal): Field value to validate or normalize.
+
+        Returns:
+            Decimal: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_price_at_order(value)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<OrderItemModel(id={self.id}, order_id={self.order_id}, "
             f"movie_id={self.movie_id})>"

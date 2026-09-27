@@ -29,6 +29,12 @@ AsyncPostgresqlSessionLocal = async_sessionmaker(
 async def get_postgresql_db_contextmanager() -> AsyncGenerator[
     AsyncSession, None,
 ]:
+    """
+    Open a PostgreSQL session, roll back on errors and close it when finished.
+
+    Yields:
+        AsyncSession: Session whose transaction is committed explicitly by the caller.
+    """
     async with AsyncPostgresqlSessionLocal() as session:
         try:
             yield session
@@ -38,5 +44,11 @@ async def get_postgresql_db_contextmanager() -> AsyncGenerator[
 
 
 async def get_postgresql_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Provide a PostgreSQL session to FastAPI and close it after the request.
+
+    Yields:
+        AsyncSession: Session whose transaction is committed explicitly by the caller.
+    """
     async with get_postgresql_db_contextmanager() as session:
         yield session

@@ -30,6 +30,13 @@ class BaseAppSettings(BaseSettings):
 
     @property
     def SQLITE_DATABASE_URL(self) -> URL:
+        """
+        Build the SQLite connection URL, resolving file paths from the project
+        directory.
+
+        Returns:
+            URL: Configured object for the selected database or application settings.
+        """
         if self.PATH_TO_DB == ":memory:":
             database = self.PATH_TO_DB
 
@@ -99,6 +106,18 @@ class Settings(BaseAppSettings):
     @field_validator("JWT_ACCESS_SECRET_KEY", "JWT_REFRESH_SECRET_KEY")
     @classmethod
     def validate_jwt_secret(cls, value: SecretStr | None) -> SecretStr | None:
+        """
+        Reject an explicitly configured JWT secret containing only whitespace.
+
+        Args:
+            value (SecretStr | None): Field value to validate or normalize.
+
+        Returns:
+            SecretStr | None: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         if value is not None and not value.get_secret_value().strip():
             raise ValueError("JWT secret keys must not be blank")
 
@@ -106,6 +125,15 @@ class Settings(BaseAppSettings):
 
     @model_validator(mode="after")
     def validate_jwt_keys(self) -> "Settings":
+        """
+        Require different access and refresh secrets when both are configured.
+
+        Returns:
+            Settings: The validated settings instance.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         if (
             self.JWT_ACCESS_SECRET_KEY is not None
             and self.JWT_REFRESH_SECRET_KEY is not None
@@ -117,6 +145,15 @@ class Settings(BaseAppSettings):
 
     @model_validator(mode="after")
     def validate_smtp_tls(self) -> "Settings":
+        """
+        Reject enabling implicit TLS and STARTTLS at the same time.
+
+        Returns:
+            Settings: The validated settings instance.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         if self.SMTP_USE_TLS and self.SMTP_START_TLS:
             raise ValueError("Choose SMTP_USE_TLS or SMTP_START_TLS, not both")
 
@@ -124,6 +161,12 @@ class Settings(BaseAppSettings):
 
     @property
     def DATABASE_URL(self) -> URL:
+        """
+        Choose the async connection URL for the configured database type.
+
+        Returns:
+            URL: Configured object for the selected database or application settings.
+        """
         if self.DATABASE_TYPE == "sqlite":
             return self.SQLITE_DATABASE_URL
 
@@ -131,6 +174,12 @@ class Settings(BaseAppSettings):
 
     @property
     def POSTGRESQL_DATABASE_URL(self) -> URL:
+        """
+        Build the PostgreSQL async connection URL with safely encoded credentials.
+
+        Returns:
+            URL: Configured object for the selected database or application settings.
+        """
         return URL.create(
             drivername="postgresql+asyncpg",
             username=self.POSTGRES_USER,
@@ -148,6 +197,13 @@ class TestingSettings(BaseAppSettings):
     model_config = {"env_file": None}
 
     def model_post_init(self, __context: Any) -> None:
+        """
+        Force testing settings to use an in-memory SQLite database.
+
+        Args:
+            __context (Any): Pydantic initialization context; unused by testing
+                settings.
+        """
         self.DATABASE_TYPE = "sqlite"
         self.PATH_TO_DB = ":memory:"
 
@@ -155,4 +211,10 @@ class TestingSettings(BaseAppSettings):
 @lru_cache
 def get_settings() -> Settings:
 
+    """
+    Load application settings once and reuse the cached settings object.
+
+    Returns:
+        Settings: Configured object for the selected database or application settings.
+    """
     return Settings()

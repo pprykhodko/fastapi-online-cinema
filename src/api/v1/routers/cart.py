@@ -49,6 +49,17 @@ async def get_cart(
         current_user: UserModel = Depends(get_current_user),
         service: CartService = Depends(get_cart_service)
 ) -> CartResponseSchema:
+    """
+    Return the user cart with current movie prices, genres and release years.
+
+    Args:
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (CartService): Injected service that performs the operation.
+
+    Returns:
+        CartResponseSchema: Cart ID, owner ID and items with current movie information.
+    """
     return await service.get_cart(current_user.id)
 
 
@@ -74,6 +85,18 @@ async def add_item(
         current_user: UserModel = Depends(get_current_user),
         service: CartService = Depends(get_cart_service)
 ) -> CartItemResponseSchema:
+    """
+    Add an available movie to the cart unless it is duplicated or already purchased.
+
+    Args:
+        data (CartItemCreateRequestSchema): ID of the movie to add to the cart.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (CartService): Injected service that performs the operation.
+
+    Returns:
+        CartItemResponseSchema: Saved cart item with movie information and time added.
+    """
     return await service.add_item(current_user.id, data.movie_id)
 
 
@@ -89,6 +112,18 @@ async def remove_item(
         current_user: UserModel = Depends(get_current_user),
         service: CartService = Depends(get_cart_service)
 ) -> Response:
+    """
+    Remove the selected movie from the user cart.
+
+    Args:
+        movie_id (int): ID of the movie, not the cart or order item.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (CartService): Injected service that performs the operation.
+
+    Returns:
+        Response: HTTP response for the requested operation.
+    """
     await service.remove_item(current_user.id, movie_id)
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -105,6 +140,17 @@ async def clear_cart(
         current_user: UserModel = Depends(get_current_user),
         service: CartService = Depends(get_cart_service)
 ) -> Response:
+    """
+    Remove all items from the user cart without deleting the cart itself.
+
+    Args:
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (CartService): Injected service that performs the operation.
+
+    Returns:
+        Response: HTTP response for the requested operation.
+    """
     await service.clear_cart(current_user.id)
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -122,6 +168,16 @@ async def get_user_cart(
         user_id: int = Path(gt=0, le=2**31 - 1),
         service: CartService = Depends(get_cart_service)
 ) -> CartResponseSchema:
+    """
+    Return the selected user cart after the administrator dependency check.
+
+    Args:
+        user_id (int): ID of the account whose data is being accessed.
+        service (CartService): Injected service that performs the operation.
+
+    Returns:
+        CartResponseSchema: Cart ID, owner ID and items with current movie information.
+    """
     return await service.get_cart(user_id)
 
 
@@ -160,6 +216,20 @@ async def checkout(
         current_user: UserModel = Depends(get_current_user),
         service: OrderService = Depends(get_order_service)
 ) -> OrderCreateResponseSchema:
+    """
+    Create a pending order from eligible cart items and report excluded movies.
+
+    Args:
+        response (Response): HTTP response used to set status codes or cache-control
+            headers.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (OrderService): Injected service that performs the operation.
+
+    Returns:
+        OrderCreateResponseSchema: Created order, or None if all items were excluded,
+            plus exclusion reasons.
+    """
     result = await service.checkout(current_user.id)
 
     if result.order is None:

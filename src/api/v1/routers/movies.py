@@ -47,6 +47,18 @@ async def list_movies(
         query: Annotated[MovieListQuerySchema, Query()],
         service: MovieService = Depends(get_movie_service)
 ) -> MovieListResponseSchema:
+    """
+    Return visible movies using pagination, search, filters and sorting.
+
+    Args:
+        query (MovieListQuerySchema): Validated pagination and any supported search,
+            sort or filter options.
+        service (MovieService): Injected service that performs the operation.
+
+    Returns:
+        MovieListResponseSchema: Catalog page with vote counts, reactions and average
+            user ratings.
+    """
     return await service.list_movies(query)
 
 
@@ -68,6 +80,17 @@ async def get_movie(
         movie_id: int = Path(gt=0, le=2**31 - 1),
         service: MovieService = Depends(get_movie_service)
 ):
+    """
+    Return the selected non-deleted movie with its related catalog data.
+
+    Args:
+        movie_id (int): ID of the movie, not the cart or order item.
+        service (MovieService): Injected service that performs the operation.
+
+    Returns:
+        MovieDetailResponseSchema: Movie attributes with certification, genres, actors
+            and directors.
+    """
     return await service.get_movie(movie_id)
 
 
@@ -103,6 +126,18 @@ async def create_movie(
         data: MovieCreateRequestSchema,
         service: MovieService = Depends(get_movie_service)
 ):
+    """
+    Create a movie using validated catalog fields and related record IDs.
+
+    Args:
+        data (MovieCreateRequestSchema): Movie attributes and certification, genre,
+            actor and director IDs.
+        service (MovieService): Injected service that performs the operation.
+
+    Returns:
+        MovieDetailResponseSchema: Movie attributes with certification, genres, actors
+            and directors.
+    """
     return await service.save_movie(data)
 
 
@@ -140,6 +175,19 @@ async def update_movie(
         movie_id: int = Path(gt=0, le=2**31 - 1),
         service: MovieService = Depends(get_movie_service)
 ):
+    """
+    Replace a movie using validated catalog fields and related record IDs.
+
+    Args:
+        data (MovieUpdateRequestSchema): Complete replacement movie attributes and
+            related record IDs.
+        movie_id (int): ID of the movie, not the cart or order item.
+        service (MovieService): Injected service that performs the operation.
+
+    Returns:
+        MovieDetailResponseSchema: Movie attributes with certification, genres, actors
+            and directors.
+    """
     return await service.save_movie(data, movie_id)
 
 
@@ -177,6 +225,17 @@ async def delete_movie(
         confirm: bool = Query(False, description="Confirm removal from carts"),
         service: MovieService = Depends(get_movie_service)
 ):
+    """
+    Soft-delete an unpurchased movie, requiring confirmation when it is in carts.
+
+    Args:
+        movie_id (int): ID of the movie, not the cart or order item.
+        confirm (bool): Allow removal from existing carts after the deletion warning.
+        service (MovieService): Injected service that performs the operation.
+
+    Returns:
+        Response: Empty HTTP 204 response.
+    """
     await service.delete_movie(movie_id, confirm)
 
     return Response(status_code=204)

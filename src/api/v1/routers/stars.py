@@ -55,6 +55,15 @@ not_found: dict[int | str, dict[str, Any]] = {
 async def list_stars(
     service: StarService = Depends(get_star_service)
 ):
+    """
+    List all actor records in ID order.
+
+    Args:
+        service (StarService): Injected service that performs the operation.
+
+    Returns:
+        list[StarResponseSchema]: List of records with their IDs and names.
+    """
     return await service.list_stars()
 
 
@@ -69,6 +78,16 @@ async def get_star(
     star_id: int = Path(gt=0, le=2**31 - 1),
     service: StarService = Depends(get_star_service)
 ):
+    """
+    Look up the actor by its ID.
+
+    Args:
+        star_id (int): ID of the actor.
+        service (StarService): Injected service that performs the operation.
+
+    Returns:
+        StarResponseSchema: Reference record ID and name.
+    """
     return await service.get_star(star_id)
 
 
@@ -89,6 +108,16 @@ async def create_star(
     data: StarCreateRequestSchema,
     service: StarService = Depends(get_star_service)
 ):
+    """
+    Create a actor with the validated unique name.
+
+    Args:
+        data (StarCreateRequestSchema): Validated name for the reference record.
+        service (StarService): Injected service that performs the operation.
+
+    Returns:
+        StarResponseSchema: Reference record ID and name.
+    """
     return await service.create_star(data)
 
 
@@ -109,6 +138,17 @@ async def update_star(
     star_id: int = Path(gt=0, le=2**31 - 1),
     service: StarService = Depends(get_star_service)
 ):
+    """
+    Change the selected actor name, rejecting duplicate names.
+
+    Args:
+        data (StarUpdateRequestSchema): Validated name for the reference record.
+        star_id (int): ID of the actor.
+        service (StarService): Injected service that performs the operation.
+
+    Returns:
+        StarResponseSchema: Reference record ID and name.
+    """
     return await service.update_star(star_id, data)
 
 
@@ -131,6 +171,16 @@ async def delete_star(
     star_id: int = Path(gt=0, le=2**31 - 1),
     service: StarService = Depends(get_star_service)
 ):
+    """
+    Delete the selected actor according to database relationship constraints.
+
+    Args:
+        star_id (int): ID of the actor.
+        service (StarService): Injected service that performs the operation.
+
+    Returns:
+        Response: Empty HTTP 204 response.
+    """
     await service.delete_star(star_id)
 
     return Response(status_code=204)

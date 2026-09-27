@@ -53,6 +53,20 @@ async def list_favorites(
     current_user: UserModel = Depends(get_current_user),
     service: FavoriteService = Depends(get_favorite_service)
 ):
+    """
+    Return the user favorites with catalog pagination, search, filtering and sorting.
+
+    Args:
+        query (MovieFavoriteListQuerySchema): Validated pagination and any supported
+            search, sort or filter options.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (FavoriteService): Injected service that performs the operation.
+
+    Returns:
+        MovieFavoriteListResponseSchema: Favorite records in requested catalog order and
+            pagination totals.
+    """
     return await service.list_favorites(current_user.id, query)
 
 
@@ -80,6 +94,18 @@ async def add_favorite(
     current_user: UserModel = Depends(get_current_user),
     service: FavoriteService = Depends(get_favorite_service)
 ):
+    """
+    Save a non-deleted movie to the user favorites, rejecting duplicates.
+
+    Args:
+        data (MovieFavoriteCreateRequestSchema): ID of the movie to add to favorites.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (FavoriteService): Injected service that performs the operation.
+
+    Returns:
+        MovieFavoriteResponseSchema: Favorite record, movie details and time added.
+    """
     return await service.add_favorite(current_user.id, data.movie_id)
 
 
@@ -103,6 +129,18 @@ async def delete_favorite(
     current_user: UserModel = Depends(get_current_user),
     service: FavoriteService = Depends(get_favorite_service)
 ):
+    """
+    Remove the selected movie from the user favorites.
+
+    Args:
+        movie_id (int): ID of the movie, not the cart or order item.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (FavoriteService): Injected service that performs the operation.
+
+    Returns:
+        Response: Empty HTTP 204 response.
+    """
     await service.delete_favorite(current_user.id, movie_id)
 
     return Response(status_code=204)

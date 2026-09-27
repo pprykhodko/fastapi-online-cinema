@@ -39,6 +39,17 @@ class PaymentService:
             gateway: StripeGateway,
             email_queue: EmailQueue
     ):
+        """
+        Initialize PaymentService with its required dependencies.
+
+        Args:
+            repository (PaymentRepository): Repository used for database operations and
+                the shared transaction.
+            orders (OrderService): Order service using the same database session.
+            gateway (StripeGateway): Stripe adapter used for checkout, webhook and
+                refund operations.
+            email_queue (EmailQueue): Publisher used to send email tasks to Celery.
+        """
         self.repository = repository
         self.orders = orders
         self.gateway = gateway
@@ -49,6 +60,20 @@ class PaymentService:
             query: PaymentListQuerySchema | AdminPaymentListQuerySchema,
             user_id: int | None = None
     ) -> PaymentListResponseSchema:
+        """
+        Return paginated payment history, optionally restricted to an owner.
+
+        Args:
+            query (PaymentListQuerySchema | AdminPaymentListQuerySchema): Validated
+                pagination and any supported search, sort or filter options.
+            user_id (int | None): ID of the account whose data is being accessed.
+
+        Returns:
+            PaymentListResponseSchema: Payment records and pagination totals.
+
+        Raises:
+            HTTPException: The requested data cannot be loaded from the database.
+        """
         async with database_errors(
                 self.repository,
                 detail="Payments are temporarily unavailable"
@@ -66,6 +91,20 @@ class PaymentService:
             )
 
     async def get_payment(self, user_id: int, payment_id: int) -> PaymentResponseSchema:
+        """
+        Return payment details and the saved item prices.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            payment_id (int): ID of the stored payment.
+
+        Returns:
+            PaymentResponseSchema: Saved payment state, amount, currency and item
+                prices.
+
+        Raises:
+            HTTPException: The requested record is missing or cannot be loaded.
+        """
         async with database_errors(
                 self.repository,
                 detail="Payment is temporarily unavailable"
@@ -75,6 +114,19 @@ class PaymentService:
             return PaymentResponseSchema.model_validate(payment)
 
     async def _owned_payment(self, user_id: int, payment_id: int) -> PaymentModel:
+        """
+        Load a payment owned by the user or raise a not-found error.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            payment_id (int): ID of the stored payment.
+
+        Returns:
+            PaymentModel: Requested database record(s).
+
+        Raises:
+            HTTPException: The payment is missing or belongs to another user.
+        """
         payment = await self.repository.get_payment(payment_id, user_id)
 
         if payment is None:
@@ -90,6 +142,20 @@ class PaymentService:
             user_id: int,
             query: PaymentListQuerySchema
     ) -> PurchasedMovieListResponseSchema:
+        """
+        Return paginated movies covered by successful, non-refunded payments.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            query (PaymentListQuerySchema): Validated pagination and any supported
+                search, sort or filter options.
+
+        Returns:
+            PurchasedMovieListResponseSchema: Purchased movies and pagination totals.
+
+        Raises:
+            HTTPException: The requested data cannot be loaded from the database.
+        """
         async with database_errors(
                 self.repository,
                 detail="Purchased movies are temporarily unavailable"
@@ -115,6 +181,25 @@ class PaymentService:
             user_id: int,
             order_id: int
     ) -> PaymentCheckoutResponseSchema:
+        """
+        Create or reuse a Stripe checkout for an owned pending order.
+
+        Steps:
+        - Lock the owned order and validate prices before the first checkout.
+        - Persist checkout parameters and a stable idempotency key.
+        - Reuse or reconcile the Stripe session and return its payment URL.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            order_id (int): ID of the order.
+
+        Returns:
+            PaymentCheckoutResponseSchema: Order ID and Stripe-hosted payment URL.
+
+        Raises:
+            HTTPException: The order cannot be paid or Stripe, the database or
+                confirmation queue fails.
+        """
         async with database_errors(
                 self.repository,
                 detail="Payment checkout could not be saved"
@@ -212,6 +297,18 @@ class PaymentService:
             return response
 
     def _validate_session(self, checkout: PaymentCheckoutModel, session: dict) -> None:
+        """
+        Check Stripe session identity, metadata, currency and amount against the saved
+        checkout.
+
+        Args:
+            checkout (PaymentCheckoutModel): Stored checkout state associated with the
+                order.
+            session (dict): Checkout session data returned by Stripe.
+
+        Raises:
+            HTTPException: Stripe session data does not match the stored checkout.
+        """
         price = checkout.request_data["line_items"][0]["price_data"]
         metadata = session.get("metadata") or {}
 
@@ -233,6 +330,17 @@ class PaymentService:
             )
 
     async def cancel_checkout(self, user_id: int, order_id: int) -> None:
+        """
+        Expire an unpaid Stripe checkout before marking the checkout and order canceled.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            order_id (int): ID of the order.
+
+        Raises:
+            HTTPException: The checkout is missing, already processing/paid or cannot be
+                expired and saved.
+        """
         async with database_errors(
                 self.repository,
                 detail="Checkout could not be canceled"
@@ -276,6 +384,20 @@ class PaymentService:
             checkout: PaymentCheckoutModel,
             session: dict
     ) -> None:
+        """
+        Record a completed or expired checkout once and update the order and purchased
+        cart items.
+
+        Args:
+            order (OrderModel): Order with its loaded items and saved prices.
+            checkout (PaymentCheckoutModel): Stored checkout state associated with the
+                order.
+            session (dict): Checkout session data returned by Stripe.
+
+        Raises:
+            HTTPException: Order totals disagree with the session or a paid session
+                lacks a payment intent.
+        """
         paid = (
                 session.get("status") == "complete"
                 and (session.get("payment_status") == "paid"
@@ -342,6 +464,17 @@ class PaymentService:
             order: OrderModel,
             checkout: PaymentCheckoutModel
     ) -> None:
+        """
+        Queue a successful payment email and remember successful queue submission.
+
+        Args:
+            order (OrderModel): Order with its loaded items and saved prices.
+            checkout (PaymentCheckoutModel): Stored checkout state associated with the
+                order.
+
+        Raises:
+            HTTPException: Payment is saved but the confirmation email cannot be queued.
+        """
         if checkout.status != "completed" or checkout.email_queued:
             return
 
@@ -365,6 +498,16 @@ class PaymentService:
         await self.repository.commit()
 
     async def _find_checkout(self, session: dict) -> PaymentCheckoutModel | None:
+        """
+        Match Stripe order metadata and request key to a stored checkout.
+
+        Args:
+            session (dict): Checkout session data returned by Stripe.
+
+        Returns:
+            PaymentCheckoutModel | None: Matching database record(s), or None when
+                allowed and not found.
+        """
         metadata = session.get("metadata") or {}
         order_id = str(metadata.get("order_id", ""))
 
@@ -387,6 +530,19 @@ class PaymentService:
             checkout: PaymentCheckoutModel,
             session: dict
     ) -> None:
+        """
+        Commit the checkout outcome, reacquire the order lock and queue confirmation.
+
+        Args:
+            order (OrderModel): Order with its loaded items and saved prices.
+            checkout (PaymentCheckoutModel): Stored checkout state associated with the
+                order.
+            session (dict): Checkout session data returned by Stripe.
+
+        Raises:
+            HTTPException: Session totals are invalid or payment confirmation cannot be
+                queued.
+        """
         await self._record_session(order, checkout, session)
         await self.repository.commit()
         order = await self.orders.get_owned_order(order.user_id, order.id, lock=True)
@@ -395,6 +551,16 @@ class PaymentService:
         await self._queue_confirmation(order, locked_checkout)
 
     async def handle_event(self, event: dict) -> None:
+        """
+        Apply supported Stripe checkout and refund events without duplicating payments.
+
+        Args:
+            event (dict): Verified Stripe event payload.
+
+        Raises:
+            HTTPException: Stripe data is inconsistent, a payment is not yet recorded or
+                processing fails.
+        """
         async with database_errors(
                 self.repository,
                 detail="Payment notification could not be saved"
@@ -460,6 +626,21 @@ class PaymentService:
             payment: PaymentModel,
             refund: dict
     ) -> None:
+        """
+        Validate a matching full refund and revoke the purchase when Stripe confirms
+        success.
+
+        Args:
+            order (OrderModel): Order with its loaded items and saved prices.
+            checkout (PaymentCheckoutModel): Stored checkout state associated with the
+                order.
+            payment (PaymentModel): Stored payment being reconciled.
+            refund (dict): Refund data returned by Stripe.
+
+        Raises:
+            HTTPException: The provider refund does not match a full refund of this
+                payment.
+        """
         currency = checkout.request_data["line_items"][0]["price_data"]["currency"]
 
         if (
@@ -482,6 +663,21 @@ class PaymentService:
             user_id: int,
             payment_id: int
     ) -> PaymentRefundResponseSchema:
+        """
+        Request or reconcile a full refund for an owned successful payment.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            payment_id (int): ID of the stored payment.
+
+        Returns:
+            PaymentRefundResponseSchema: Payment ID and refund completion or processing
+                message.
+
+        Raises:
+            HTTPException: The payment cannot be fully refunded or Stripe/database
+                operations fail.
+        """
         async with database_errors(self.repository, detail="Refund could not be saved"):
             payment = await self._owned_payment(user_id, payment_id)
             order = await self.orders.get_owned_order(
@@ -533,6 +729,18 @@ class PaymentService:
             return PaymentRefundResponseSchema(payment_id=payment.id, message=message)
 
     async def return_message(self, session_id: str | None) -> str:
+        """
+        Describe the saved payment state for the Stripe return page.
+
+        Args:
+            session_id (str | None): Stripe Checkout session ID.
+
+        Returns:
+            str: Safe browser-facing payment status message without personal details.
+
+        Raises:
+            HTTPException: The requested data cannot be loaded from the database.
+        """
         if not session_id:
             return (
                 "Payment was not confirmed. "

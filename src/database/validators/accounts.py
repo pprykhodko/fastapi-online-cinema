@@ -6,6 +6,18 @@ from src.security.passwords import validate_password_for_bcrypt
 
 
 def validate_password_strength(password: str) -> str:
+    """
+    Check bcrypt limits and require a strong password with mixed character types.
+
+    Args:
+        password (str): Plaintext password to validate; never log this value.
+
+    Returns:
+        str: Validated value, normalized when applicable.
+
+    Raises:
+        ValueError: The value does not satisfy the validation rules.
+    """
     validate_password_for_bcrypt(password)
     if len(password) < 8:
         raise ValueError("Password must contain at least 8 characters.")
@@ -24,6 +36,18 @@ def validate_password_strength(password: str) -> str:
 
 
 def validate_email(user_email: str) -> str:
+    """
+    Validate the email syntax and return its normalized lowercase form.
+
+    Args:
+        user_email (str): Email address to validate and normalize.
+
+    Returns:
+        str: Validated value, normalized when applicable.
+
+    Raises:
+        ValueError: The value does not satisfy the validation rules.
+    """
     try:
         email_info = email_validator.validate_email(
             user_email,

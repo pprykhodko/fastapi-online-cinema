@@ -17,6 +17,15 @@ class ReactionService:
             repository: ReactionRepository,
             movie_repository: MovieRepository
     ):
+        """
+        Initialize ReactionService with its required dependencies.
+
+        Args:
+            repository (ReactionRepository): Repository used for database operations and
+                the shared transaction.
+            movie_repository (MovieRepository): Repository for movie data using the
+                shared session.
+        """
         self.repository = repository
         self.movie_repository = movie_repository
 
@@ -25,6 +34,19 @@ class ReactionService:
             user_id: int,
             movie_id: int
     ) -> MovieReactionResponseSchema:
+        """
+        Return the user like or dislike for the selected movie.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            movie_id (int): ID of the movie, not the cart or order item.
+
+        Returns:
+            MovieReactionResponseSchema: User like or dislike and record timestamps.
+
+        Raises:
+            HTTPException: The requested record is missing or cannot be loaded.
+        """
         async with database_errors(
                 self.repository,
                 detail="Reactions are temporarily unavailable"
@@ -47,6 +69,22 @@ class ReactionService:
             movie_id: int,
             data: MovieReactionRequestSchema
     ) -> tuple[MovieReactionResponseSchema, bool]:
+        """
+        Create or replace the user movie reaction with a like or dislike.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            movie_id (int): ID of the movie, not the cart or order item.
+            data (MovieReactionRequestSchema): Requested like or dislike reaction.
+
+        Returns:
+            tuple[MovieReactionResponseSchema, bool]: Response data and True if a new
+                record was created.
+
+        Raises:
+            HTTPException: The target record is missing, conflicts with stored data or
+                cannot be saved.
+        """
         async with database_errors(
                 self.repository,
                 detail="The reaction could not be saved",
@@ -74,6 +112,17 @@ class ReactionService:
             return response, created
 
     async def delete_reaction(self, user_id: int, movie_id: int) -> None:
+        """
+        Remove the user reaction to the selected movie.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            movie_id (int): ID of the movie, not the cart or order item.
+
+        Raises:
+            HTTPException: The record is missing or database constraints prevent
+                removal.
+        """
         async with database_errors(
                 self.repository,
                 detail="The reaction could not be removed"

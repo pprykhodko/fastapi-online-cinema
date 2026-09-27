@@ -39,6 +39,20 @@ class AdminTransactionListQuerySchema(PaginationQuerySchema):
     def validate_date_range(
         cls, value: date | None, info: ValidationInfo,
     ) -> date | None:
+        """
+        Reject an end date earlier than the supplied start date.
+
+        Args:
+            value (date | None): Field value to validate or normalize.
+            info (ValidationInfo): Pydantic validation context containing the parsed
+                start date.
+
+        Returns:
+            date | None: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         date_from = info.data.get("date_from")
 
         if value is not None and date_from is not None and value < date_from:

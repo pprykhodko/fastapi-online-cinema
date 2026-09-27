@@ -47,6 +47,18 @@ async def get_reaction(
         current_user: UserModel = Depends(get_current_user),
         service: ReactionService = Depends(get_reaction_service)
 ):
+    """
+    Return the user like or dislike for the selected movie.
+
+    Args:
+        movie_id (int): ID of the movie, not the cart or order item.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (ReactionService): Injected service that performs the operation.
+
+    Returns:
+        MovieReactionResponseSchema: User like or dislike and record timestamps.
+    """
     return await service.get_reaction(current_user.id, movie_id)
 
 
@@ -78,6 +90,21 @@ async def set_reaction(
         current_user: UserModel = Depends(get_current_user),
         service: ReactionService = Depends(get_reaction_service)
 ):
+    """
+    Create or replace the user movie reaction with a like or dislike.
+
+    Args:
+        data (MovieReactionRequestSchema): Requested like or dislike reaction.
+        response (Response): HTTP response used to set status codes or cache-control
+            headers.
+        movie_id (int): ID of the movie, not the cart or order item.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (ReactionService): Injected service that performs the operation.
+
+    Returns:
+        MovieReactionResponseSchema: User like or dislike and record timestamps.
+    """
     reaction, created = await service.set_reaction(
         current_user.id, movie_id, data
     )
@@ -101,6 +128,18 @@ async def delete_reaction(
         current_user: UserModel = Depends(get_current_user),
         service: ReactionService = Depends(get_reaction_service)
 ):
+    """
+    Remove the user reaction to the selected movie.
+
+    Args:
+        movie_id (int): ID of the movie, not the cart or order item.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (ReactionService): Injected service that performs the operation.
+
+    Returns:
+        Response: Empty HTTP 204 response.
+    """
     await service.delete_reaction(current_user.id, movie_id)
 
     return Response(status_code=204)

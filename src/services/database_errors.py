@@ -12,10 +12,21 @@ async def database_errors(
         conflict_detail: str | None = None
 ) -> AsyncIterator[None]:
     """
-    Handle the whole DB operation, including queries, flush and commit.
+    Roll back failed database operations and translate database errors to HTTP errors.
 
-    Does not commit automatically: the service chooses when to save.
-    All repositories in the operation must use the same session.
+    Does not commit automatically. All repositories must share one session.
+
+    Args:
+        repository: Repository used for database operations and the shared transaction.
+        detail (str): Public error message for database failures.
+        conflict_detail (str | None): Optional conflict message; enables HTTP 409 for
+            integrity errors.
+
+    Yields:
+        None: Control while the application or guarded operation runs.
+
+    Raises:
+        HTTPException: A database failure becomes HTTP 409 or 503 after rollback.
     """
     try:
         yield

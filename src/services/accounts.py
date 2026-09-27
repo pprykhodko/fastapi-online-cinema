@@ -46,6 +46,20 @@ class AccountService:
             profile_repository: ProfileRepository,
             cart_repository: CartRepository,
     ):
+        """
+        Initialize AccountService with its required dependencies.
+
+        Args:
+            repository (AccountRepository): Repository used for database operations and
+                the shared transaction.
+            email_queue (EmailQueue): Publisher used to send email tasks to Celery.
+            token_repository (TokenRepository): Repository for token data using the
+                shared session.
+            profile_repository (ProfileRepository): Repository for profile data using
+                the shared session.
+            cart_repository (CartRepository): Repository for cart data using the shared
+                session.
+        """
         self.repository = repository
         self.email_queue = email_queue
         self.token_repository = token_repository
@@ -54,6 +68,18 @@ class AccountService:
 
     @staticmethod
     def is_token_expired(expires_at: datetime, now: datetime) -> bool:
+        """
+        Compare the expiration with the current time, treating naive expiration dates as
+        UTC.
+
+        Args:
+            expires_at (datetime): Expiration time; naive datetime values are
+                interpreted as UTC.
+            now (datetime): Current time used for the expiration check.
+
+        Returns:
+            bool: True when the token expiration is at or before now.
+        """
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
@@ -63,6 +89,27 @@ class AccountService:
             self,
             user_data: UserRegistrationRequestSchema
     ) -> UserResponseSchema:
+        """
+        Create an inactive account, profile, cart and activation token, then queue an
+        email.
+
+        Steps:
+        - Check email uniqueness and find the default USER group.
+        - Create the account, profile, cart and activation token in one transaction.
+        - Commit before queueing the activation email.
+
+        Args:
+            user_data (UserRegistrationRequestSchema): Email and strong password for the
+                new account.
+
+        Returns:
+            UserResponseSchema: Public account fields, activation state and group; no
+                password hash.
+
+        Raises:
+            HTTPException: Email already exists, the USER group is missing, saving fails
+                or email queueing fails.
+        """
         email = str(user_data.email)
         try:
             existing_user = await self.repository.get_user_by_email(email)
@@ -138,6 +185,21 @@ class AccountService:
             self,
             activation_data: AccountActivationRequestSchema
     ) -> AccountMessageResponseSchema:
+        """
+        Activate an account with a valid token and queue a confirmation email.
+
+        Args:
+            activation_data (AccountActivationRequestSchema): One-use token from the
+                activation email.
+
+        Returns:
+            AccountMessageResponseSchema: Account-operation status, including any
+                nonfatal email-queue warning.
+
+        Raises:
+            HTTPException: The activation token is invalid/expired, the account is
+                active or the database fails.
+        """
         async with database_errors(
                 self.repository,
                 detail="Account activation is temporarily unavailable"
@@ -185,6 +247,16 @@ class AccountService:
             self,
             email: str
     ) -> AccountMessageResponseSchema:
+        """
+        Queue the activation confirmation without undoing activation if the queue fails.
+
+        Args:
+            email (str): Email address of the account or message recipient.
+
+        Returns:
+            AccountMessageResponseSchema: Account-operation status, including any
+                nonfatal email-queue warning.
+        """
         try:
             await self.email_queue.send_activation_complete_email(email)
 
@@ -201,6 +273,21 @@ class AccountService:
             user_id: int,
             group_data: UserGroupUpdateRequestSchema
     ) -> UserResponseSchema:
+        """
+        Assign the requested existing group to the selected account.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            group_data (UserGroupUpdateRequestSchema): Requested user, moderator or
+                admin group.
+
+        Returns:
+            UserResponseSchema: Public account fields, activation state and group; no
+                password hash.
+
+        Raises:
+            HTTPException: The account or group is missing, or the database fails.
+        """
         async with database_errors(
                 self.repository,
                 detail="User group update is temporarily unavailable"
@@ -231,6 +318,19 @@ class AccountService:
             self,
             user_id: int
     ) -> AccountMessageResponseSchema:
+        """
+        Activate the selected account without a token and queue a confirmation email.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+
+        Returns:
+            AccountMessageResponseSchema: Account-operation status, including any
+                nonfatal email-queue warning.
+
+        Raises:
+            HTTPException: The account is missing, already active or the database fails.
+        """
         async with database_errors(
                 self.repository,
                 detail="Account activation is temporarily unavailable"
@@ -265,6 +365,20 @@ class AccountService:
             self,
             email_data: ActivationResendRequestSchema
     ) -> AccountMessageResponseSchema:
+        """
+        Queue an activation link, replacing the token only if it is missing or expired.
+
+        Args:
+            email_data (ActivationResendRequestSchema): Email address requesting another
+                activation link.
+
+        Returns:
+            AccountMessageResponseSchema: Account-operation status, including any
+                nonfatal email-queue warning.
+
+        Raises:
+            HTTPException: The database or activation email queue is unavailable.
+        """
         response = AccountMessageResponseSchema(
             message="If an inactive account exists for this email, "
                     "an activation email will be queued"
@@ -319,6 +433,23 @@ class AccountService:
             login_data: UserLoginRequestSchema,
             jwt_manager: JWTAuthManager
     ) -> TokenPairResponseSchema:
+        """
+        Check account credentials and activation, then issue and save authentication
+        tokens.
+
+        Args:
+            login_data (UserLoginRequestSchema): Email and plaintext password supplied
+                for login.
+            jwt_manager (JWTAuthManager): Manager used to sign or validate access and
+                refresh JWTs.
+
+        Returns:
+            TokenPairResponseSchema: Access and refresh JWTs with bearer token type.
+
+        Raises:
+            HTTPException: Credentials are incorrect, the account is inactive or the
+                database fails.
+        """
         async with database_errors(
                 self.repository,
                 detail="Login is temporarily unavailable. Please try again later."
@@ -364,6 +495,21 @@ class AccountService:
             raw_token: str,
             jwt_manager: JWTAuthManager
     ) -> RefreshTokenModel:
+        """
+        Validate a refresh JWT against its stored token record and expiration.
+
+        Args:
+            raw_token (str): Refresh JWT supplied by the client.
+            jwt_manager (JWTAuthManager): Manager used to sign or validate access and
+                refresh JWTs.
+
+        Returns:
+            RefreshTokenModel: Requested database record(s).
+
+        Raises:
+            HTTPException: The refresh token is invalid, expired, revoked or belongs to
+                a different account.
+        """
         token_error = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
@@ -394,6 +540,22 @@ class AccountService:
             token_data: TokenRefreshRequestSchema,
             jwt_manager: JWTAuthManager
     ) -> AccessTokenResponseSchema:
+        """
+        Issue a new access token without rotating or extending the refresh token.
+
+        Args:
+            token_data (TokenRefreshRequestSchema): Refresh JWT used to obtain another
+                access token.
+            jwt_manager (JWTAuthManager): Manager used to sign or validate access and
+                refresh JWTs.
+
+        Returns:
+            AccessTokenResponseSchema: New access JWT with bearer token type.
+
+        Raises:
+            HTTPException: The refresh token/account is invalid or inactive, or the
+                database fails.
+        """
         async with database_errors(
                 self.repository,
                 detail="Token refresh is temporarily unavailable"
@@ -427,6 +589,22 @@ class AccountService:
             logout_data: LogoutRequestSchema,
             jwt_manager: JWTAuthManager
     ) -> AccountMessageResponseSchema:
+        """
+        Delete the supplied refresh token while leaving other sessions unchanged.
+
+        Args:
+            logout_data (LogoutRequestSchema): Refresh JWT identifying the session to
+                revoke.
+            jwt_manager (JWTAuthManager): Manager used to sign or validate access and
+                refresh JWTs.
+
+        Returns:
+            AccountMessageResponseSchema: Account-operation status, including any
+                nonfatal email-queue warning.
+
+        Raises:
+            HTTPException: The refresh token is invalid or the database fails.
+        """
         async with database_errors(
                 self.repository,
                 detail="Logout is temporarily unavailable"
@@ -445,6 +623,24 @@ class AccountService:
             current_user: UserModel,
             password_data: PasswordChangeRequestSchema
     ) -> AccountMessageResponseSchema:
+        """
+        Check the old password, save a different strong password and revoke reset and
+        refresh tokens.
+
+        Args:
+            current_user (UserModel): Authenticated account supplied by the access-token
+                dependency.
+            password_data (PasswordChangeRequestSchema): Current password and the
+                requested new password.
+
+        Returns:
+            AccountMessageResponseSchema: Account-operation status, including any
+                nonfatal email-queue warning.
+
+        Raises:
+            HTTPException: The old password is wrong, the new one is unchanged or the
+                database fails.
+        """
         if not await run_in_threadpool(
                 current_user.verify_password,
                 password_data.old_password
@@ -482,6 +678,21 @@ class AccountService:
             self,
             email_data: PasswordResetRequestSchema
     ) -> AccountMessageResponseSchema:
+        """
+        Queue a one-use reset link for an active account without exposing account
+        existence.
+
+        Args:
+            email_data (PasswordResetRequestSchema): Email address requesting password
+                recovery.
+
+        Returns:
+            AccountMessageResponseSchema: Account-operation status, including any
+                nonfatal email-queue warning.
+
+        Raises:
+            HTTPException: The database cannot store the reset token.
+        """
         response = AccountMessageResponseSchema(
             message="If an active account exists for this email, "
                     "you will receive password reset instructions"
@@ -529,6 +740,27 @@ class AccountService:
             self,
             reset_data: PasswordResetConfirmRequestSchema
     ) -> AccountMessageResponseSchema:
+        """
+        Use a valid reset token to change the password and revoke reset and refresh
+        tokens.
+
+        Steps:
+        - Find and validate the token by its stored hash.
+        - Reject a password equal to the current one.
+        - Commit the new hash and deletion of reset and refresh tokens together.
+
+        Args:
+            reset_data (PasswordResetConfirmRequestSchema): One-use reset token and the
+                requested new password.
+
+        Returns:
+            AccountMessageResponseSchema: Account-operation status, including any
+                nonfatal email-queue warning.
+
+        Raises:
+            HTTPException: The token/account is invalid, the new password is unchanged
+                or the database fails.
+        """
         token_error = HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired password reset token"

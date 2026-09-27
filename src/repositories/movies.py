@@ -27,6 +27,21 @@ class MovieRepository(BaseRepository):
             query: MovieListQuerySchema,
             favorite_user_id: int | None = None
     ) -> tuple[list[MovieModel], int]:
+        """
+        Return visible movies using pagination, search, filters and sorting.
+
+        The caller controls the transaction commit.
+
+        Args:
+            query (MovieListQuerySchema): Validated pagination and any supported search,
+                sort or filter options.
+            favorite_user_id (int | None): Restrict results to this user favorites; None
+                disables this filter.
+
+        Returns:
+            tuple[list[MovieModel], int]: Records on this page and the total count
+                before pagination.
+        """
         stmt = select(MovieModel).where(MovieModel.is_deleted.is_(False))
 
         if favorite_user_id is not None:
@@ -80,6 +95,18 @@ class MovieRepository(BaseRepository):
         return list(movies.all()), total or 0
 
     async def average_ratings(self, movie_ids: list[int]) -> dict[int, float]:
+        """
+        Calculate the mean user rating for each requested movie with ratings.
+
+        The caller controls the transaction commit.
+
+        Args:
+            movie_ids (list[int]): Movie IDs to include in the operation.
+
+        Returns:
+            dict[int, float]: Movie IDs mapped to their mean user score; unrated movies
+                are omitted.
+        """
         if not movie_ids:
             return {}
 
@@ -92,6 +119,18 @@ class MovieRepository(BaseRepository):
         return {movie_id: float(average) for movie_id, average in rows}
 
     async def reaction_counts(self, movie_ids: list[int]) -> dict[int, dict[str, int]]:
+        """
+        Count likes and dislikes for the requested movies.
+
+        The caller controls the transaction commit.
+
+        Args:
+            movie_ids (list[int]): Movie IDs to include in the operation.
+
+        Returns:
+            dict: Movie IDs mapped to likes_count and dislikes_count; movies without
+                reactions are omitted.
+        """
         if not movie_ids:
             return {}
 
@@ -119,6 +158,21 @@ class MovieRepository(BaseRepository):
             for_update: bool = False,
             with_relations: bool = True
     ) -> MovieModel | None:
+        """
+        Return the selected non-deleted movie with its related catalog data.
+
+        The caller controls the transaction commit.
+
+        Args:
+            movie_id (int): ID of the movie, not the cart or order item.
+            for_update (bool): Request a row lock for this transaction when supported by
+                the database.
+            with_relations (bool): Eagerly load catalog relationships when True.
+
+        Returns:
+            MovieModel | None: Matching database record(s), or None when allowed and not
+                found.
+        """
         stmt = (
             select(MovieModel)
             .where(
@@ -141,6 +195,18 @@ class MovieRepository(BaseRepository):
         return await self.db.scalar(stmt)
 
     async def get_relations(self, data):
+        """
+        Load the certification, genres, actors and directors referenced by movie input.
+
+        The caller controls the transaction commit.
+
+        Args:
+            data: Validated request fields, including IDs or values used by this
+                operation.
+
+        Returns:
+            tuple: Certification or None, followed by genre, actor and director lists.
+        """
         certification = await self.db.get(CertificationModel, data.certification_id)
         genres = list(
             (
@@ -165,6 +231,18 @@ class MovieRepository(BaseRepository):
         return certification, genres, stars, directors
 
     async def has_purchases(self, movie_id: int) -> bool:
+        """
+        Check for paid orders or successful/refunded payments that prevent movie
+        deletion.
+
+        The caller controls the transaction commit.
+
+        Args:
+            movie_id (int): ID of the movie, not the cart or order item.
+
+        Returns:
+            bool: Whether existing financial records prevent deleting the movie.
+        """
         stmt = (select(OrderItemModel.id)
                 .join(OrderModel)
                 .where(
@@ -182,6 +260,17 @@ class MovieRepository(BaseRepository):
         return await self.db.scalar(stmt) is not None
 
     async def get_checkout_movies(self, movie_ids: list[int]) -> list[MovieModel]:
+        """
+        Load and lock checkout movies in ID order, including soft-deleted rows.
+
+        The caller controls the transaction commit.
+
+        Args:
+            movie_ids (list[int]): Movie IDs to include in the operation.
+
+        Returns:
+            list[MovieModel]: Requested database record(s).
+        """
         stmt = (
             select(MovieModel)
             .where(MovieModel.id.in_(movie_ids))
@@ -193,6 +282,17 @@ class MovieRepository(BaseRepository):
         return list((await self.db.scalars(stmt)).all())
 
     async def cart_count(self, movie_id: int) -> int:
+        """
+        Count cart entries containing the selected movie.
+
+        The caller controls the transaction commit.
+
+        Args:
+            movie_id (int): ID of the movie, not the cart or order item.
+
+        Returns:
+            int: Number of cart entries containing this movie.
+        """
         return await self.db.scalar(
             select(func.count())
             .select_from(CartItemModel)
@@ -200,11 +300,23 @@ class MovieRepository(BaseRepository):
         ) or 0
 
     async def remove_from_carts(self, movie_id: int) -> None:
+        """
+        Remove the movie from all carts without committing.
+
+        Args:
+            movie_id (int): ID of the movie, not the cart or order item.
+        """
         await self.db.execute(
             delete(CartItemModel)
             .where(CartItemModel.movie_id == movie_id)
         )
 
     async def flush_movie(self, movie: MovieModel) -> None:
+        """
+        Add and flush a movie without committing the transaction.
+
+        Args:
+            movie (MovieModel): ORM record supplied for this database operation.
+        """
         self.db.add(movie)
         await self.db.flush()

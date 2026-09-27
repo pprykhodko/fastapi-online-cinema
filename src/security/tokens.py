@@ -21,6 +21,15 @@ class TokenExpiredError(InvalidTokenError):
 
 class JWTAuthManager:
     def __init__(self, settings: Settings):
+        """
+        Initialize JWTAuthManager with its required dependencies.
+
+        Args:
+            settings (Settings): Application configuration used by this component.
+
+        Raises:
+            ValueError: Required input or configuration is invalid.
+        """
         if (
                 settings.JWT_ACCESS_SECRET_KEY is None
                 or settings.JWT_REFRESH_SECRET_KEY is None
@@ -48,6 +57,21 @@ class JWTAuthManager:
             token_type: Literal["access", "refresh"],
             secret_key: str, lifetime: timedelta
     ) -> str:
+        """
+        Sign a typed JWT with subject, issue time, expiration and a unique token ID.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            token_type (Literal['access', 'refresh']): JWT purpose: access or refresh.
+            secret_key (str): Secret used to sign or verify the JWT.
+            lifetime (timedelta): Duration before the issued JWT expires.
+
+        Returns:
+            str: Encoded JWT with the configured expiration.
+
+        Raises:
+            ValueError: Required input or configuration is invalid.
+        """
         if type(user_id) is not int or user_id <= 0:
             raise ValueError("User ID must be a positive integer")
 
@@ -67,6 +91,15 @@ class JWTAuthManager:
         return token
 
     def create_access_token(self, user_id: int) -> str:
+        """
+        Create an access JWT using the configured access lifetime and signing key.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+
+        Returns:
+            str: Encoded JWT with the configured expiration.
+        """
         return self._create_token(
             user_id,
             "access",
@@ -75,6 +108,15 @@ class JWTAuthManager:
         )
 
     def create_refresh_token(self, user_id: int) -> str:
+        """
+        Create a refresh JWT using the configured refresh lifetime and signing key.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+
+        Returns:
+            str: Encoded JWT with the configured expiration.
+        """
         return self._create_token(
             user_id,
             "refresh",
@@ -88,6 +130,22 @@ class JWTAuthManager:
             secret_key: str,
             expected_type: Literal["access", "refresh"]
     ) -> dict[str, Any]:
+        """
+        Verify the JWT signature, type, required claims and timestamps.
+
+        Args:
+            token (str): Plaintext token supplied by the caller; never log this value.
+            secret_key (str): Secret used to sign or verify the JWT.
+            expected_type (Literal['access', 'refresh']): JWT purpose required by the
+                caller.
+
+        Returns:
+            dict[str, Any]: Validated JWT claims.
+
+        Raises:
+            TokenExpiredError: The token has expired.
+            InvalidTokenError: Signature, token type or claims are invalid.
+        """
         try:
             if not isinstance(token, str) or not token or len(token) > 255:
                 raise ValueError("Invalid token format")
@@ -142,11 +200,43 @@ class JWTAuthManager:
         return payload
 
     def decode_access_token(self, token: str) -> dict[str, Any]:
+        """
+        Validate an access JWT and return its claims.
+
+        Args:
+            token (str): Plaintext token supplied by the caller; never log this value.
+
+        Returns:
+            dict[str, Any]: Validated JWT claims.
+
+        Raises:
+            TokenExpiredError: The token has expired.
+            InvalidTokenError: Signature, token type or claims are invalid.
+        """
         return self._decode_token(token, self._secret_key_access, "access")
 
     def decode_refresh_token(self, token: str) -> dict[str, Any]:
+        """
+        Validate a refresh JWT and return its claims.
+
+        Args:
+            token (str): Plaintext token supplied by the caller; never log this value.
+
+        Returns:
+            dict[str, Any]: Validated JWT claims.
+
+        Raises:
+            TokenExpiredError: The token has expired.
+            InvalidTokenError: Signature, token type or claims are invalid.
+        """
         return self._decode_token(token, self._secret_key_refresh, "refresh")
 
 
 def get_jwt_auth_manager() -> JWTAuthManager:
+    """
+    Build a JWT manager from application settings.
+
+    Returns:
+        JWTAuthManager: Configured component ready for use.
+    """
     return JWTAuthManager(get_settings())

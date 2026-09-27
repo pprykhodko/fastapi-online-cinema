@@ -71,9 +71,28 @@ class MovieReactionModel(Base):
 
     @validates("reaction")
     def validate_reaction(self, _key: str, value: str) -> MovieReactionEnum:
+        """
+        Validate a movie reaction and convert it to the reaction enum.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            MovieReactionEnum: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return MovieReactionEnum(validate_movie_reaction(value))
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<MovieReactionModel(id={self.id}, user_id={self.user_id}, "
             f"movie_id={self.movie_id}, reaction={self.reaction})>"

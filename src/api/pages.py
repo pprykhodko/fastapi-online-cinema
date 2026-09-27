@@ -13,6 +13,15 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 @router.get("/password-reset/", response_class=HTMLResponse)
 async def password_reset_page(request: Request) -> HTMLResponse:
+    """
+    Render the public password reset form with a fresh script nonce.
+
+    Args:
+        request (Request): Incoming HTTP request.
+
+    Returns:
+        HTMLResponse: HTTP response for the requested operation.
+    """
     nonce = token_urlsafe(24)
     return templates.TemplateResponse(
         request=request,

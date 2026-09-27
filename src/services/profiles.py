@@ -27,6 +27,15 @@ class ProfileService:
             storage: S3Storage,
             settings: Settings
     ):
+        """
+        Initialize ProfileService with its required dependencies.
+
+        Args:
+            repository (ProfileRepository): Repository used for database operations and
+                the shared transaction.
+            storage (S3Storage): S3-compatible adapter used to manage avatar files.
+            settings (Settings): Application configuration used by this component.
+        """
         self.repository = repository
         self.storage = storage
         self.settings = settings
@@ -35,6 +44,20 @@ class ProfileService:
             self,
             profile: UserProfileModel
     ) -> UserProfileResponseSchema:
+        """
+        Build a profile response and replace the stored avatar key with a temporary
+        signed URL.
+
+        Args:
+            profile (UserProfileModel): Stored profile to serialize.
+
+        Returns:
+            UserProfileResponseSchema: Profile fields with a temporary signed avatar URL
+                when present.
+
+        Raises:
+            HTTPException: The signed avatar URL cannot be generated.
+        """
         response = UserProfileResponseSchema.model_validate(profile)
 
         if profile.avatar:
@@ -53,6 +76,12 @@ class ProfileService:
         return response
 
     async def delete_avatar(self, key: str) -> None:
+        """
+        Try to remove an unused avatar, logging storage failure without raising it.
+
+        Args:
+            key (str): S3 object path for the avatar to delete.
+        """
         try:
             await run_in_threadpool(self.storage.delete_file, key)
 
@@ -60,6 +89,19 @@ class ProfileService:
             logger.warning("An unused avatar could not be removed from S3")
 
     async def prepare_avatar(self, avatar: UploadFile) -> tuple[bytes, str]:
+        """
+        Check avatar MIME type and size, then validate and re-encode its image bytes.
+
+        Args:
+            avatar (UploadFile): Uploaded image; omission leaves the stored avatar
+                unchanged.
+
+        Returns:
+            tuple[bytes, str]: Validated image bytes and the storage filename extension.
+
+        Raises:
+            HTTPException: The image type, contents or size are invalid.
+        """
         if avatar.content_type not in ("image/jpeg", "image/png"):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -96,6 +138,18 @@ class ProfileService:
         return data, extension
 
     async def get_profile(self, user_id: int) -> UserProfileModel:
+        """
+        Load the profile associated with the specified user.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+
+        Returns:
+            UserProfileModel: Requested database record(s).
+
+        Raises:
+            HTTPException: The requested record is missing or cannot be loaded.
+        """
         async with database_errors(
                 self.repository,
                 detail="Profiles are temporarily unavailable"
@@ -116,6 +170,30 @@ class ProfileService:
             data: UserProfileUpdateRequestSchema,
             avatar: UploadFile | None = None
     ) -> UserProfileResponseSchema:
+        """
+        Update only supplied profile fields and replace the avatar when a new file is
+        provided.
+
+        Steps:
+        - Load the profile and upload a validated avatar when provided.
+        - Apply only explicitly supplied profile fields.
+        - Commit changes, then remove the replaced avatar; clean up failed uploads.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            data (UserProfileUpdateRequestSchema): Only the profile fields supplied for
+                this partial update.
+            avatar (UploadFile | None): Uploaded image; omission leaves the stored
+                avatar unchanged.
+
+        Returns:
+            UserProfileResponseSchema: Profile fields with a temporary signed avatar URL
+                when present.
+
+        Raises:
+            HTTPException: The profile is missing or avatar validation, storage or
+                saving fails.
+        """
         profile = await self.get_profile(user_id)
         old_key = profile.avatar
         new_key = None

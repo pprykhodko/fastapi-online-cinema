@@ -15,6 +15,9 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """
+    Create empty profiles for existing users who do not have one.
+    """
     users = sa.table("users", sa.column("id", sa.Integer()))
     profiles = sa.table(
         "user_profiles", sa.column("user_id", sa.Integer()),
@@ -27,4 +30,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Keep profiles: users may have filled them in since the upgrade.
+    """
+    Keep backfilled profiles because users may have edited them.
+    """
     pass

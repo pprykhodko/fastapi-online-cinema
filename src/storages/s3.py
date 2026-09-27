@@ -16,9 +16,28 @@ class StorageError(Exception):
 
 class S3Storage:
     def __init__(self, settings: Settings):
+        """
+        Initialize S3Storage with its required dependencies.
+
+        Args:
+            settings (Settings): Application configuration used by this component.
+        """
         self.settings = settings
 
     def _client(self, *, public: bool = False):
+        """
+        Create an S3 client using the internal endpoint or the public signing endpoint.
+
+        Args:
+            public (bool): Use the public endpoint when generating a browser-accessible
+                URL.
+
+        Returns:
+            S3 client: Boto3 client that the caller must close after use.
+
+        Raises:
+            StorageError: Storage configuration or the requested S3 operation fails.
+        """
         if (
                 not self.settings.S3_ACCESS_KEY
                 or not self.settings.S3_SECRET_KEY.get_secret_value()
@@ -44,6 +63,17 @@ class S3Storage:
         )
 
     def upload_file(self, data: bytes, object_key: str, content_type: str) -> None:
+        """
+        Upload bytes to the configured private bucket with the supplied content type.
+
+        Args:
+            data (bytes): Uploaded file contents in bytes.
+            object_key (str): Object path inside the configured S3 bucket.
+            content_type (str): Declared MIME type, such as image/jpeg or image/png.
+
+        Raises:
+            StorageError: Storage configuration or the requested S3 operation fails.
+        """
         try:
             with closing(self._client()) as client:
                 client.put_object(
@@ -57,6 +87,18 @@ class S3Storage:
             raise StorageError("Avatar upload failed") from error
 
     def get_file_url(self, object_key: str) -> str:
+        """
+        Generate a time-limited signed URL for a stored object.
+
+        Args:
+            object_key (str): Object path inside the configured S3 bucket.
+
+        Returns:
+            str: Signed URL valid for the configured number of seconds.
+
+        Raises:
+            StorageError: Storage configuration or the requested S3 operation fails.
+        """
         try:
             with closing(self._client(public=True)) as client:
                 return client.generate_presigned_url(
@@ -72,6 +114,15 @@ class S3Storage:
             raise StorageError("Avatar URL could not be generated") from error
 
     def delete_file(self, object_key: str) -> None:
+        """
+        Delete an object from the configured bucket.
+
+        Args:
+            object_key (str): Object path inside the configured S3 bucket.
+
+        Raises:
+            StorageError: Storage configuration or the requested S3 operation fails.
+        """
         try:
             with closing(self._client()) as client:
                 client.delete_object(
@@ -83,4 +134,10 @@ class S3Storage:
 
 
 def get_s3_storage() -> S3Storage:
+    """
+    Build the S3-compatible storage adapter from application settings.
+
+    Returns:
+        S3Storage: Configured component ready for use.
+    """
     return S3Storage(get_settings())

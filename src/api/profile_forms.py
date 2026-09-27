@@ -9,6 +9,16 @@ def empty_avatar_as_none(
     value: UploadFile | str | None,
 ) -> UploadFile | str | None:
 
+    """
+    Treat an empty multipart avatar value as an omitted file.
+
+    Args:
+        value (UploadFile | str | None): Parsed avatar upload, empty string or omitted
+            value.
+
+    Returns:
+        UploadFile | str | None: None for an empty string; otherwise the original value.
+    """
     return None if value == "" else value
 
 
@@ -20,6 +30,25 @@ async def get_profile_data(
     date_of_birth: str | None = Form(None, description="YYYY-MM-DD"),
     info: str | None = Form(None),
 ) -> UserProfileUpdateRequestSchema:
+    """
+    Parse JSON or form fields into a partial profile update, ignoring empty form fields.
+
+    Args:
+        request (Request): Incoming HTTP request.
+        first_name (str | None): Optional first name supplied as a form field.
+        last_name (str | None): Optional last name supplied as a form field.
+        gender (str | None): Optional form value: man or woman.
+        date_of_birth (str | None): Optional date string in YYYY-MM-DD format.
+        info (str | None): Optional profile biography supplied as a form field.
+
+    Returns:
+        UserProfileUpdateRequestSchema: Validated update preserving which fields were
+            explicitly supplied.
+
+    Raises:
+        HTTPException: The body is malformed JSON or uses an unsupported content type.
+        RequestValidationError: Submitted profile fields are invalid.
+    """
     content_type = request.headers.get("content-type", "").split(";")[0]
 
     if content_type == "application/json":

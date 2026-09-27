@@ -83,9 +83,28 @@ class MovieCommentModel(Base):
 
     @validates("content")
     def validate_content(self, _key: str, value: str) -> str:
+        """
+        Reject empty comments and strip surrounding whitespace.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validate_comment_content(value)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<MovieCommentModel(id={self.id}, user_id={self.user_id}, "
             f"movie_id={self.movie_id}, parent_id={self.parent_id})>"
@@ -115,6 +134,12 @@ class CommentLikeModel(Base):
     comment: Mapped[MovieCommentModel] = relationship(back_populates="likes")
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<CommentLikeModel(id={self.id}, user_id={self.user_id}, "
             f"comment_id={self.comment_id})>"

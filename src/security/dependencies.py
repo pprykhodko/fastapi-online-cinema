@@ -21,6 +21,23 @@ async def get_current_user(
         db: AsyncSession = Depends(get_db),
         jwt_manager: JWTAuthManager = Depends(get_jwt_auth_manager)
 ) -> UserModel:
+    """
+    Validate the bearer access token and load its active account and group.
+
+    Args:
+        credentials (HTTPAuthorizationCredentials | None): Bearer access token parsed
+            from the Authorization header.
+        db (AsyncSession): Shared asynchronous database session.
+        jwt_manager (JWTAuthManager): Manager used to sign or validate access and
+            refresh JWTs.
+
+    Returns:
+        UserModel: Requested database record(s).
+
+    Raises:
+        HTTPException: Authentication fails, access is denied or the database is
+            unavailable.
+    """
     credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or missing access token",
@@ -68,6 +85,20 @@ async def get_current_user(
 async def get_current_admin(
         current_user: UserModel = Depends(get_current_user)
 ) -> UserModel:
+    """
+    Require the authenticated user to belong to the ADMIN group.
+
+    Args:
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+
+    Returns:
+        UserModel: Requested database record(s).
+
+    Raises:
+        HTTPException: Authentication fails, access is denied or the database is
+            unavailable.
+    """
     if current_user.group.name != UserGroupEnum.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -80,6 +111,20 @@ async def get_current_admin(
 async def get_current_moderator(
         current_user: UserModel = Depends(get_current_user)
 ) -> UserModel:
+    """
+    Require the authenticated user to belong to MODERATOR or ADMIN.
+
+    Args:
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+
+    Returns:
+        UserModel: Requested database record(s).
+
+    Raises:
+        HTTPException: Authentication fails, access is denied or the database is
+            unavailable.
+    """
     if current_user.group.name not in (
             UserGroupEnum.MODERATOR, UserGroupEnum.ADMIN,
     ):
@@ -95,6 +140,21 @@ async def get_profile_owner(
         user_id: int = Path(gt=0, le=2**63 - 1),
         current_user: UserModel = Depends(get_current_user)
 ) -> UserModel:
+    """
+    Require the authenticated user to own the requested profile.
+
+    Args:
+        user_id (int): ID of the account whose data is being accessed.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+
+    Returns:
+        UserModel: Requested database record(s).
+
+    Raises:
+        HTTPException: Authentication fails, access is denied or the database is
+            unavailable.
+    """
     if current_user.id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

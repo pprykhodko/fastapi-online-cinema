@@ -15,9 +15,29 @@ from src.schemas.movies import (
 
 class MovieService:
     def __init__(self, repository: MovieRepository):
+        """
+        Initialize MovieService with its required dependencies.
+
+        Args:
+            repository (MovieRepository): Repository used for database operations and
+                the shared transaction.
+        """
         self.repository = repository
 
     async def get_movie(self, movie_id: int) -> MovieDetailResponseSchema:
+        """
+        Return the selected non-deleted movie with its related catalog data.
+
+        Args:
+            movie_id (int): ID of the movie, not the cart or order item.
+
+        Returns:
+            MovieDetailResponseSchema: Movie attributes with certification, genres,
+                actors and directors.
+
+        Raises:
+            HTTPException: The requested record is missing or cannot be loaded.
+        """
         async with database_errors(
                 self.repository,
                 detail="The movie is temporarily unavailable"
@@ -35,6 +55,23 @@ class MovieService:
             data: MovieCreateRequestSchema,
             movie_id: int | None = None
     ) -> MovieDetailResponseSchema:
+        """
+        Create or replace a movie after checking its certification and related record
+        IDs.
+
+        Args:
+            data (MovieCreateRequestSchema): Movie attributes and certification, genre,
+                actor and director IDs.
+            movie_id (int | None): ID of the movie, not the cart or order item.
+
+        Returns:
+            MovieDetailResponseSchema: Movie attributes with certification, genres,
+                actors and directors.
+
+        Raises:
+            HTTPException: Related catalog IDs are missing or the movie conflicts with
+                stored data.
+        """
         async with database_errors(
                 self.repository,
                 detail="The movie could not be saved",
@@ -96,6 +133,18 @@ class MovieService:
             return response
 
     async def delete_movie(self, movie_id: int, confirm: bool) -> None:
+        """
+        Soft-delete an unpurchased movie, requiring confirmation when it is in carts.
+
+        Args:
+            movie_id (int): ID of the movie, not the cart or order item.
+            confirm (bool): Allow removal from existing carts after the deletion
+                warning.
+
+        Raises:
+            HTTPException: The movie is missing, purchased, needs cart-removal
+                confirmation or cannot be saved.
+        """
         async with database_errors(
                 self.repository,
                 detail="The movie could not be deleted"
@@ -127,6 +176,20 @@ class MovieService:
             await self.repository.commit()
 
     async def list_movies(self, query: MovieListQuerySchema) -> MovieListResponseSchema:
+        """
+        Return visible movies using pagination, search, filters and sorting.
+
+        Args:
+            query (MovieListQuerySchema): Validated pagination and any supported search,
+                sort or filter options.
+
+        Returns:
+            MovieListResponseSchema: Catalog page with vote counts, reactions and
+                average user ratings.
+
+        Raises:
+            HTTPException: The requested data cannot be loaded from the database.
+        """
         async with database_errors(
                 self.repository,
                 detail="The movie catalog is temporarily unavailable"

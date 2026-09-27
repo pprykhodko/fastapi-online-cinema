@@ -26,6 +26,18 @@ class MovieCommentCreateRequestSchema(BaseModel):
     @field_validator("content")
     @classmethod
     def validate_content(cls, value: str) -> str:
+        """
+        Reject empty comments and strip surrounding whitespace.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validate_comment_content(value)
 
 
@@ -93,6 +105,18 @@ class MovieRatingRequestSchema(BaseModel):
     @field_validator("score")
     @classmethod
     def validate_score(cls, value: int) -> int:
+        """
+        Require an integer rating from 1 to 10, rejecting booleans.
+
+        Args:
+            value (int): Field value to validate or normalize.
+
+        Returns:
+            int: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validate_user_rating(value)
 
 

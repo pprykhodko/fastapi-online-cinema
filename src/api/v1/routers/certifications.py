@@ -55,6 +55,15 @@ not_found: dict[int | str, dict[str, Any]] = {
 async def list_certifications(
     service: CertificationService = Depends(get_certification_service)
 ):
+    """
+    List all certification records in ID order.
+
+    Args:
+        service (CertificationService): Injected service that performs the operation.
+
+    Returns:
+        list[CertificationResponseSchema]: List of records with their IDs and names.
+    """
     return await service.list_certifications()
 
 
@@ -75,6 +84,17 @@ async def create_certification(
     data: CertificationCreateRequestSchema,
     service: CertificationService = Depends(get_certification_service)
 ):
+    """
+    Create a certification with the validated unique name.
+
+    Args:
+        data (CertificationCreateRequestSchema): Validated name for the reference
+            record.
+        service (CertificationService): Injected service that performs the operation.
+
+    Returns:
+        CertificationResponseSchema: Reference record ID and name.
+    """
     return await service.create_certification(data)
 
 
@@ -95,6 +115,18 @@ async def update_certification(
     certification_id: int = Path(gt=0, le=2**31 - 1),
     service: CertificationService = Depends(get_certification_service)
 ):
+    """
+    Change the selected certification name, rejecting duplicate names.
+
+    Args:
+        data (CertificationUpdateRequestSchema): Validated name for the reference
+            record.
+        certification_id (int): ID of the movie certification.
+        service (CertificationService): Injected service that performs the operation.
+
+    Returns:
+        CertificationResponseSchema: Reference record ID and name.
+    """
     return await service.update_certification(certification_id, data)
 
 
@@ -122,6 +154,16 @@ async def delete_certification(
     certification_id: int = Path(gt=0, le=2**31 - 1),
     service: CertificationService = Depends(get_certification_service)
 ):
+    """
+    Delete the selected certification according to database relationship constraints.
+
+    Args:
+        certification_id (int): ID of the movie certification.
+        service (CertificationService): Injected service that performs the operation.
+
+    Returns:
+        Response: Empty HTTP 204 response.
+    """
     await service.delete_certification(certification_id)
 
     return Response(status_code=204)

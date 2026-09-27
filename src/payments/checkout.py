@@ -10,6 +10,20 @@ def build_checkout_data(
         key: str,
         expires_at: int
 ) -> dict:
+    """
+    Build card checkout parameters from saved order prices, grouping more than 100
+    items.
+
+    Args:
+        order (OrderModel): Order with its loaded items and saved prices.
+        currency (str): Payment currency code, such as usd or eur.
+        return_url (str): Public browser URL used after checkout.
+        key (str): Stable checkout/refund idempotency key.
+        expires_at (int): Checkout expiration as a Unix timestamp in seconds.
+
+    Returns:
+        dict: Stripe session parameters with metadata, line items and return URLs.
+    """
     line_items = [
         {
             "quantity": 1,
@@ -62,6 +76,16 @@ def build_checkout_data(
 
 
 def checkout_amount(data: dict) -> int:
+    """
+    Sum Stripe checkout line items in the smallest currency unit.
+
+    Args:
+        data (dict): Stripe checkout request parameters with line items and prices in
+            cents.
+
+    Returns:
+        int: Total amount in the smallest currency unit (cents).
+    """
     return sum(
         item["quantity"] * item["price_data"]["unit_amount"]
         for item in data["line_items"]

@@ -57,6 +57,16 @@ not_found: dict[int | str, dict[str, Any]] = {
 async def list_genres(
         service: GenreService = Depends(get_genre_service)
 ):
+    """
+    List genres with the count of non-deleted movies in each.
+
+    Args:
+        service (GenreService): Injected service that performs the operation.
+
+    Returns:
+        list[GenreWithMovieCountResponseSchema]: Genre IDs, names and non-deleted movie
+            counts.
+    """
     return await service.list_genres()
 
 
@@ -71,6 +81,16 @@ async def get_genre(
         genre_id: int = Path(gt=0, le=2**31 - 1),
         service: GenreService = Depends(get_genre_service)
 ):
+    """
+    Look up the genre by its ID.
+
+    Args:
+        genre_id (int): ID of the genre.
+        service (GenreService): Injected service that performs the operation.
+
+    Returns:
+        GenreResponseSchema: Reference record ID and name.
+    """
     return await service.get_genre(genre_id)
 
 
@@ -90,6 +110,16 @@ async def create_genre(
         data: GenreCreateRequestSchema,
         service: GenreService = Depends(get_genre_service)
 ):
+    """
+    Create a genre with the validated unique name.
+
+    Args:
+        data (GenreCreateRequestSchema): Validated name for the reference record.
+        service (GenreService): Injected service that performs the operation.
+
+    Returns:
+        GenreResponseSchema: Reference record ID and name.
+    """
     return await service.create_genre(data)
 
 
@@ -109,6 +139,17 @@ async def update_genre(
         genre_id: int = Path(gt=0, le=2**31 - 1),
         service: GenreService = Depends(get_genre_service)
 ):
+    """
+    Change the selected genre name, rejecting duplicate names.
+
+    Args:
+        data (GenreUpdateRequestSchema): Validated name for the reference record.
+        genre_id (int): ID of the genre.
+        service (GenreService): Injected service that performs the operation.
+
+    Returns:
+        GenreResponseSchema: Reference record ID and name.
+    """
     return await service.update_genre(genre_id, data)
 
 
@@ -131,6 +172,16 @@ async def delete_genre(
         genre_id: int = Path(gt=0, le=2**31 - 1),
         service: GenreService = Depends(get_genre_service)
 ):
+    """
+    Delete the selected genre according to database relationship constraints.
+
+    Args:
+        genre_id (int): ID of the genre.
+        service (GenreService): Injected service that performs the operation.
+
+    Returns:
+        Response: Empty HTTP 204 response.
+    """
     await service.delete_genre(genre_id)
 
     return Response(status_code=204)

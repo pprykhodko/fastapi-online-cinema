@@ -16,6 +16,21 @@ async def get_docs_user(
         credentials: HTTPBasicCredentials = Depends(docs_auth),
         db: AsyncSession = Depends(get_db)
 ) -> UserModel:
+    """
+    Authenticate an active account using HTTP Basic credentials for documentation
+    access.
+
+    Args:
+        credentials (HTTPBasicCredentials): HTTP Basic email and password.
+        db (AsyncSession): Shared asynchronous database session.
+
+    Returns:
+        UserModel: Requested database record(s).
+
+    Raises:
+        HTTPException: Authentication fails, access is denied or the database is
+            unavailable.
+    """
     repository = AccountRepository(db)
 
     try:

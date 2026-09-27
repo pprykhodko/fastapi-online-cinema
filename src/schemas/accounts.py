@@ -24,6 +24,18 @@ class BaseEmailSchema(BaseModel):
     @field_validator("email")
     @classmethod
     def validate_email(cls, value: str) -> str:
+        """
+        Validate the email syntax and return its normalized lowercase form.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return accounts_validators.validate_email(value)
 
 
@@ -43,6 +55,18 @@ class BaseEmailPasswordSchema(BaseEmailSchema):
     @field_validator("password")
     @classmethod
     def validate_password(cls, value: str) -> str:
+        """
+        Enforce password complexity and bcrypt input limits for a new password.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return accounts_validators.validate_password_strength(value)
 
 
@@ -65,6 +89,18 @@ class UserLoginRequestSchema(BaseEmailSchema):
     @field_validator("password")
     @classmethod
     def validate_password(cls, value: str) -> str:
+        """
+        Check bcrypt input limits without enforcing new-password complexity.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validate_password_for_bcrypt(value)
 
 
@@ -137,11 +173,35 @@ class PasswordChangeRequestSchema(BaseModel):
     @field_validator("old_password")
     @classmethod
     def validate_old_password(cls, value: str) -> str:
+        """
+        Check bcrypt input limits without enforcing new-password complexity.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validate_password_for_bcrypt(value)
 
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, value: str) -> str:
+        """
+        Enforce password complexity and bcrypt input limits for a new password.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return accounts_validators.validate_password_strength(value)
 
 
@@ -177,6 +237,18 @@ class PasswordResetConfirmRequestSchema(BaseModel):
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, value: str) -> str:
+        """
+        Enforce password complexity and bcrypt input limits for a new password.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return accounts_validators.validate_password_strength(value)
 
 
@@ -216,6 +288,18 @@ class UserResponseSchema(BaseModel):
     @field_validator("email")
     @classmethod
     def validate_email(cls, value: str) -> str:
+        """
+        Validate the email syntax and return its normalized lowercase form.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return accounts_validators.validate_email(value)
 
 

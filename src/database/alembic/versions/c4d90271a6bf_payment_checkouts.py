@@ -11,6 +11,9 @@ depends_on = None
 
 
 def upgrade():
+    """
+    Add persistent checkout state and payment currency.
+    """
     op.add_column("payments", sa.Column("currency", sa.String(3), nullable=False, server_default="usd"))
     op.create_index("ix_payments_external_payment_id_unique", "payments", ["external_payment_id"], unique=True)
     op.create_table(
@@ -30,6 +33,9 @@ def upgrade():
 
 
 def downgrade():
+    """
+    Remove persistent checkout state and payment currency.
+    """
     op.drop_table("payment_checkouts")
     op.drop_index("ix_payments_external_payment_id_unique", table_name="payments")
     with op.batch_alter_table("payments") as batch:

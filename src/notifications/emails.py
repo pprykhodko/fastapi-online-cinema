@@ -18,6 +18,12 @@ class EmailDeliveryError(Exception):
 
 class EmailSender:
     def __init__(self, settings: Settings):
+        """
+        Initialize EmailSender with its required dependencies.
+
+        Args:
+            settings (Settings): Application configuration used by this component.
+        """
         self._settings = settings
         self._env = Environment(
             loader=FileSystemLoader(TEMPLATES_DIR),
@@ -31,6 +37,18 @@ class EmailSender:
             html_content: str,
             text_content: str
     ) -> None:
+        """
+        Send a multipart HTML and plain-text email through the configured SMTP server.
+
+        Args:
+            recipient (str): Email address receiving the message.
+            subject (str): Email subject line.
+            html_content (str): Rendered HTML body of the email.
+            text_content (str): Plain-text fallback body of the email.
+
+        Raises:
+            EmailDeliveryError: SMTP delivery fails or times out.
+        """
         message = EmailMessage()
         message["From"] = str(self._settings.SMTP_FROM_EMAIL)
         message["To"] = recipient
@@ -60,6 +78,18 @@ class EmailSender:
             amount: str,
             currency: str
     ) -> None:
+        """
+        Send a payment confirmation containing the order, amount and currency.
+
+        Args:
+            email (str): Email address of the account or message recipient.
+            order_id (int): ID of the order.
+            amount (str): Monetary amount in major currency units, not cents.
+            currency (str): Payment currency code, such as usd or eur.
+
+        Raises:
+            EmailDeliveryError: SMTP delivery fails or times out.
+        """
         html = self._env.get_template("payment_confirmation.html").render(
             order_id=order_id,
             amount=amount,
@@ -77,6 +107,18 @@ class EmailSender:
             comment_id: int,
             event: str
     ) -> None:
+        """
+        Send a notification about a reply or like on a movie comment.
+
+        Args:
+            email (str): Email address of the account or message recipient.
+            movie_name (str): Movie title included in the notification.
+            comment_id (int): ID of the comment.
+            event (str): Comment activity type: reply or like.
+
+        Raises:
+            EmailDeliveryError: SMTP delivery fails or times out.
+        """
         action = "received a reply" if event == "reply" else "received a like"
         template = self._env.get_template("comment_notification.html")
         html_content = template.render(
@@ -97,6 +139,18 @@ class EmailSender:
             token: str,
             expires_at: datetime
     ) -> None:
+        """
+        Send an account activation link with its expiration time.
+
+        Args:
+            email (str): Email address of the account or message recipient.
+            token (str): Plaintext token supplied by the caller; never log this value.
+            expires_at (datetime): Expiration time; naive datetime values are
+                interpreted as UTC.
+
+        Raises:
+            EmailDeliveryError: SMTP delivery fails or times out.
+        """
         url_parts = urlsplit(str(self._settings.ACCOUNT_ACTIVATION_URL))
         query = dict(parse_qsl(url_parts.query))
         query["token"] = token
@@ -125,6 +179,15 @@ class EmailSender:
         )
 
     async def send_activation_complete_email(self, email: str) -> None:
+        """
+        Send confirmation that the account has been activated.
+
+        Args:
+            email (str): Email address of the account or message recipient.
+
+        Raises:
+            EmailDeliveryError: SMTP delivery fails or times out.
+        """
         template = self._env.get_template("activation_complete.html")
         html_content = template.render(email=email)
         await self._send_email(
@@ -141,6 +204,18 @@ class EmailSender:
             token: str,
             expires_at: datetime
     ) -> None:
+        """
+        Send a one-use password reset link with its token in the URL fragment.
+
+        Args:
+            email (str): Email address of the account or message recipient.
+            token (str): Plaintext token supplied by the caller; never log this value.
+            expires_at (datetime): Expiration time; naive datetime values are
+                interpreted as UTC.
+
+        Raises:
+            EmailDeliveryError: SMTP delivery fails or times out.
+        """
         url_parts = urlsplit(str(self._settings.PASSWORD_RESET_URL))
         reset_link = urlunsplit(
             url_parts._replace(fragment=urlencode({"token": token}))
@@ -166,4 +241,10 @@ class EmailSender:
 
 
 def get_email_sender() -> EmailSender:
+    """
+    Build the SMTP email sender from application settings.
+
+    Returns:
+        EmailSender: Configured component ready for use.
+    """
     return EmailSender(get_settings())

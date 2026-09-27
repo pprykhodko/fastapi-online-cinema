@@ -80,6 +80,21 @@ async def login_user(
         service: AccountService = Depends(get_account_service),
         jwt_manager: JWTAuthManager = Depends(get_jwt_auth_manager)
 ) -> TokenPairResponseSchema:
+    """
+    Log in an active account and prevent caching of the token response.
+
+    Args:
+        login_data (UserLoginRequestSchema): Email and plaintext password supplied for
+            login.
+        response (Response): HTTP response used to set status codes or cache-control
+            headers.
+        service (AccountService): Injected service that performs the operation.
+        jwt_manager (JWTAuthManager): Manager used to sign or validate access and
+            refresh JWTs.
+
+    Returns:
+        TokenPairResponseSchema: Access and refresh JWTs with bearer token type.
+    """
     tokens = await service.login(login_data, jwt_manager)
 
     response.headers["Cache-Control"] = "no-store"
@@ -119,6 +134,21 @@ async def refresh_access_token(
         service: AccountService = Depends(get_account_service),
         jwt_manager: JWTAuthManager = Depends(get_jwt_auth_manager)
 ) -> AccessTokenResponseSchema:
+    """
+    Issue a new access token without rotating or extending the refresh token.
+
+    Args:
+        token_data (TokenRefreshRequestSchema): Refresh JWT used to obtain another
+            access token.
+        response (Response): HTTP response used to set status codes or cache-control
+            headers.
+        service (AccountService): Injected service that performs the operation.
+        jwt_manager (JWTAuthManager): Manager used to sign or validate access and
+            refresh JWTs.
+
+    Returns:
+        AccessTokenResponseSchema: New access JWT with bearer token type.
+    """
     token = await service.refresh_access_token(token_data, jwt_manager)
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"
@@ -154,6 +184,20 @@ async def logout_user(
         jwt_manager: JWTAuthManager = Depends(get_jwt_auth_manager)
 ) -> AccountMessageResponseSchema:
 
+    """
+    Revoke the supplied refresh token; existing access tokens expire normally.
+
+    Args:
+        logout_data (LogoutRequestSchema): Refresh JWT identifying the session to
+            revoke.
+        service (AccountService): Injected service that performs the operation.
+        jwt_manager (JWTAuthManager): Manager used to sign or validate access and
+            refresh JWTs.
+
+    Returns:
+        AccountMessageResponseSchema: Account-operation status, including any nonfatal
+            email-queue warning.
+    """
     return await service.logout(logout_data, jwt_manager)
 
 
@@ -192,6 +236,21 @@ async def change_password(
         service: AccountService = Depends(get_account_service)
 ) -> AccountMessageResponseSchema:
 
+    """
+    Check the old password, save a different strong password and revoke reset and
+    refresh tokens.
+
+    Args:
+        password_data (PasswordChangeRequestSchema): Current password and the requested
+            new password.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (AccountService): Injected service that performs the operation.
+
+    Returns:
+        AccountMessageResponseSchema: Account-operation status, including any nonfatal
+            email-queue warning.
+    """
     return await service.change_password(current_user, password_data)
 
 
@@ -221,6 +280,18 @@ async def request_password_reset(
         email_data: PasswordResetRequestSchema,
         service: AccountService = Depends(get_account_service)
 ) -> AccountMessageResponseSchema:
+    """
+    Queue a one-use reset link for an active account without exposing account existence.
+
+    Args:
+        email_data (PasswordResetRequestSchema): Email address requesting password
+            recovery.
+        service (AccountService): Injected service that performs the operation.
+
+    Returns:
+        AccountMessageResponseSchema: Account-operation status, including any nonfatal
+            email-queue warning.
+    """
     return await service.request_password_reset(email_data)
 
 
@@ -252,6 +323,18 @@ async def reset_password(
         reset_data: PasswordResetConfirmRequestSchema,
         service: AccountService = Depends(get_account_service)
 ) -> AccountMessageResponseSchema:
+    """
+    Use a valid reset token to change the password and revoke reset and refresh tokens.
+
+    Args:
+        reset_data (PasswordResetConfirmRequestSchema): One-use reset token and the
+            requested new password.
+        service (AccountService): Injected service that performs the operation.
+
+    Returns:
+        AccountMessageResponseSchema: Account-operation status, including any nonfatal
+            email-queue warning.
+    """
     return await service.reset_password(reset_data)
 
 
@@ -287,6 +370,18 @@ async def activate_user(
         activation_data: AccountActivationRequestSchema,
         service: AccountService = Depends(get_account_service)
 ) -> AccountMessageResponseSchema:
+    """
+    Activate an account using the token supplied in the JSON request.
+
+    Args:
+        activation_data (AccountActivationRequestSchema): One-use token from the
+            activation email.
+        service (AccountService): Injected service that performs the operation.
+
+    Returns:
+        AccountMessageResponseSchema: Account-operation status, including any nonfatal
+            email-queue warning.
+    """
     return await service.activate_account(activation_data)
 
 
@@ -318,6 +413,17 @@ async def activation_page(
         token: str = Query(min_length=1, max_length=255, pattern=r"^\S+$"),
         service: AccountService = Depends(get_account_service)
 ) -> HTMLResponse:
+    """
+    Consume the activation token and render a success or error page.
+
+    Args:
+        request (Request): Incoming HTTP request.
+        token (str): Plaintext token supplied by the caller; never log this value.
+        service (AccountService): Injected service that performs the operation.
+
+    Returns:
+        HTMLResponse: HTTP response for the requested operation.
+    """
     status_code = status.HTTP_200_OK
 
     try:
@@ -373,6 +479,18 @@ async def register_user(
         user_data: UserRegistrationRequestSchema,
         service: AccountService = Depends(get_account_service)
 ) -> UserResponseSchema:
+    """
+    Create an inactive account, profile, cart and activation token, then queue an email.
+
+    Args:
+        user_data (UserRegistrationRequestSchema): Email and strong password for the new
+            account.
+        service (AccountService): Injected service that performs the operation.
+
+    Returns:
+        UserResponseSchema: Public account fields, activation state and group; no
+            password hash.
+    """
     return await service.register_user(user_data)
 
 
@@ -400,6 +518,18 @@ async def resend_activation_email(
         email_data: ActivationResendRequestSchema,
         service: AccountService = Depends(get_account_service)
 ) -> AccountMessageResponseSchema:
+    """
+    Request an activation email without revealing whether the account exists.
+
+    Args:
+        email_data (ActivationResendRequestSchema): Email address requesting another
+            activation link.
+        service (AccountService): Injected service that performs the operation.
+
+    Returns:
+        AccountMessageResponseSchema: Account-operation status, including any nonfatal
+            email-queue warning.
+    """
     return await service.resend_activation_link(email_data)
 
 
@@ -439,6 +569,19 @@ async def change_user_group(
         user_id: int = Path(gt=0, le=2**63 - 1),
         service: AccountService = Depends(get_account_service)
 ) -> UserResponseSchema:
+    """
+    Assign the requested existing group to the selected account.
+
+    Args:
+        group_data (UserGroupUpdateRequestSchema): Requested user, moderator or admin
+            group.
+        user_id (int): ID of the account whose data is being accessed.
+        service (AccountService): Injected service that performs the operation.
+
+    Returns:
+        UserResponseSchema: Public account fields, activation state and group; no
+            password hash.
+    """
     return await service.change_user_group(user_id, group_data)
 
 
@@ -481,4 +624,15 @@ async def activate_user_manually(
         user_id: int = Path(gt=0, le=2**63 - 1),
         service: AccountService = Depends(get_account_service)
 ) -> AccountMessageResponseSchema:
+    """
+    Activate the selected account without a token and queue a confirmation email.
+
+    Args:
+        user_id (int): ID of the account whose data is being accessed.
+        service (AccountService): Injected service that performs the operation.
+
+    Returns:
+        AccountMessageResponseSchema: Account-operation status, including any nonfatal
+            email-queue warning.
+    """
     return await service.activate_user_manually(user_id)

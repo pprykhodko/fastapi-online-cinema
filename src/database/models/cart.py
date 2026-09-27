@@ -43,6 +43,12 @@ class CartModel(Base):
     )
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return f"<CartModel(id={self.id}, user_id={self.user_id})>"
 
 
@@ -80,6 +86,12 @@ class CartItemModel(Base):
     movie: Mapped[MovieModel] = relationship(back_populates="cart_items")
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<CartItemModel(id={self.id}, cart_id={self.cart_id}, "
             f"movie_id={self.movie_id})>"

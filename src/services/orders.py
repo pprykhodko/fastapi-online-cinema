@@ -24,6 +24,17 @@ class OrderService:
             cart_repository: CartRepository,
             movie_repository: MovieRepository
     ):
+        """
+        Initialize OrderService with its required dependencies.
+
+        Args:
+            repository (OrderRepository): Repository used for database operations and
+                the shared transaction.
+            cart_repository (CartRepository): Repository for cart data using the shared
+                session.
+            movie_repository (MovieRepository): Repository for movie data using the
+                shared session.
+        """
         self.repository = repository
         self.cart_repository = cart_repository
         self.movie_repository = movie_repository
@@ -33,6 +44,20 @@ class OrderService:
             query: OrderListQuerySchema | AdminOrderListQuerySchema,
             user_id: int | None = None
     ) -> OrderListResponseSchema:
+        """
+        Return paginated order history, optionally restricted to an owner.
+
+        Args:
+            query (OrderListQuerySchema | AdminOrderListQuerySchema): Validated
+                pagination and any supported search, sort or filter options.
+            user_id (int | None): ID of the account whose data is being accessed.
+
+        Returns:
+            OrderListResponseSchema: Order records and pagination totals.
+
+        Raises:
+            HTTPException: The requested data cannot be loaded from the database.
+        """
         async with database_errors(
                 self.repository,
                 detail="Orders are temporarily unavailable"
@@ -52,6 +77,21 @@ class OrderService:
             order_id: int,
             lock: bool = False
     ) -> OrderModel:
+        """
+        Load the order only if it belongs to the specified user, otherwise raise 404.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            order_id (int): ID of the order.
+            lock (bool): Request a row lock for this transaction when supported by the
+                database.
+
+        Returns:
+            OrderModel: Requested database record(s).
+
+        Raises:
+            HTTPException: The order is missing or belongs to another user.
+        """
         order = await self.repository.get_order(order_id, user_id, lock=lock)
 
         if order is None:
@@ -63,6 +103,20 @@ class OrderService:
         return order
 
     async def get_order(self, user_id: int, order_id: int) -> OrderResponseSchema:
+        """
+        Return the owned order with its items and historical prices.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            order_id (int): ID of the order.
+
+        Returns:
+            OrderResponseSchema: Order status, creation time, movies and historical item
+                prices.
+
+        Raises:
+            HTTPException: The requested record is missing or cannot be loaded.
+        """
         async with database_errors(
                 self.repository,
                 detail="Order is temporarily unavailable"
@@ -72,6 +126,21 @@ class OrderService:
             return OrderResponseSchema.model_validate(order)
 
     async def cancel_order(self, user_id: int, order_id: int) -> OrderResponseSchema:
+        """
+        Cancel an unpaid pending order that does not have a Stripe checkout.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            order_id (int): ID of the order.
+
+        Returns:
+            OrderResponseSchema: Order status, creation time, movies and historical item
+                prices.
+
+        Raises:
+            HTTPException: The order is missing, paid, canceled, has a Stripe checkout
+                or cannot be saved.
+        """
         async with database_errors(
                 self.repository,
                 detail="Order could not be canceled"
@@ -113,6 +182,17 @@ class OrderService:
         Validate and lock an order; the payment caller owns the final commit.
 
         No payment is created here. The caller must use this same DB session.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            order_id (int): ID of the order.
+
+        Returns:
+            OrderModel: Requested database record(s).
+
+        Raises:
+            HTTPException: The order is not payable, contains unavailable/purchased
+                movies or its prices changed.
         """
         async with database_errors(
                 self.repository,
@@ -175,6 +255,25 @@ class OrderService:
             return order
 
     async def checkout(self, user_id: int) -> OrderCreateResponseSchema:
+        """
+        Create a pending order from eligible cart items and report excluded movies.
+
+        Steps:
+        - Load cart movies and exclude unavailable or already purchased entries.
+        - Reject movies that belong to another pending order.
+        - Save eligible movies with a price snapshot and report excluded items.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+
+        Returns:
+            OrderCreateResponseSchema: Created order, or None if all items were
+                excluded, plus exclusion reasons.
+
+        Raises:
+            HTTPException: The cart is missing/empty, movies overlap pending orders or
+                saving the order fails.
+        """
         async with database_errors(
                 self.repository,
                 detail="Order could not be created",

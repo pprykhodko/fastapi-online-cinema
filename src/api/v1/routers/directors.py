@@ -55,6 +55,15 @@ not_found: dict[int | str, dict[str, Any]] = {
 async def list_directors(
     service: DirectorService = Depends(get_director_service)
 ):
+    """
+    List all director records in ID order.
+
+    Args:
+        service (DirectorService): Injected service that performs the operation.
+
+    Returns:
+        list[DirectorResponseSchema]: List of records with their IDs and names.
+    """
     return await service.list_directors()
 
 
@@ -76,6 +85,16 @@ async def create_director(
     data: DirectorCreateRequestSchema,
     service: DirectorService = Depends(get_director_service)
 ):
+    """
+    Create a director with the validated unique name.
+
+    Args:
+        data (DirectorCreateRequestSchema): Validated name for the reference record.
+        service (DirectorService): Injected service that performs the operation.
+
+    Returns:
+        DirectorResponseSchema: Reference record ID and name.
+    """
     return await service.create_director(data)
 
 
@@ -96,6 +115,17 @@ async def update_director(
     director_id: int = Path(gt=0, le=2**31 - 1),
     service: DirectorService = Depends(get_director_service)
 ):
+    """
+    Change the selected director name, rejecting duplicate names.
+
+    Args:
+        data (DirectorUpdateRequestSchema): Validated name for the reference record.
+        director_id (int): ID of the director.
+        service (DirectorService): Injected service that performs the operation.
+
+    Returns:
+        DirectorResponseSchema: Reference record ID and name.
+    """
     return await service.update_director(director_id, data)
 
 
@@ -118,6 +148,16 @@ async def delete_director(
     director_id: int = Path(gt=0, le=2**31 - 1),
     service: DirectorService = Depends(get_director_service)
 ):
+    """
+    Delete the selected director according to database relationship constraints.
+
+    Args:
+        director_id (int): ID of the director.
+        service (DirectorService): Injected service that performs the operation.
+
+    Returns:
+        Response: Empty HTTP 204 response.
+    """
     await service.delete_director(director_id)
 
     return Response(status_code=204)

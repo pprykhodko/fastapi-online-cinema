@@ -35,6 +35,18 @@ class OrderItemResponseSchema(BaseModel):
     @field_validator("price_at_order")
     @classmethod
     def validate_price_at_order(cls, value: Decimal) -> Decimal:
+        """
+        Validate the historical order-item price without rounding it.
+
+        Args:
+            value (Decimal): Field value to validate or normalize.
+
+        Returns:
+            Decimal: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return orders_validators.validate_price_at_order(value)
 
 
@@ -53,6 +65,18 @@ class OrderResponseSchema(BaseModel):
     @field_validator("total_amount")
     @classmethod
     def validate_total_amount(cls, value: Decimal | None) -> Decimal | None:
+        """
+        Allow no order total or an amount within the supported monetary limits.
+
+        Args:
+            value (Decimal | None): Field value to validate or normalize.
+
+        Returns:
+            Decimal | None: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return orders_validators.validate_total_amount(value)
 
 

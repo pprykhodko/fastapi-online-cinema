@@ -28,6 +28,15 @@ from src.database import engine
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """
+    Run the application lifespan and dispose of the database engine on shutdown.
+
+    Args:
+        _app (FastAPI): FastAPI application, unused by the shutdown hook.
+
+    Yields:
+        None: Control while the application or guarded operation runs.
+    """
     try:
         yield
 
@@ -56,6 +65,17 @@ async def request_validation_error_handler(
         _request: Request,
         error: RequestValidationError
 ) -> JSONResponse:
+    """
+    Return validation errors without echoing submitted values such as passwords.
+
+    Args:
+        _request (Request): Incoming request, unused by this error handler.
+        error (RequestValidationError): Request validation exception with field-level
+            error details.
+
+    Returns:
+        JSONResponse: HTTP response for the requested operation.
+    """
     details = [
         {
             "type": item["type"],

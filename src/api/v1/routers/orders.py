@@ -51,6 +51,19 @@ async def list_orders(
         current_user: UserModel = Depends(get_current_user),
         service: OrderService = Depends(get_order_service)
 ) -> OrderListResponseSchema:
+    """
+    Return paginated order history, optionally restricted to an owner.
+
+    Args:
+        query (OrderListQuerySchema): Validated pagination and any supported search,
+            sort or filter options.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (OrderService): Injected service that performs the operation.
+
+    Returns:
+        OrderListResponseSchema: Order records and pagination totals.
+    """
     return await service.list_orders(query, user_id=current_user.id)
 
 
@@ -72,6 +85,18 @@ async def list_all_orders(
         query: Annotated[AdminOrderListQuerySchema, Query()],
         service: OrderService = Depends(get_order_service)
 ) -> OrderListResponseSchema:
+    """
+    Return paginated orders for administrators with optional user, date and status
+    filters.
+
+    Args:
+        query (AdminOrderListQuerySchema): Validated pagination and any supported
+            search, sort or filter options.
+        service (OrderService): Injected service that performs the operation.
+
+    Returns:
+        OrderListResponseSchema: Order records and pagination totals.
+    """
     return await service.list_orders(query)
 
 
@@ -97,6 +122,19 @@ async def get_order(
         current_user: UserModel = Depends(get_current_user),
         service: OrderService = Depends(get_order_service)
 ) -> OrderResponseSchema:
+    """
+    Return the owned order with its items and historical prices.
+
+    Args:
+        order_id (int): ID of the order.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (OrderService): Injected service that performs the operation.
+
+    Returns:
+        OrderResponseSchema: Order status, creation time, movies and historical item
+            prices.
+    """
     return await service.get_order(current_user.id, order_id)
 
 
@@ -127,4 +165,17 @@ async def cancel_order(
         current_user: UserModel = Depends(get_current_user),
         service: OrderService = Depends(get_order_service)
 ) -> OrderResponseSchema:
+    """
+    Cancel an unpaid pending order that does not have a Stripe checkout.
+
+    Args:
+        order_id (int): ID of the order.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (OrderService): Injected service that performs the operation.
+
+    Returns:
+        OrderResponseSchema: Order status, creation time, movies and historical item
+            prices.
+    """
     return await service.cancel_order(current_user.id, order_id)

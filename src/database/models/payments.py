@@ -105,13 +105,45 @@ class PaymentModel(Base):
 
     @validates("status")
     def validate_status(self, _key: str, value: str) -> PaymentStatusEnum:
+        """
+        Accept only successful, canceled or refunded payment states.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            PaymentStatusEnum: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return PaymentStatusEnum(validators.validate_payment_status(value))
 
     @validates("amount")
     def validate_amount(self, _key: str, value: Decimal) -> Decimal:
+        """
+        Validate a payment amount within the supported monetary limits.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (Decimal): Field value to validate or normalize.
+
+        Returns:
+            Decimal: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_payment_amount(value)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<PaymentModel(id={self.id}, user_id={self.user_id}, "
             f"order_id={self.order_id}, status={self.status})>"
@@ -157,9 +189,28 @@ class PaymentItemModel(Base):
             _key: str,
             value: Decimal,
     ) -> Decimal:
+        """
+        Validate the historical payment-item price without rounding it.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (Decimal): Field value to validate or normalize.
+
+        Returns:
+            Decimal: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_price_at_payment(value)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<PaymentItemModel(id={self.id}, payment_id={self.payment_id}, "
             f"order_item_id={self.order_item_id})>"

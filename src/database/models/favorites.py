@@ -36,6 +36,12 @@ class MovieFavoriteModel(Base):
     movie: Mapped[MovieModel] = relationship(back_populates="favorites")
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<MovieFavoriteModel(id={self.id}, user_id={self.user_id}, "
             f"movie_id={self.movie_id})>"

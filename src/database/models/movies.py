@@ -100,9 +100,28 @@ class GenreModel(Base):
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str:
+        """
+        Allow only English letters and spaces in a nonempty genre name.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_genre_name(value)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return f"<GenreModel(id={self.id}, name={self.name!r})>"
 
 
@@ -127,9 +146,28 @@ class StarModel(Base):
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str:
+        """
+        Allow English name parts separated by a single space or hyphen.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_star_name(value)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return f"<StarModel(id={self.id}, name={self.name!r})>"
 
 
@@ -154,9 +192,28 @@ class DirectorModel(Base):
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str:
+        """
+        Allow English letters, spaces and hyphens in a nonempty director name.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_director_name(value)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return f"<DirectorModel(id={self.id}, name={self.name!r})>"
 
 
@@ -180,9 +237,28 @@ class CertificationModel(Base):
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str:
+        """
+        Strip surrounding whitespace and reject an empty name.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_name(value)
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return f"<CertificationModel(id={self.id}, name={self.name!r})>"
 
 
@@ -292,18 +368,70 @@ class MovieModel(Base):
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str:
+        """
+        Strip surrounding whitespace and reject an empty name.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_name(value)
 
     @validates("time")
     def validate_time(self, _key: str, value: int) -> int:
+        """
+        Require a positive movie duration in minutes.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (int): Field value to validate or normalize.
+
+        Returns:
+            int: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_duration(value)
 
     @validates("imdb")
     def validate_imdb(self, _key: str, value: float) -> float:
+        """
+        Require an IMDb rating between 0 and 10 inclusive.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (float): Field value to validate or normalize.
+
+        Returns:
+            float: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_imdb_rating(value)
 
     @validates("votes")
     def validate_votes(self, _key: str, value: int) -> int:
+        """
+        Reject a negative IMDb vote count.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (int): Field value to validate or normalize.
+
+        Returns:
+            int: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_votes(value)
 
     @validates("meta_score")
@@ -312,6 +440,19 @@ class MovieModel(Base):
         _key: str,
         value: Optional[float],
     ) -> Optional[float]:
+        """
+        Allow a missing Metascore or a score between 0 and 100 inclusive.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (Optional[float]): Field value to validate or normalize.
+
+        Returns:
+            Optional[float]: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_meta_score(value)
 
     @validates("gross")
@@ -320,16 +461,55 @@ class MovieModel(Base):
         _key: str,
         value: Optional[float],
     ) -> Optional[float]:
+        """
+        Allow missing gross revenue or a finite nonnegative value.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (Optional[float]): Field value to validate or normalize.
+
+        Returns:
+            Optional[float]: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_non_negative_float(value, "gross")
 
     @validates("price")
     def validate_price(
         self, _key: str, value: Optional[Decimal],
     ) -> Optional[Decimal]:
+        """
+        Allow no price or a valid nonnegative monetary Decimal.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (Optional[Decimal]): Field value to validate or normalize.
+
+        Returns:
+            Optional[Decimal]: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         return validators.validate_non_negative_decimal(value, "price")
 
     @validates("is_deleted")
     def validate_is_deleted(self, _key: str, value: bool) -> bool:
+        """
+        Require a boolean soft-deletion flag.
+
+        Args:
+            _key (str): SQLAlchemy attribute name; unused by the validator.
+            value (bool): Field value to validate or normalize.
+
+        Returns:
+            bool: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
         if not isinstance(value, bool):
             raise ValueError("is_deleted must be a boolean.")
 
@@ -337,13 +517,31 @@ class MovieModel(Base):
 
     @property
     def is_available_for_purchase(self) -> bool:
+        """
+        Check that the movie is not deleted and has a price, including zero.
+
+        Returns:
+            bool: True for a non-deleted movie with a non-null price.
+        """
         return not self.is_deleted and self.price is not None
 
     @classmethod
     def default_order_by(cls):
+        """
+        Return the default descending movie ID ordering.
+
+        Returns:
+            list: Descending movie ID expression.
+        """
         return [cls.id.desc()]
 
     def __repr__(self) -> str:
+        """
+        Return a short record representation for debugging.
+
+        Returns:
+            str: Model name and identifying fields for debugging.
+        """
         return (
             f"<MovieModel(id={self.id}, name={self.name!r}, "
             f"year={self.year})>"

@@ -47,6 +47,18 @@ async def get_rating(
         current_user: UserModel = Depends(get_current_user),
         service: RatingService = Depends(get_rating_service)
 ):
+    """
+    Return the user rating for the selected movie.
+
+    Args:
+        movie_id (int): ID of the movie, not the cart or order item.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (RatingService): Injected service that performs the operation.
+
+    Returns:
+        MovieRatingResponseSchema: User movie score and record timestamps.
+    """
     return await service.get_rating(current_user.id, movie_id)
 
 
@@ -78,6 +90,21 @@ async def set_rating(
         current_user: UserModel = Depends(get_current_user),
         service: RatingService = Depends(get_rating_service)
 ):
+    """
+    Create or replace the user movie rating on the 1-10 scale.
+
+    Args:
+        data (MovieRatingRequestSchema): Integer movie score from 1 to 10.
+        response (Response): HTTP response used to set status codes or cache-control
+            headers.
+        movie_id (int): ID of the movie, not the cart or order item.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (RatingService): Injected service that performs the operation.
+
+    Returns:
+        MovieRatingResponseSchema: User movie score and record timestamps.
+    """
     rating, created = await service.set_rating(
         current_user.id, movie_id, data
     )
@@ -101,6 +128,18 @@ async def delete_rating(
         current_user: UserModel = Depends(get_current_user),
         service: RatingService = Depends(get_rating_service)
 ):
+    """
+    Remove the user rating for the selected movie.
+
+    Args:
+        movie_id (int): ID of the movie, not the cart or order item.
+        current_user (UserModel): Authenticated account supplied by the access-token
+            dependency.
+        service (RatingService): Injected service that performs the operation.
+
+    Returns:
+        Response: Empty HTTP 204 response.
+    """
     await service.delete_rating(current_user.id, movie_id)
 
     return Response(status_code=204)

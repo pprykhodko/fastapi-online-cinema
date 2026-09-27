@@ -21,6 +21,9 @@ user_groups = sa.table(
 
 
 def upgrade() -> None:
+    """
+    Insert the USER, MODERATOR and ADMIN groups.
+    """
     op.bulk_insert(user_groups, [
         {"name": "USER"},
         {"name": "MODERATOR"},
@@ -29,6 +32,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """
+    Remove default groups only when no users reference them.
+
+    Raises:
+        RuntimeError: Existing users still reference the default groups.
+    """
     users = sa.table("users", sa.column("group_id", sa.Integer()))
     group_names = ("USER", "MODERATOR", "ADMIN")
     group_ids = sa.select(user_groups.c.id).where(

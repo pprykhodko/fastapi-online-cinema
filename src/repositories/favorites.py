@@ -11,6 +11,18 @@ class FavoriteRepository(BaseRepository):
             user_id: int,
             movie_ids: list[int]
     ) -> list[MovieFavoriteModel]:
+        """
+        Load the user favorites in the order of the supplied movie IDs.
+
+        The caller controls the transaction commit.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            movie_ids (list[int]): Movie IDs to include in the operation.
+
+        Returns:
+            list[MovieFavoriteModel]: Requested database record(s).
+        """
         if not movie_ids:
             return []
 
@@ -26,10 +38,27 @@ class FavoriteRepository(BaseRepository):
         return [by_movie[movie_id] for movie_id in movie_ids if movie_id in by_movie]
 
     async def add(self, favorite: MovieFavoriteModel) -> None:
+        """
+        Add and flush the supplied record without committing the shared transaction.
+
+        Args:
+            favorite (MovieFavoriteModel): ORM record supplied for this database
+                operation.
+        """
         self.db.add(favorite)
         await self.db.flush()
 
     async def delete(self, user_id: int, movie_id: int) -> bool:
+        """
+        Delete the matching record without committing and report whether it existed.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            movie_id (int): ID of the movie, not the cart or order item.
+
+        Returns:
+            bool: True if a matching record was deleted; otherwise False.
+        """
         deleted_id = await self.db.scalar(
             delete(MovieFavoriteModel)
             .where(

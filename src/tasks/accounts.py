@@ -11,6 +11,9 @@ from src.database.models import ActivationTokenModel
 
 
 async def cleanup_expired_activation_tokens() -> None:
+    """
+    Delete expired activation tokens in a dedicated database transaction.
+    """
     engine = create_async_engine(get_settings().DATABASE_URL, poolclass=NullPool)
     sessions = async_sessionmaker(engine)
 
@@ -27,4 +30,7 @@ async def cleanup_expired_activation_tokens() -> None:
 
 @celery_app.task(name="accounts.delete_expired_activation_tokens")
 def delete_expired_activation_tokens() -> None:
+    """
+    Run the async token cleanup from the scheduled Celery task.
+    """
     asyncio.run(cleanup_expired_activation_tokens())

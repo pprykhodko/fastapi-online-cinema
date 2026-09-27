@@ -15,11 +15,36 @@ class CartService:
             movie_repository: MovieRepository,
             order_repository: OrderRepository
     ):
+        """
+        Initialize CartService with its required dependencies.
+
+        Args:
+            repository (CartRepository): Repository used for database operations and the
+                shared transaction.
+            movie_repository (MovieRepository): Repository for movie data using the
+                shared session.
+            order_repository (OrderRepository): Repository for order data using the
+                shared session.
+        """
         self.repository = repository
         self.movie_repository = movie_repository
         self.order_repository = order_repository
 
     async def _get_cart(self, user_id: int, lock: bool = False) -> CartModel:
+        """
+        Load the user cart or raise 404, optionally requesting a row lock.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            lock (bool): Request a row lock for this transaction when supported by the
+                database.
+
+        Returns:
+            CartModel: Requested database record(s).
+
+        Raises:
+            HTTPException: The requested record is missing or cannot be loaded.
+        """
         cart = await self.repository.get_cart(user_id, lock=lock)
 
         if cart is None:
@@ -31,6 +56,19 @@ class CartService:
         return cart
 
     async def get_cart(self, user_id: int) -> CartResponseSchema:
+        """
+        Return the user cart with current movie prices, genres and release years.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+
+        Returns:
+            CartResponseSchema: Cart ID, owner ID and items with current movie
+                information.
+
+        Raises:
+            HTTPException: The requested record is missing or cannot be loaded.
+        """
         async with database_errors(
                 self.repository,
                 detail="Cart is temporarily unavailable"
@@ -45,6 +83,21 @@ class CartService:
             )
 
     async def add_item(self, user_id: int, movie_id: int) -> CartItemResponseSchema:
+        """
+        Add an available movie to the cart unless it is duplicated or already purchased.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            movie_id (int): ID of the movie, not the cart or order item.
+
+        Returns:
+            CartItemResponseSchema: Saved cart item with movie information and time
+                added.
+
+        Raises:
+            HTTPException: The movie is unavailable, purchased or duplicated, or the
+                cart/database is unavailable.
+        """
         async with database_errors(
                 self.repository,
                 detail="Movie could not be added to the cart",
@@ -84,6 +137,17 @@ class CartService:
             return response
 
     async def remove_item(self, user_id: int, movie_id: int) -> None:
+        """
+        Remove the selected movie from the user cart.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+            movie_id (int): ID of the movie, not the cart or order item.
+
+        Raises:
+            HTTPException: The record is missing or database constraints prevent
+                removal.
+        """
         async with database_errors(
                 self.repository,
                 detail="Cart item could not be removed"
@@ -99,6 +163,16 @@ class CartService:
             await self.repository.commit()
 
     async def clear_cart(self, user_id: int) -> None:
+        """
+        Remove all items from the user cart without deleting the cart itself.
+
+        Args:
+            user_id (int): ID of the account whose data is being accessed.
+
+        Raises:
+            HTTPException: The target record is missing, conflicts with stored data or
+                cannot be saved.
+        """
         async with database_errors(self.repository, detail="Cart could not be cleared"):
             cart = await self._get_cart(user_id, lock=True)
             await self.repository.clear(cart.id)
