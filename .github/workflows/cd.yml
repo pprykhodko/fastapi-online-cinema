@@ -1,0 +1,98 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Skip an outdated commit
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          if [ "$current" = "$DEPLOY_SHA" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure SSH
+        if: steps.latest.outputs.deploy == 'true'
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EC2_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ "$EC2_USER" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]]
+          test -n "$SSH_KEY"
+          test -n "$KNOWN_HOSTS"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Upload application source without local secrets
+        if: steps.latest.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          git archive --format=tar.gz -o "$RUNNER_TEMP/release.tar.gz" HEAD \
+            Dockerfile docker-compose-prod.yml pyproject.toml poetry.lock alembic.ini src
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$EC2_USER@$EC2_HOST" \
+            "mkdir -p /opt/online-cinema/releases/$DEPLOY_SHA"
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes "$RUNNER_TEMP/release.tar.gz" \
+            "$EC2_USER@$EC2_HOST:/opt/online-cinema/releases/$DEPLOY_SHA/release.tar.gz"
+
+      - name: Back up database, migrate and deploy
+        if: steps.latest.outputs.deploy == 'true'
+        run: |
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$EC2_USER@$EC2_HOST" \
+            "bash -s -- '$DEPLOY_SHA'" <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          sha="$1"
+          base=/opt/online-cinema
+          test -f "$base/.env"
+          cd "$base/releases/$sha"
+          tar -xzf release.tar.gz
+          ln -sfn "$base/.env" .env
+          compose=(docker compose -p online-cinema-prod -f docker-compose-prod.yml)
+          "${compose[@]}" config --quiet
+          mkdir -p "$base/backups"
+          if [ -n "$("${compose[@]}" ps --status running -q postgres)" ]; then
+            "${compose[@]}" exec -T postgres sh -c \
+              'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
+              > "$base/backups/$sha-$(date -u +%Y%m%dT%H%M%SZ).sql"
+          fi
+          "${compose[@]}" up -d --build --wait --wait-timeout 180
+          ln -sfn "$base/releases/$sha" "$base/current"
+          REMOTE
