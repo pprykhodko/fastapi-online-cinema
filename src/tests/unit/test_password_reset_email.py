@@ -19,7 +19,10 @@ def test_hash_reset_token_is_stable_sha256():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("aware", [True, False])
 async def test_password_reset_email_content(monkeypatch, aware):
-    settings = Settings(_env_file=None)
+    settings = Settings(
+        _env_file=None,
+        PASSWORD_RESET_URL="http://localhost:8000/password-reset/"
+    )
     sender = emails.EmailSender(settings)
     send = AsyncMock(return_value=({}, "OK"))
     monkeypatch.setattr(emails.aiosmtplib, "send", send)
@@ -32,13 +35,12 @@ async def test_password_reset_email_content(monkeypatch, aware):
     assert message["Subject"] == "Reset your Online Cinema password"
     plain = message.get_body(preferencelist=("plain",)).get_content()
     html = message.get_body(preferencelist=("html",)).get_content()
-    assert "<a " not in html
-    assert "token+with/symbols" in html
-    assert "token+with/symbols" in plain
+    assert "<a " in html
+    link = "http://localhost:8000/password-reset/#token=token%2Bwith%2Fsymbols"
+    assert link in html
+    assert link in plain
     assert "2030-01-02 12:00:00 UTC" in html
     for body in (html, plain):
-        assert "POST /api/v1/accounts/password/reset/" in body
-        assert "new_password" in body
         assert "only once" in body
 
 
@@ -55,4 +57,20 @@ async def test_password_reset_email_escapes_values(monkeypatch):
     assert "<script>" not in html
     assert "&lt;script&gt;" in html
     assert "<token>" not in html
-    assert "&lt;token&gt;" in html
+    assert "%3Ctoken%3E" in html
+
+
+@pytest.mark.asyncio
+async def test_reset_email_uses_configured_public_url(monkeypatch):
+    sender = emails.EmailSender(Settings(
+        _env_file=None,
+        PASSWORD_RESET_URL="https://cinema.example.com/password-reset/"
+    ))
+    send = AsyncMock()
+    monkeypatch.setattr(sender, "_send_email", send)
+    await sender.send_password_reset_email(
+        "user@example.com", "secret-token", datetime.now(timezone.utc)
+    )
+    link = "https://cinema.example.com/password-reset/#token=secret-token"
+    assert link in send.call_args.args[2]
+    assert link in send.call_args.args[3]
