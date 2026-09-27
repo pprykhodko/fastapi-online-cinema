@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from src.api.docs import router as docs_router
+from src.api.pages import router as pages_router
 from src.api.v1.routers import (
     accounts_router,
     profiles_router,
@@ -47,6 +48,7 @@ app = FastAPI(
 api_version_prefix = "/api/v1"
 
 app.include_router(docs_router)
+app.include_router(pages_router)
 
 
 @app.exception_handler(RequestValidationError)

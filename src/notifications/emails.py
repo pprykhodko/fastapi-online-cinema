@@ -141,6 +141,10 @@ class EmailSender:
             token: str,
             expires_at: datetime
     ) -> None:
+        url_parts = urlsplit(str(self._settings.PASSWORD_RESET_URL))
+        reset_link = urlunsplit(
+            url_parts._replace(fragment=urlencode({"token": token}))
+        )
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
@@ -148,15 +152,15 @@ class EmailSender:
             "%Y-%m-%d %H:%M:%S UTC"
         )
         template = self._env.get_template("password_reset_request.html")
-        html_content = template.render(email=email, token=token, expires_at=expiration)
+        html_content = template.render(
+            email=email, reset_link=reset_link, expires_at=expiration
+        )
         await self._send_email(
             email,
             "Reset your Online Cinema password",
             html_content,
-            f"Your password reset token:\n{token}\n\n"
-            "Send token and new_password as JSON to "
-            "POST /api/v1/accounts/password/reset/ using Swagger or Postman.\n"
-            f"This token expires at {expiration} and can be used only once.\n"
+            f"Reset your password:\n{reset_link}\n\n"
+            f"This link expires at {expiration} and can be used only once.\n"
             "If you did not request a reset, you can ignore this email."
         )
 

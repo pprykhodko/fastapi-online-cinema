@@ -71,6 +71,7 @@ class Settings(BaseAppSettings):
         min_length=1,
         repr=False
     )
+    PASSWORD_RESET_URL: HttpUrl = HttpUrl("http://localhost:8000/password-reset/")
 
     S3_ENDPOINT_URL: HttpUrl | None = None
     S3_PUBLIC_ENDPOINT_URL: HttpUrl | None = None

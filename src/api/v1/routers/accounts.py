@@ -202,8 +202,8 @@ async def change_password(
     summary="Request a password reset email",
     description=(
             "Accepts email in JSON. For an active account, saves a one-use "
-            "reset token hash valid for 24 hours. Queues the original token with "
-            "API instructions for delivery by Celery after saving the token. "
+            "reset token hash valid for 24 hours. Queues a reset link "
+            "for delivery by Celery after saving the token. "
             "202 means the request was accepted, not that email was delivered. "
             "A new request replaces the previous token. Unknown and inactive "
             "accounts receive the same success response without an email. "
