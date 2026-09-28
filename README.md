@@ -36,23 +36,9 @@ cp .env.example .env
 In PowerShell, use `Copy-Item .env.example .env` instead. Do not overwrite an
 already configured file.
 
-**Every value in `.env.example` is a placeholder.** Replace them before startup.
-The following development configuration uses the included MailHog server.
-
-- JWT secrets must be different and at least 32 characters long. With Python
-  installed, run `python -c "import secrets; print(secrets.token_urlsafe(48))"`
-  twice to generate them.
-- Choose your own MinIO credentials: Compose uses `S3_ACCESS_KEY` and
-  `S3_SECRET_KEY` as its root username/password. Use a strong password of at
-  least 8 characters.
-- MailHog captures emails locally, without real delivery or SMTP credentials.
-  To use Mailtrap or another provider, replace the SMTP settings with its
-  credentials. Enable TLS or STARTTLS as required, but not both.
-- Stripe keys can remain empty until payment testing. Use test credentials and
-  keep `STRIPE_LIVE_MODE=false` during development.
-- Compose overrides the database connection, Redis URL and internal S3 address.
-  **Both Docker dev and prod use PostgreSQL**, even with `DATABASE_TYPE=sqlite`
-  in this file. Local SQLite is a separate database.
+`.env.example` lists the environment variables required by the project.
+Copy it to `.env` and replace the placeholder values with your own configuration
+before starting the application. Do not commit `.env`.
 
 ### 2. Start the services
 
