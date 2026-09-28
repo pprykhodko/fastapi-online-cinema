@@ -1,0 +1,175 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+from src.api.docs import router as docs_router
+from src.api.pages import router as pages_router
+from src.api.v1.routers import (
+    accounts_router,
+    profiles_router,
+    movies_router,
+    genres_router,
+    stars_router,
+    directors_router,
+    certifications_router,
+    favorites_router,
+    reactions_router,
+    ratings_router,
+    comments_router,
+    cart_router,
+    orders_router,
+    payments_router
+)
+from src.database import engine
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """
+    Run the application lifespan and dispose of the database engine on shutdown.
+
+    Args:
+        _app (FastAPI): FastAPI application, unused by the shutdown hook.
+
+    Yields:
+        None: Control while the application or guarded operation runs.
+    """
+    try:
+        yield
+
+    finally:
+        await engine.dispose()
+
+
+app = FastAPI(
+    title="Online Cinema API",
+    description="An API for browsing movies, managing user accounts, "
+                "shopping carts, orders, and payments",
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
+)
+
+api_version_prefix = "/api/v1"
+
+app.include_router(docs_router)
+app.include_router(pages_router)
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error_handler(
+        _request: Request,
+        error: RequestValidationError
+) -> JSONResponse:
+    """
+    Return validation errors without echoing submitted values such as passwords.
+
+    Args:
+        _request (Request): Incoming request, unused by this error handler.
+        error (RequestValidationError): Request validation exception with field-level
+            error details.
+
+    Returns:
+        JSONResponse: HTTP response for the requested operation.
+    """
+    details = [
+        {
+            "type": item["type"],
+            "loc": item["loc"],
+            "msg": item["msg"]
+        } for item in error.errors()
+    ]
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": details}
+    )
+
+
+app.include_router(
+    accounts_router,
+    prefix=f"{api_version_prefix}/accounts",
+    tags=["accounts"]
+)
+
+app.include_router(
+    profiles_router,
+    prefix=f"{api_version_prefix}/profiles",
+    tags=["profiles"]
+)
+
+app.include_router(
+    movies_router,
+    prefix=f"{api_version_prefix}/movies",
+    tags=["movies"]
+)
+
+app.include_router(
+    genres_router,
+    prefix=f"{api_version_prefix}/genres",
+    tags=["genres"]
+)
+
+app.include_router(
+    stars_router,
+    prefix=f"{api_version_prefix}/stars",
+    tags=["stars"]
+)
+
+app.include_router(
+    directors_router,
+    prefix=f"{api_version_prefix}/directors",
+    tags=["directors"]
+)
+
+app.include_router(
+    certifications_router,
+    prefix=f"{api_version_prefix}/certifications",
+    tags=["certifications"]
+)
+
+app.include_router(
+    favorites_router,
+    prefix=f"{api_version_prefix}/favorites",
+    tags=["favorites"]
+)
+
+app.include_router(
+    reactions_router,
+    prefix=f"{api_version_prefix}/movies",
+    tags=["reactions"]
+)
+
+app.include_router(
+    ratings_router,
+    prefix=f"{api_version_prefix}/movies",
+    tags=["ratings"]
+)
+
+app.include_router(
+    comments_router,
+    prefix=api_version_prefix,
+    tags=["comments"]
+)
+
+app.include_router(
+    cart_router,
+    prefix=f"{api_version_prefix}/cart",
+    tags=["cart"]
+)
+
+app.include_router(
+    orders_router,
+    prefix=f"{api_version_prefix}/orders",
+    tags=["orders"]
+)
+
+app.include_router(
+    payments_router,
+    prefix=f"{api_version_prefix}/payments",
+    tags=["payments"]
+)

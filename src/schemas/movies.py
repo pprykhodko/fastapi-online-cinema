@@ -1,0 +1,334 @@
+from datetime import datetime
+from decimal import Decimal
+from typing import Literal
+from uuid import UUID
+
+from pydantic import BaseModel, Field, field_validator
+
+from src.database.validators import movies as movies_validators
+from src.schemas.common import PaginationQuerySchema, PaginationResponseSchema
+
+
+class BaseMovieIdRequestSchema(BaseModel):
+    movie_id: int = Field(gt=0, strict=True)
+
+    model_config = {
+        "extra": "forbid"
+    }
+
+
+class BaseNameRequestSchema(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+
+    model_config = {
+        "extra": "forbid"
+    }
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        """
+        Strip surrounding whitespace and reject an empty name.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
+        return movies_validators.validate_name(value)
+
+
+class GenreCreateRequestSchema(BaseNameRequestSchema):
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        """
+        Allow only English letters and spaces in a nonempty genre name.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
+        return movies_validators.validate_genre_name(value)
+
+
+class GenreUpdateRequestSchema(GenreCreateRequestSchema):
+    pass
+
+
+class StarCreateRequestSchema(BaseNameRequestSchema):
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        """
+        Allow English name parts separated by a single space or hyphen.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
+        return movies_validators.validate_star_name(value)
+
+
+class StarUpdateRequestSchema(StarCreateRequestSchema):
+    pass
+
+
+class DirectorCreateRequestSchema(BaseNameRequestSchema):
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        """
+        Allow English letters, spaces and hyphens in a nonempty director name.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
+        return movies_validators.validate_director_name(value)
+
+
+class DirectorUpdateRequestSchema(DirectorCreateRequestSchema):
+    pass
+
+
+class CertificationCreateRequestSchema(BaseNameRequestSchema):
+    pass
+
+
+class CertificationUpdateRequestSchema(BaseNameRequestSchema):
+    pass
+
+
+class NamedEntityResponseSchema(BaseModel):
+    id: int = Field(gt=0)
+    name: str
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class GenreResponseSchema(NamedEntityResponseSchema):
+    pass
+
+
+class GenreWithMovieCountResponseSchema(GenreResponseSchema):
+    movie_count: int = Field(ge=0)
+
+
+class StarResponseSchema(NamedEntityResponseSchema):
+    pass
+
+
+class DirectorResponseSchema(NamedEntityResponseSchema):
+    pass
+
+
+class CertificationResponseSchema(NamedEntityResponseSchema):
+    pass
+
+
+class BaseMovieSchema(BaseModel):
+    name: str = Field(min_length=1, max_length=250)
+    year: int = Field(strict=True)
+    time: int = Field(gt=0, strict=True)
+    imdb: float = Field(ge=0, le=10, allow_inf_nan=False)
+    votes: int = Field(ge=0, strict=True)
+    description: str
+    price: Decimal | None = Field(ge=0, max_digits=10, decimal_places=2)
+    meta_score: float | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        allow_inf_nan=False
+    )
+    gross: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        """
+        Strip surrounding whitespace and reject an empty name.
+
+        Args:
+            value (str): Field value to validate or normalize.
+
+        Returns:
+            str: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
+        return movies_validators.validate_name(value)
+
+    @field_validator("price")
+    @classmethod
+    def validate_price(cls, value: Decimal | None) -> Decimal | None:
+        """
+        Allow no price or a valid nonnegative monetary Decimal.
+
+        Args:
+            value (Decimal | None): Field value to validate or normalize.
+
+        Returns:
+            Decimal | None: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
+        return movies_validators.validate_non_negative_decimal(value, "price")
+
+
+class MovieCreateRequestSchema(BaseMovieSchema):
+    certification_id: int = Field(gt=0, strict=True)
+    genre_ids: list[int] = Field(default_factory=list)
+    star_ids: list[int] = Field(default_factory=list)
+    director_ids: list[int] = Field(default_factory=list)
+
+    model_config = {
+        "extra": "forbid"
+    }
+
+    @field_validator(
+        "genre_ids",
+        "star_ids",
+        "director_ids",
+        mode="before"
+    )
+    @classmethod
+    def validate_related_ids(cls, values: list[int]) -> list[int]:
+        """
+        Require a list of distinct positive integer IDs, rejecting booleans.
+
+        Args:
+            values (list[int]): Related record IDs supplied by the caller.
+
+        Returns:
+            list[int]: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
+        if not isinstance(values, list):
+            raise ValueError("Related IDs must be a list")
+
+        for value in values:
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError("Related IDs must be integers")
+
+            if value <= 0:
+                raise ValueError("Related IDs must be positive")
+
+        if len(values) != len(set(values)):
+            raise ValueError("Related IDs must not contain duplicates")
+
+        return values
+
+
+class MovieUpdateRequestSchema(MovieCreateRequestSchema):
+    pass
+
+
+class MovieListItemResponseSchema(BaseModel):
+    id: int = Field(gt=0)
+    name: str
+    year: int
+    time: int
+    imdb: float
+    price: Decimal | None
+    is_available_for_purchase: bool
+    genres: list[GenreResponseSchema]
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class BaseMovieItemResponseSchema(BaseModel):
+    id: int = Field(gt=0)
+    movie: MovieListItemResponseSchema
+    added_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class MovieDetailResponseSchema(BaseMovieSchema):
+    id: int = Field(gt=0)
+    uuid: UUID
+    is_available_for_purchase: bool
+    certification: CertificationResponseSchema
+    genres: list[GenreResponseSchema]
+    stars: list[StarResponseSchema]
+    directors: list[DirectorResponseSchema]
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class MovieListQuerySchema(PaginationQuerySchema):
+    page: int = Field(default=1, ge=1, le=1_000_000)
+    year: int | None = Field(default=None, ge=-(2**31), le=2**31 - 1)
+    min_imdb: float | None = Field(
+        default=None,
+        ge=0,
+        le=10,
+        allow_inf_nan=False
+    )
+    genre_id: int | None = Field(default=None, gt=0, le=2**31 - 1)
+    search: str | None = Field(default=None, min_length=1, max_length=250)
+    sort_by: Literal["price", "year", "popularity"] = "year"
+    sort_order: Literal["asc", "desc"] = "desc"
+
+    @field_validator("search")
+    @classmethod
+    def validate_search(cls, value: str | None) -> str | None:
+        """
+        Strip a provided search term and reject a whitespace-only term.
+
+        Args:
+            value (str | None): Field value to validate or normalize.
+
+        Returns:
+            str | None: Validated value, normalized when applicable.
+
+        Raises:
+            ValueError: The value does not satisfy the validation rules.
+        """
+        if value is None:
+            return None
+
+        return movies_validators.validate_name(value)
+
+
+class MovieCatalogItemResponseSchema(MovieListItemResponseSchema):
+    votes: int = Field(ge=0)
+    likes_count: int = Field(default=0, ge=0)
+    dislikes_count: int = Field(default=0, ge=0)
+    average_rating: float | None = Field(default=None, ge=1, le=10)
+
+
+class MovieListResponseSchema(PaginationResponseSchema):
+    items: list[MovieCatalogItemResponseSchema]

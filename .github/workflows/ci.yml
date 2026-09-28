@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, types and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      POETRY_NO_INTERACTION: "1"
+      POETRY_VIRTUALENVS_IN_PROJECT: "true"
+      DATABASE_TYPE: sqlite
+      PATH_TO_DB: ":memory:"
+      DATABASE_ECHO: "false"
+      # Test-only values, never use these keys for deployment.
+      JWT_ACCESS_SECRET_KEY: test-only-access-secret-not-for-real-deployment
+      JWT_REFRESH_SECRET_KEY: test-only-refresh-secret-not-for-real-deployment
+      SMTP_HOST: localhost
+      SMTP_PORT: "1025"
+      SMTP_USE_TLS: "false"
+      SMTP_START_TLS: "false"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Install Poetry
+        run: python -m pip install poetry==2.4.1
+
+      - name: Install dependencies
+        run: poetry install --with dev --no-root --no-ansi
+
+      - name: Check code style
+        run: poetry run flake8 src
+
+      - name: Check types
+        run: poetry run mypy src
+
+      - name: Run tests with coverage
+        id: tests
+        run: >-
+          poetry run pytest src/tests -q
+          --cov=src
+          --cov-report=term-missing
+          --cov-report=html
+          --cov-report=xml
+
+      - name: Upload coverage reports
+        if: ${{ always() && steps.tests.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-python-3.10
+          path: |
+            coverage.xml
+            htmlcov/
+          retention-days: 7
+          if-no-files-found: warn
