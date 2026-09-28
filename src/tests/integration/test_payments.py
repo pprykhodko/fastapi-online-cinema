@@ -323,11 +323,12 @@ async def test_authentication_required(payments_api, path, method):
 
 
 @pytest.mark.asyncio
-async def test_admin_filters_and_private_history(payments_api):
+@pytest.mark.parametrize("staff_role", ["admin", "mod"])
+async def test_admin_filters_and_private_history(payments_api, staff_role):
     client, _, headers, _, _ = payments_api
     await complete_payment(payments_api)
     assert (await client.get(URL, headers=headers["other"])).json()["total"] == 0
-    for role in ["user", "mod"]:
+    for role in ["user", "other"]:
         assert (
             await client.get(URL + "admin/", headers=headers[role])
         ).status_code == 403
@@ -340,7 +341,7 @@ async def test_admin_filters_and_private_history(payments_api):
         ({"page": 20}, 1)
     ]:
         result = await client.get(
-            URL + "admin/", headers=headers["admin"], params=filters
+            URL + "admin/", headers=headers[staff_role], params=filters
         )
         assert result.status_code == 200, result.text
         assert result.json()["total"] == total

@@ -238,20 +238,22 @@ async def test_payment_record_prevents_cancellation_even_if_order_status_is_stal
         ({"date_to": "9999-12-31"}, [4, 3, 2, 1])
     ]
 )
-async def test_admin_order_filters(orders_api, params, ids):
+@pytest.mark.parametrize("role", ["admin", "moderator"])
+async def test_admin_order_filters(orders_api, params, ids, role):
     client, _, _, _, headers = orders_api
-    response = await client.get(URL + "admin/", headers=headers["admin"], params=params)
+    response = await client.get(URL + "admin/", headers=headers[role], params=params)
     assert response.status_code == 200, response.text
     assert [order["id"] for order in response.json()["items"]] == ids
     assert response.json()["total"] == len(ids)
 
 
 @pytest.mark.asyncio
-async def test_admin_combines_filters_and_pagination(orders_api):
+@pytest.mark.parametrize("role", ["admin", "moderator"])
+async def test_admin_combines_filters_and_pagination(orders_api, role):
     client, _, user_id, _, headers = orders_api
     result = await client.get(
         URL + "admin/",
-        headers=headers["admin"],
+        headers=headers[role],
         params={
             "user_id": user_id,
             "date_from": "2030-01-01",
@@ -265,7 +267,7 @@ async def test_admin_combines_filters_and_pagination(orders_api):
     assert result.json()["items"][0]["id"] == 2
     result = await client.get(
         URL + "admin/",
-        headers=headers["admin"],
+        headers=headers[role],
         params={
             "user_id": user_id,
             "status": "pending",
@@ -276,10 +278,10 @@ async def test_admin_combines_filters_and_pagination(orders_api):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("role", ["user", "moderator"])
-async def test_admin_list_rejects_other_roles(orders_api, role):
+async def test_admin_list_rejects_regular_user(orders_api):
     client, _, _, _, headers = orders_api
-    assert (await client.get(URL + "admin/", headers=headers[role])).status_code == 403
+    response = await client.get(URL + "admin/", headers=headers["user"])
+    assert response.status_code == 403
 
 
 @pytest.mark.asyncio
