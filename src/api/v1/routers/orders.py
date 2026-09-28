@@ -11,7 +11,7 @@ from src.schemas.orders import (
     OrderListResponseSchema,
     OrderResponseSchema
 )
-from src.security.dependencies import get_current_admin, get_current_user
+from src.security.dependencies import get_current_moderator, get_current_user
 from src.services.orders import OrderService
 
 
@@ -70,10 +70,10 @@ async def list_orders(
 @router.get(
     "/admin/",
     response_model=OrderListResponseSchema,
-    dependencies=[Depends(get_current_admin)],
-    summary="List all orders as an administrator",
+    dependencies=[Depends(get_current_moderator)],
+    summary="List all orders as an administrator or moderator",
     description=(
-            "ADMIN only. Optional filters: user_id, "
+            "ADMIN or MODERATOR. Optional filters: user_id, "
             "status (pending, paid, canceled), date_from and date_to "
             "(YYYY-MM-DD, both dates inclusive in UTC). "
             "Filters combine with AND. Supports page and per_page; "
@@ -86,7 +86,7 @@ async def list_all_orders(
         service: OrderService = Depends(get_order_service)
 ) -> OrderListResponseSchema:
     """
-    Return paginated orders for administrators with optional user, date and status
+    Return paginated orders for staff with optional user, date and status
     filters.
 
     Args:

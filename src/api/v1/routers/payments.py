@@ -27,7 +27,7 @@ from src.schemas.payments import (
     PaymentResponseSchema,
     PurchasedMovieListResponseSchema
 )
-from src.security.dependencies import get_current_admin, get_current_user
+from src.security.dependencies import get_current_moderator, get_current_user
 from src.services.payments import PaymentService
 
 
@@ -160,9 +160,9 @@ async def list_payments(
 @router.get(
     "/admin/",
     response_model=PaymentListResponseSchema,
-    dependencies=[Depends(get_current_admin)],
-    summary="Filter all payments as an administrator",
-    description="ADMIN only. Filter by user_id, status, date_from/date_to "
+    dependencies=[Depends(get_current_moderator)],
+    summary="Filter all payments as an administrator or moderator",
+    description="ADMIN or MODERATOR. Filter by user_id, status, date_from/date_to "
                 "(YYYY-MM-DD, inclusive UTC). Filters combine with AND. "
                 "Supports page and per_page; newest first."
 )
@@ -171,7 +171,7 @@ async def admin_payments(
         service: PaymentService = Depends(get_payment_service)
 ) -> PaymentListResponseSchema:
     """
-    Return payment history for administrators with user, date and status filters.
+    Return payment history for staff with user, date and status filters.
 
     Args:
         query (AdminPaymentListQuerySchema): Validated pagination and any supported

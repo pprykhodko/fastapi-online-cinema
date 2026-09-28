@@ -18,7 +18,7 @@ included only for activation, password recovery and payment results.
 - **Stripe** — hosted checkout, webhook verification and full refunds.
 - **Poetry + Docker Compose** — dependencies and application infrastructure.
 - **pytest + pytest-cov, Flake8, mypy** — tests, coverage, style and type checks.
-- **GitHub Actions** — continuous integration and deployment.
+- **GitHub Actions** — continuous integration and manually triggered deployment.
 
 ## Local setup
 
@@ -359,7 +359,7 @@ fields, access rules and operation details are described above and in Swagger.
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | GET | `/orders/` | List your orders |
-| GET | `/orders/admin/` | List all orders as an administrator |
+| GET | `/orders/admin/` | List all orders as an administrator or moderator |
 | GET | `/orders/{order_id}/` | View your order |
 | PATCH | `/orders/{order_id}/cancel/` | Cancel your pending order |
 
@@ -370,7 +370,7 @@ fields, access rules and operation details are described above and in Swagger.
 | POST | `/payments/checkout/` | Pay for your order with Stripe |
 | POST | `/payments/checkout/{order_id}/cancel/` | Cancel an unpaid checkout |
 | GET | `/payments/` | View your payment history |
-| GET | `/payments/admin/` | Filter all payments as an administrator |
+| GET | `/payments/admin/` | Filter all payments as an administrator or moderator |
 | GET | `/payments/purchased/` | List your purchased movies |
 | POST | `/payments/refund/` | Request a full refund |
 | POST | `/payments/webhook/` | Receive signed Stripe events |
